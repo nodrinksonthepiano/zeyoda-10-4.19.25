@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZEYODA - Artist-First Landing Page</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="gosheesh-theme">
+    <div class="cosmic-particles" id="particles"></div>
+    
+    <header>
+        <h1 class="artist-name" id="artistName">GOSHEESH</h1>
+    </header>
+    
+    <main>
+        <div class="video-container">
+            <div class="orbit-glow"></div>
+            <video id="artistVideo" autoplay loop muted playsinline poster="assets/video-poster.jpg">
+                <source src="assets/gosheesh-video.mp4" type="video/mp4" id="videoSource">
+                <!-- Fallback content if video is not available -->
+            </video>
+            <div class="video-fallback" id="videoFallback">
+                <div class="fallback-icon">▶️</div>
+                <p>Video placeholder for <span id="artistVideoName">GOSHEESH</span></p>
+                <p class="fallback-note">Add videos to assets/ directory to see actual content</p>
+            </div>
+            
+            <div class="orbital-tokens" id="orbitalTokens">
+                <!-- Tokens will be added by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2 id="supportHeadline">Support GOSHEESH and unlock your Artistock</h2>
+            
+            <div class="payment-section">
+                <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
+                <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
+                <button class="payment-btn credit" onclick="handlePayment('credit')">Pay with Credit Card</button>
+                <button class="payment-btn crypto" onclick="handlePayment('crypto')">Pay with Crypto</button>
+            </div>
+            
+            <div class="login-section">
+                <button class="login-btn twitter" onclick="handleLogin('twitter')">Continue with X (Twitter)</button>
+                <button class="login-btn phone" onclick="handleLogin('phone')">Continue with Phone Number</button>
+                <button class="login-btn gmail" onclick="handleLogin('gmail')">Continue with Gmail</button>
+                <button class="login-btn email" onclick="handleLogin('email')">Continue with Email</button>
+                <button class="login-btn facebook" onclick="handleLogin('facebook')">Continue with Facebook</button>
+            </div>
+            
+            <div class="success-section" id="successSection" style="display: none;">
+                <div class="success-check">✅</div>
+                <h3>You now own a <span id="artistStockName">GOSHEESH</span> Artistock</h3>
+                <p>This track is now in your orbit forever</p>
+                <button class="explore-btn" onclick="transitionToArtist('jaitea')">Explore More Artists</button>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="chat-input">
+            <input type="text" placeholder="Type a message..." disabled>
+        </div>
+    </footer>
+    
+    <script src="script.js"></script>
+</body>
+</html> 

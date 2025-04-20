@@ -1,0 +1,12 @@
+Video Placeholder Instructions
+
+For the ZEYODA MVP to work properly, you need to add two video files to this directory:
+
+1. gosheesh-video.mp4 - Video for GOSHEESH artist
+2. jaitea-video.mp4 - Video for JAI TEA artist
+
+These can be any video files you choose, just rename them to match the expected filenames.
+
+Alternative options:
+- Update the video source in index.html to point to online videos
+- Replace with YouTube embeds by modifying the HTML 
