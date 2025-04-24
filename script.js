@@ -1,18 +1,18 @@
 // Token data for both artists
 const tokenData = {
     gosheesh: [
-        { name: "Nebula", angle: 0 },
-        { name: "Stardust", angle: 72 },
-        { name: "EchoSpace", angle: 144 },
-        { name: "Cosmic Wave", angle: 216 },
-        { name: "Astral Pulse", angle: 288 }
+        { name: "LONIARI", angle: 0 },
+        { name: "ANBRI SPPIR", angle: 72 },
+        { name: "IJA TEA", angle: 144 },
+        { name: "NYTO SAREGL", angle: 216 },
+        { name: "LUMLITANIDE\nSTRIPIS", angle: 288 }
     ],
     jaitea: [
-        { name: "Emerald Flow", angle: 0 },
-        { name: "Jade Echo", angle: 72 },
-        { name: "Forest Pulse", angle: 144 },
-        { name: "Crystal Wave", angle: 216 },
-        { name: "Aqua Mist", angle: 288 }
+        { name: "LONIARI", angle: 0 },
+        { name: "ANBRI SPPIR", angle: 72 },
+        { name: "SHEEGOHS", angle: 144 },
+        { name: "NYTO SAREGL", angle: 216 },
+        { name: "LUMLITANIDE\nSTRIPIS", angle: 288 }
     ]
 };
 
@@ -20,11 +20,11 @@ const tokenData = {
 const artistData = {
     gosheesh: {
         tokenPrice: 0.0005, // $0.0005 per Artistock
-        name: "GOSHEESH"
+        name: "SHEEGOHS"
     },
     jaitea: {
         tokenPrice: 0.0004, // $0.0004 per Artistock
-        name: "JAI TEA"
+        name: "IJA TEA"
     }
 };
 
@@ -319,7 +319,23 @@ function setupOrbitalTokens(artist) {
         tokenElement.classList.add('token');
         tokenElement.setAttribute('data-index', index);
         tokenElement.setAttribute('data-angle', token.angle);
-        tokenElement.innerText = token.name;
+        tokenElement.setAttribute('data-artist', token.name.replace('\n', ' '));
+        tokenElement.innerHTML = token.name;
+        
+        // Make tokens clickable
+        tokenElement.addEventListener('click', function() {
+            const tokenArtist = this.getAttribute('data-artist');
+            
+            // Handle navigation based on token name
+            if (tokenArtist === 'IJA TEA' && currentArtist.toLowerCase() === 'gosheesh') {
+                // Navigate to JAI TEA page
+                transitionToArtist('jaitea');
+            } else if (tokenArtist === 'SHEEGOHS' && currentArtist.toLowerCase() === 'jaitea') {
+                // Navigate to GOSHEESH page
+                transitionToArtist('gosheesh');
+            }
+            // Add more cases for other artists when they have pages
+        });
         
         orbitalTokensContainer.appendChild(tokenElement);
     });
@@ -342,8 +358,8 @@ function animateOrbit() {
     const videoHeight = video.offsetHeight;
     
     // Match the orbital radius to the orbit-glow element 
-    // Using the video width to create a perfect circle
-    const orbitRadius = videoWidth * 0.65;
+    // Using the video width to create a perfect circle - increased for longer artist names
+    const orbitRadius = videoWidth * 0.75; // Increased from 0.7 to 0.75
     
     const orbitSpeed = 0.004; // Adjusted speed of rotation
     
