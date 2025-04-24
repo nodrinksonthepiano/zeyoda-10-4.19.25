@@ -29,32 +29,72 @@
                 <p class="fallback-note">Add videos to assets/ directory to see actual content</p>
             </div>
             
+            <div class="video-controls">
+                <button id="muteToggle" class="video-control-btn" aria-label="Unmute">
+                    <span class="muted-icon">🔇</span>
+                    <span class="unmuted-icon" style="display:none">🔊</span>
+                </button>
+                <button id="fullscreenToggle" class="video-control-btn" aria-label="Fullscreen">
+                    <span class="fullscreen-icon">⛶</span>
+                </button>
+            </div>
+            
             <div class="orbital-tokens" id="orbitalTokens">
                 <!-- Tokens will be added by JavaScript -->
             </div>
         </div>
         
         <div class="content-section">
-            <h2 id="supportHeadline">Support GOSHEESH and unlock your Artistock</h2>
+            <h2 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">GOSHEESH</span> Artistocks</h2>
             
-            <div class="payment-section">
-                <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
-                <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
-                <button class="payment-btn credit" onclick="handlePayment('credit')">Pay with Credit Card</button>
-                <button class="payment-btn crypto" onclick="handlePayment('crypto')">Pay with Crypto</button>
+            <!-- Login Section -->
+            <div class="login-section" id="loginSection">
+                <div class="email-login-container">
+                    <input type="email" id="emailInput" placeholder="Enter your email address" class="email-input">
+                    <button class="login-btn email" onclick="handleEmailLogin()">Continue with Email</button>
+                </div>
+                <div class="social-login-container">
+                    <p class="login-separator">or continue with</p>
+                    <div class="social-buttons">
+                        <button class="login-btn twitter" onclick="handleLogin('twitter')">X (Twitter)</button>
+                        <button class="login-btn gmail" onclick="handleLogin('gmail')">Gmail</button>
+                        <button class="login-btn phone" onclick="handleLogin('phone')">Phone</button>
+                        <button class="login-btn facebook" onclick="handleLogin('facebook')">Facebook</button>
+                    </div>
+                </div>
             </div>
             
-            <div class="login-section">
-                <button class="login-btn twitter" onclick="handleLogin('twitter')">Continue with X (Twitter)</button>
-                <button class="login-btn phone" onclick="handleLogin('phone')">Continue with Phone Number</button>
-                <button class="login-btn gmail" onclick="handleLogin('gmail')">Continue with Gmail</button>
-                <button class="login-btn email" onclick="handleLogin('email')">Continue with Email</button>
-                <button class="login-btn facebook" onclick="handleLogin('facebook')">Continue with Facebook</button>
+            <!-- Artistock Purchase Section (initially hidden) -->
+            <div class="purchase-section" id="purchaseSection" style="display: none;">
+                <h3 id="purchaseHeadline">Purchase <span id="artistStockPurchaseName">GOSHEESH</span> Artistocks</h3>
+                <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
+                
+                <div class="slider-container">
+                    <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
+                    <div class="slider-value-container">
+                        <div class="token-input-group">
+                            <label for="tokenAmountInput">Artistocks:</label>
+                            <input type="text" id="tokenAmountInput" class="token-input" value="100">
+                        </div>
+                        <div class="total-input-group">
+                            <label for="tokenTotalInput">Total: $</label>
+                            <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="payment-section">
+                    <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
+                    <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
+                    <button class="payment-btn credit" onclick="handlePayment('credit')">Pay with Credit Card</button>
+                    <button class="payment-btn crypto" onclick="handlePayment('crypto')">Pay with Crypto</button>
+                </div>
             </div>
             
+            <!-- Success Section (initially hidden) -->
             <div class="success-section" id="successSection" style="display: none;">
                 <div class="success-check">✅</div>
-                <h3>You now own a <span id="artistStockName">GOSHEESH</span> Artistock</h3>
+                <h3>You now own <span id="purchasedAmount">100</span> <span id="artistStockName">GOSHEESH</span> Artistocks</h3>
                 <p>This track is now in your orbit forever</p>
                 <button class="explore-btn" onclick="transitionToArtist('jaitea')">Explore More Artists</button>
             </div>
