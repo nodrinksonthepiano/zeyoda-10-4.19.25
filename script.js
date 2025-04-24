@@ -34,6 +34,7 @@ let isLoggedIn = false;
 let paymentSelected = false;
 let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
+let isAuthenticated = false; // Global authentication state that persists between artists
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
@@ -447,6 +448,13 @@ function handleLogin(method) {
 // Complete login process and show purchase section
 function completeLogin(method) {
     isLoggedIn = true;
+    isAuthenticated = true; // Set global authentication state
+    
+    // Remember the selected token amount
+    const purchaseAmount = document.getElementById('purchaseAmount');
+    if (purchaseAmount) {
+        purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
+    }
     
     // Hide login section with fade out
     const loginSection = document.getElementById('loginSection');
@@ -524,12 +532,15 @@ function unlockArtistock() {
     
     // Update artist stock name
     document.getElementById('artistStockName').textContent = artistData[currentArtist].name;
+    
+    // Ensure we maintain authenticated state
+    isAuthenticated = true;
 }
 
 // Transition to a different artist
 function transitionToArtist(artistName) {
-    // Reset state
-    isLoggedIn = false;
+    // Reset state but preserve authentication
+    isLoggedIn = isAuthenticated;
     paymentSelected = false;
     
     // Update current artist
@@ -541,6 +552,7 @@ function transitionToArtist(artistName) {
     // Update artist name
     document.getElementById('artistName').textContent = artistData[currentArtist].name;
     document.getElementById('artistVideoName').textContent = artistData[currentArtist].name;
+    document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
     
     // Update video source
     const video = document.getElementById('artistVideo');
@@ -584,26 +596,43 @@ function transitionToArtist(artistName) {
         showVideoFallback(true);
     });
     
-    // Update token price
+    // Update token price and reset token slider
     updateArtistTokenPrice();
+    
+    // Update purchase headline for the new artist
+    const purchaseAmount = document.getElementById('purchaseAmount');
+    if (purchaseAmount) {
+        purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
+    }
     
     // Hide success section
     document.getElementById('successSection').style.display = 'none';
     
-    // Reset and show login section
-    const loginSection = document.getElementById('loginSection');
-    loginSection.style.display = 'flex';
-    loginSection.style.opacity = '1';
-    
-    // Reset email input
-    if (document.getElementById('emailInput')) {
-        document.getElementById('emailInput').value = '';
+    // Show appropriate section based on authentication status
+    if (isAuthenticated) {
+        // User is already authenticated, show purchase section directly
+        const loginSection = document.getElementById('loginSection');
+        loginSection.style.display = 'none';
+        
+        const purchaseSection = document.getElementById('purchaseSection');
+        purchaseSection.style.display = 'block';
+        purchaseSection.style.opacity = '1';
+    } else {
+        // User is not authenticated, show login section
+        const loginSection = document.getElementById('loginSection');
+        loginSection.style.display = 'flex';
+        loginSection.style.opacity = '1';
+        
+        // Reset email input
+        if (document.getElementById('emailInput')) {
+            document.getElementById('emailInput').value = '';
+        }
+        
+        // Hide purchase section
+        const purchaseSection = document.getElementById('purchaseSection');
+        purchaseSection.style.display = 'none';
+        purchaseSection.style.opacity = '0';
     }
-    
-    // Hide purchase section
-    const purchaseSection = document.getElementById('purchaseSection');
-    purchaseSection.style.display = 'none';
-    purchaseSection.style.opacity = '0';
     
     // Update orbital tokens
     setupOrbitalTokens(currentArtist);

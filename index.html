@@ -45,10 +45,29 @@
         </div>
         
         <div class="content-section">
-            <h2 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">GOSHEESH</span> Artistocks</h2>
+            <!-- Token Purchase Info Section (Before Login) -->
+            <div class="token-preview-section">
+                <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
+                
+                <div class="slider-container">
+                    <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
+                    <div class="slider-value-container">
+                        <div class="token-input-group">
+                            <label for="tokenAmountInput">Artistocks:</label>
+                            <input type="text" id="tokenAmountInput" class="token-input" value="100">
+                        </div>
+                        <div class="total-input-group">
+                            <label for="tokenTotalInput">Total: $</label>
+                            <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Login Section -->
             <div class="login-section" id="loginSection">
+                <h3 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">GOSHEESH</span> Artistocks</h3>
+                
                 <div class="email-login-container">
                     <input type="email" id="emailInput" placeholder="Enter your email address" class="email-input">
                     <button class="login-btn email" onclick="handleEmailLogin()">Continue with Email</button>
@@ -66,23 +85,7 @@
             
             <!-- Artistock Purchase Section (initially hidden) -->
             <div class="purchase-section" id="purchaseSection" style="display: none;">
-                <h3 id="purchaseHeadline">Purchase <span id="artistStockPurchaseName">GOSHEESH</span> Artistocks</h3>
-                <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
-                
-                <div class="slider-container">
-                    <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
-                    <div class="slider-value-container">
-                        <div class="token-input-group">
-                            <label for="tokenAmountInput">Artistocks:</label>
-                            <input type="text" id="tokenAmountInput" class="token-input" value="100">
-                        </div>
-                        <div class="total-input-group">
-                            <label for="tokenTotalInput">Total: $</label>
-                            <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
-                        </div>
-                    </div>
-                </div>
-                
+                <h3 id="purchaseHeadline">Complete your purchase of <span id="purchaseAmount">100</span> <span id="artistStockPurchaseName">GOSHEESH</span> Artistocks</h3>
                 <div class="payment-section">
                     <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
                     <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
