@@ -884,61 +884,87 @@ footer {
     box-shadow: 0 5px 15px rgba(78, 223, 177, 0.3);
 }
 
-/* Video controls styling */
+/* Video controls */
 .video-controls {
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    bottom: 10px;
+    right: 10px;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     z-index: 10;
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-}
-
-.video-controls:hover {
-    opacity: 1;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px;
+    border-radius: 20px;
+    backdrop-filter: blur(5px);
 }
 
 .video-control-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    background: none;
     border: none;
-    background: rgba(0, 0, 0, 0.5);
     color: white;
-    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(3px);
-}
-
-.gosheesh-theme .video-control-btn {
-    box-shadow: 0 0 10px rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .video-control-btn {
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.5);
 }
 
 .video-control-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
     transform: scale(1.1);
-    background: rgba(0, 0, 0, 0.7);
 }
 
-.gosheesh-theme .video-control-btn:hover {
-    box-shadow: 0 0 15px rgba(64, 115, 255, 0.7);
+/* Artwork info */
+.artwork-info {
+    position: absolute;
+    bottom: 10px;
+    left: 20px;
+    width: auto;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px 12px;
+    border-radius: 6px;
+    backdrop-filter: blur(5px);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 140px); /* Leave space for video controls */
 }
 
-.jaitea-theme .video-control-btn:hover {
-    box-shadow: 0 0 15px rgba(78, 223, 177, 0.7);
+.artwork-title {
+    font-family: 'Bungee', cursive;
+    font-size: 1rem;
+    color: white;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.video-control-btn span {
-    display: inline-block;
+.artwork-description {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .artwork-title {
+        font-size: 0.9rem;
+    }
+    
+    .artwork-description {
+        font-size: 0.7rem;
+    }
+    
+    .artwork-info {
+        padding: 6px 10px;
+        left: 15px;
+        max-width: calc(100% - 120px); /* Slightly less space on mobile */
+    }
 }
 
 /* Token preview section on the first page */
