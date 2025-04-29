@@ -45,8 +45,12 @@
         </div>
         
         <div class="content-section">
-            <!-- Token Purchase Info Section (Before Login) -->
-            <div class="token-preview-section">
+            <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Type a message..." class="chat-input">
+            </div>
+
+            <!-- Token Purchase Info Section (Initially Hidden) -->
+            <div class="token-preview-section" id="tokenPreviewSection" style="display: none;">
                 <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
                 
                 <div class="slider-container">
@@ -105,9 +109,6 @@
     </main>
     
     <footer>
-        <div class="chat-input">
-            <input type="text" placeholder="Type a message..." disabled>
-        </div>
     </footer>
     
     <script src="script.js"></script>

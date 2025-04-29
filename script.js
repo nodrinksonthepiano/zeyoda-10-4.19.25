@@ -553,22 +553,69 @@ function unlockArtistock() {
     isAuthenticated = true;
 }
 
-// Transition to a different artist
-function transitionToArtist(artistName) {
+// Safeword detection
+document.getElementById('chatInput').addEventListener('input', function(e) {
+    const input = e.target.value.toLowerCase();
+    const safewordPatterns = [
+        'artistock',
+        'artist stock',
+        'artstock',
+        'art stock'
+    ];
+    
+    // Check for fuzzy matches
+    const matches = safewordPatterns.some(pattern => {
+        // Allow for plural forms and minor typos
+        const fuzzyPattern = pattern.replace(/\s+/g, '.*');
+        const regex = new RegExp(fuzzyPattern + 's?', 'i');
+        return regex.test(input);
+    });
+
+    if (matches) {
+        // Clear the input
+        e.target.value = '';
+        
+        // Show the token preview section with a smooth animation
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        tokenSection.style.display = 'block';
+        tokenSection.style.opacity = '0';
+        tokenSection.style.transform = 'translateY(-20px)';
+        
+        // Trigger animation
+        setTimeout(() => {
+            tokenSection.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            tokenSection.style.opacity = '1';
+            tokenSection.style.transform = 'translateY(0)';
+        }, 10);
+    }
+});
+
+// Function to handle artist transition
+function transitionToArtist(artistId) {
+    const currentArtist = artistId.toUpperCase();
+    document.getElementById('artistName').textContent = currentArtist;
+    document.getElementById('artistTokenName').textContent = currentArtist;
+    document.getElementById('artistNameAccess').textContent = currentArtist;
+    document.getElementById('artistVideoName').textContent = currentArtist;
+    
+    // Update video source if needed
+    const videoSource = document.getElementById('videoSource');
+    videoSource.src = `assets/${artistId.toLowerCase()}-video.mp4`;
+    document.getElementById('artistVideo').load();
+    
+    // Reset purchase box state
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    tokenSection.style.display = 'none';
+    
+    // Clear chat input
+    document.getElementById('chatInput').value = '';
+    
     // Reset state but preserve authentication
     isLoggedIn = isAuthenticated;
     paymentSelected = false;
     
-    // Update current artist
-    currentArtist = artistName.toLowerCase();
-    
     // Change theme
-    document.body.className = `${currentArtist}-theme`;
-    
-    // Update artist name
-    document.getElementById('artistName').textContent = artistData[currentArtist].name;
-    document.getElementById('artistVideoName').textContent = artistData[currentArtist].name;
-    document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
+    document.body.className = `${currentArtist.toLowerCase()}-theme`;
     
     // Update video source
     const video = document.getElementById('artistVideo');
@@ -579,7 +626,7 @@ function transitionToArtist(artistName) {
     video.style.opacity = '0';
     
     // Update source
-    source.src = `assets/${currentArtist}-video.mp4`;
+    source.src = `assets/${currentArtist.toLowerCase()}-video.mp4`;
     video.load();
     
     // When video is ready, show it
@@ -651,7 +698,7 @@ function transitionToArtist(artistName) {
     }
     
     // Update orbital tokens
-    setupOrbitalTokens(currentArtist);
+    setupOrbitalTokens(currentArtist.toLowerCase());
     
     // Reset animation flag to ensure animation restarts with new tokens
     orbitAnimationRunning = false;
