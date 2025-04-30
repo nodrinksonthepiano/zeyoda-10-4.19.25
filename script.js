@@ -20,11 +20,13 @@ const tokenData = {
 const artistData = {
     gosheesh: {
         tokenPrice: 0.0005, // $0.0005 per Artistock
-        name: "SHEEGOHS"
+        name: "SHEEGOHS",
+        artworkTitle: "NLi10 #1"
     },
     jaitea: {
         tokenPrice: 0.0004, // $0.0004 per Artistock
-        name: "IJA TEA"
+        name: "IJA TEA",
+        artworkTitle: "Earth #2"
     }
 };
 
@@ -472,6 +474,12 @@ function completeLogin(method) {
         purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
     }
     
+    // Show token preview section for authenticated users
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    tokenSection.style.display = 'block';
+    tokenSection.style.opacity = '1';
+    tokenSection.style.transform = 'translateY(0)';
+    
     // Hide login section with fade out
     const loginSection = document.getElementById('loginSection');
     loginSection.style.opacity = '0';
@@ -549,12 +557,25 @@ function unlockArtistock() {
     // Update artist stock name
     document.getElementById('artistStockName').textContent = artistData[currentArtist].name;
     
+    // Set the explore button to switch to the other artist
+    const exploreBtn = document.querySelector('.explore-btn');
+    if (currentArtist === 'gosheesh') {
+        exploreBtn.textContent = 'Explore JAI TEA';
+        exploreBtn.onclick = () => transitionToArtist('jaitea');
+    } else {
+        exploreBtn.textContent = 'Explore GOSHEESH';
+        exploreBtn.onclick = () => transitionToArtist('gosheesh');
+    }
+    
     // Ensure we maintain authenticated state
     isAuthenticated = true;
 }
 
 // Safeword detection
 document.getElementById('chatInput').addEventListener('input', function(e) {
+    // Skip safeword detection if already authenticated
+    if (isAuthenticated) return;
+
     const input = e.target.value.toLowerCase();
     const safewordPatterns = [
         'artistock',
@@ -592,20 +613,30 @@ document.getElementById('chatInput').addEventListener('input', function(e) {
 
 // Function to handle artist transition
 function transitionToArtist(artistId) {
-    const currentArtist = artistId.toUpperCase();
-    document.getElementById('artistName').textContent = currentArtist;
-    document.getElementById('artistTokenName').textContent = currentArtist;
-    document.getElementById('artistNameAccess').textContent = currentArtist;
-    document.getElementById('artistVideoName').textContent = currentArtist;
+    // Update the global currentArtist variable
+    currentArtist = artistId.toLowerCase();
+    
+    // Update UI elements with the new artist name
+    document.getElementById('artistName').textContent = artistId.toUpperCase();
+    document.getElementById('artistTokenName').textContent = artistId.toUpperCase();
+    document.getElementById('artistNameAccess').textContent = artistId.toUpperCase();
+    document.getElementById('artistVideoName').textContent = artistId.toUpperCase();
+    document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
     
     // Update video source if needed
     const videoSource = document.getElementById('videoSource');
     videoSource.src = `assets/${artistId.toLowerCase()}-video.mp4`;
     document.getElementById('artistVideo').load();
     
-    // Reset purchase box state
+    // Keep token preview section visible if authenticated
     const tokenSection = document.getElementById('tokenPreviewSection');
-    tokenSection.style.display = 'none';
+    if (isAuthenticated) {
+        tokenSection.style.display = 'block';
+        tokenSection.style.opacity = '1';
+        tokenSection.style.transform = 'translateY(0)';
+    } else {
+        tokenSection.style.display = 'none';
+    }
     
     // Clear chat input
     document.getElementById('chatInput').value = '';
@@ -615,7 +646,7 @@ function transitionToArtist(artistId) {
     paymentSelected = false;
     
     // Change theme
-    document.body.className = `${currentArtist.toLowerCase()}-theme`;
+    document.body.className = `${currentArtist}-theme`;
     
     // Update video source
     const video = document.getElementById('artistVideo');
@@ -626,7 +657,7 @@ function transitionToArtist(artistId) {
     video.style.opacity = '0';
     
     // Update source
-    source.src = `assets/${currentArtist.toLowerCase()}-video.mp4`;
+    source.src = `assets/${currentArtist}-video.mp4`;
     video.load();
     
     // When video is ready, show it
@@ -698,7 +729,7 @@ function transitionToArtist(artistId) {
     }
     
     // Update orbital tokens
-    setupOrbitalTokens(currentArtist.toLowerCase());
+    setupOrbitalTokens(currentArtist);
     
     // Reset animation flag to ensure animation restarts with new tokens
     orbitAnimationRunning = false;
@@ -710,10 +741,11 @@ function setupVideoControls() {
     const video = document.getElementById('artistVideo');
     const muteToggle = document.getElementById('muteToggle');
     const fullscreenToggle = document.getElementById('fullscreenToggle');
+    const downloadButton = document.getElementById('downloadVideo');
     const mutedIcon = document.querySelector('.muted-icon');
     const unmutedIcon = document.querySelector('.unmuted-icon');
     
-    if (!video || !muteToggle || !fullscreenToggle) return;
+    if (!video || !muteToggle || !fullscreenToggle || !downloadButton) return;
     
     // Mute toggle functionality
     muteToggle.addEventListener('click', () => {
@@ -730,6 +762,17 @@ function setupVideoControls() {
             unmutedIcon.style.display = '';
             muteToggle.setAttribute('aria-label', 'Mute');
         }
+    });
+    
+    // Download button functionality
+    downloadButton.addEventListener('click', () => {
+        const videoUrl = video.querySelector('source').src;
+        const link = document.createElement('a');
+        link.href = videoUrl;
+        link.download = `${currentArtist}-artwork.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     });
     
     // Fullscreen toggle functionality
@@ -770,5 +813,35 @@ function setupVideoControls() {
         } else {
             fullscreenToggle.querySelector('.fullscreen-icon').textContent = '⛶';
         }
+    }
+}
+
+// Handle buy button click
+function handleBuyClick() {
+    // If user is not authenticated, show login section
+    if (!isAuthenticated) {
+        const loginSection = document.getElementById('loginSection');
+        loginSection.style.display = 'flex';
+        loginSection.style.opacity = '1';
+    } else {
+        // User is authenticated, show purchase section directly
+        const purchaseSection = document.getElementById('purchaseSection');
+        purchaseSection.style.display = 'block';
+        
+        // Update purchase amount
+        const purchaseAmount = document.getElementById('purchaseAmount');
+        if (purchaseAmount) {
+            purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
+        }
+        
+        // Show payment section
+        const paymentSection = document.querySelector('.payment-section');
+        paymentSection.style.display = 'grid';
+        
+        // Slight delay before fading in for smoother transition
+        setTimeout(() => {
+            purchaseSection.style.opacity = '1';
+            paymentSection.style.opacity = '1';
+        }, 50);
     }
 } 

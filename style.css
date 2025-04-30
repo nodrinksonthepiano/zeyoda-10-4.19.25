@@ -246,6 +246,14 @@ h2 {
     width: 100%;
     max-width: 560px;
     margin: 0 auto;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+@media (min-width: 768px) {
+    .payment-section {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 .payment-btn {
@@ -1006,4 +1014,48 @@ footer {
 
 .jaitea-theme .token-preview-section:hover {
     box-shadow: 0 8px 20px rgba(78, 223, 177, 0.2);
+}
+
+/* Buy button */
+.buy-button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.gosheesh-theme .buy-button {
+    background: linear-gradient(135deg, #3967c4, #5e89e4);
+    box-shadow: 0 4px 15px rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .buy-button {
+    background: linear-gradient(135deg, #30a86d, #4edfb1);
+    box-shadow: 0 4px 15px rgba(78, 223, 177, 0.3);
+}
+
+.buy-button:hover {
+    transform: translateY(-2px);
+}
+
+.gosheesh-theme .buy-button:hover {
+    background: linear-gradient(135deg, #4778d5, #6f9af5);
+    box-shadow: 0 6px 20px rgba(64, 115, 255, 0.4);
+}
+
+.jaitea-theme .buy-button:hover {
+    background: linear-gradient(135deg, #41b97e, #5ff0c2);
+    box-shadow: 0 6px 20px rgba(78, 223, 177, 0.4);
+}
+
+.buy-button:active {
+    transform: translateY(0);
 } 
