@@ -41,10 +41,10 @@ body {
 header {
     padding: 2rem 1rem;
     text-align: center;
+    position: relative;
 }
 
 .artist-name {
-    font-family: 'Bungee', cursive;
     font-size: 3rem;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -54,6 +54,7 @@ header {
 }
 
 .gosheesh-theme .artist-name {
+    font-family: 'Bungee', cursive;
     background: linear-gradient(to right, #d4af37, #f9f295, #d4af37);
     -webkit-background-clip: text;
     background-clip: text;
@@ -62,6 +63,7 @@ header {
 }
 
 .jaitea-theme .artist-name {
+    font-family: 'Times New Roman', serif;
     background: linear-gradient(to right, #4edfb1, #13e7e7, #4edfb1);
     -webkit-background-clip: text;
     background-clip: text;
@@ -440,16 +442,37 @@ h2 {
 .purchase-section h3 {
     margin-bottom: 1.5rem;
     text-align: center;
-    font-size: 1.3rem;
     color: white;
+}
+
+.gosheesh-theme .purchase-section h3 {
+    font-family: 'Bungee', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme .purchase-section h3 {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.3rem;
 }
 
 .token-price-info {
     text-align: center;
-    margin-bottom: 1.5rem;
-    font-size: 1rem;
+    margin: 1rem 0;
+    font-size: 0.9rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
+}
+
+.gosheesh-theme .token-price-info {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85rem; /* Slightly smaller since Bungee is naturally larger */
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme .token-price-info {
+    font-family: 'Times New Roman', serif;
+    font-size: 0.9rem;
 }
 
 .slider-container {
@@ -542,6 +565,19 @@ h2 {
     margin-right: 0.5rem;
     font-size: 0.9rem;
     color: rgba(255, 255, 255, 0.8);
+}
+
+.gosheesh-theme .token-input-group label,
+.gosheesh-theme .total-input-group label {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme .token-input-group label,
+.jaitea-theme .total-input-group label {
+    font-family: 'Times New Roman', serif;
+    font-size: 0.9rem;
 }
 
 .token-input, .total-input {
@@ -1033,11 +1069,15 @@ footer {
 }
 
 .gosheesh-theme .buy-button {
+    font-family: 'Bungee', cursive;
+    font-size: 0.95rem;
     background: linear-gradient(135deg, #3967c4, #5e89e4);
     box-shadow: 0 4px 15px rgba(64, 115, 255, 0.3);
 }
 
 .jaitea-theme .buy-button {
+    font-family: 'Times New Roman', serif;
+    font-size: 1rem;
     background: linear-gradient(135deg, #30a86d, #4edfb1);
     box-shadow: 0 4px 15px rgba(78, 223, 177, 0.3);
 }
@@ -1058,4 +1098,284 @@ footer {
 
 .buy-button:active {
     transform: translateY(0);
+}
+
+/* Content unlock toggle */
+.content-unlock-toggle {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.unlock-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.gosheesh-theme .unlock-label span {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme .unlock-label span {
+    font-family: 'Times New Roman', serif;
+    font-size: 0.95rem;
+}
+
+.unlock-label input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.gosheesh-theme .unlock-label input[type="checkbox"] {
+    border-color: rgba(64, 115, 255, 0.5);
+}
+
+.jaitea-theme .unlock-label input[type="checkbox"] {
+    border-color: rgba(78, 223, 177, 0.5);
+}
+
+.unlock-label input[type="checkbox"]:checked {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.unlock-label input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #000;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.content-unlock-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.gosheesh-theme .content-unlock-toggle:hover {
+    box-shadow: 0 0 15px rgba(64, 115, 255, 0.1);
+}
+
+.jaitea-theme .content-unlock-toggle:hover {
+    box-shadow: 0 0 15px rgba(78, 223, 177, 0.1);
+}
+
+/* Download link in success message */
+.download-link {
+    color: inherit;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.gosheesh-theme .download-link {
+    border: 1px solid rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .download-link {
+    border: 1px solid rgba(78, 223, 177, 0.3);
+}
+
+.download-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.gosheesh-theme .download-link:hover {
+    box-shadow: 0 2px 8px rgba(64, 115, 255, 0.2);
+}
+
+.jaitea-theme .download-link:hover {
+    box-shadow: 0 2px 8px rgba(78, 223, 177, 0.2);
+}
+
+/* Access headline in login section */
+#accessHeadline {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: white;
+    font-weight: 600;
+}
+
+.gosheesh-theme #accessHeadline {
+    font-family: 'Bungee', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme #accessHeadline {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.3rem;
+}
+
+/* Purchase headline */
+#purchaseHeadline {
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: white;
+}
+
+.gosheesh-theme #purchaseHeadline {
+    font-family: 'Bungee', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.jaitea-theme #purchaseHeadline {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.3rem;
+}
+
+/* Artist-specific Typography
+----------------------------------------
+This section controls all font styling that changes based on the artist theme.
+The theme is controlled by the class on the body tag:
+- class="gosheesh-theme" for GOSHEESH
+- class="jaitea-theme" for JAI TEA
+---------------------------------------- */
+
+/* GOSHEESH Theme Typography */
+.gosheesh-theme {
+    /* Main artist name in header */
+    .artist-name {
+        font-family: 'Bungee', cursive;
+        font-size: 3rem;
+        letter-spacing: 2px;
+    }
+
+    /* All section headlines */
+    #accessHeadline,
+    #purchaseHeadline,
+    .purchase-section h3,
+    .success-section h3 {
+        font-family: 'Bungee', cursive;
+        font-size: 1.2rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* Interactive elements */
+    .buy-button {
+        font-family: 'Bungee', cursive;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+    }
+
+    /* Labels and info text */
+    .token-price-info,
+    .token-input-group label,
+    .total-input-group label,
+    .unlock-label span {
+        font-family: 'Bungee', cursive;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+}
+
+/* JAI TEA Theme Typography */
+.jaitea-theme {
+    /* Main artist name in header */
+    .artist-name {
+        font-family: 'Times New Roman', serif;
+        font-size: 3rem;
+    }
+
+    /* All section headlines */
+    #accessHeadline,
+    #purchaseHeadline,
+    .purchase-section h3,
+    .success-section h3 {
+        font-family: 'Times New Roman', serif;
+        font-size: 1.3rem;
+    }
+
+    /* Interactive elements */
+    .buy-button {
+        font-family: 'Times New Roman', serif;
+        font-size: 1rem;
+    }
+
+    /* Labels and info text */
+    .token-price-info,
+    .token-input-group label,
+    .total-input-group label,
+    .unlock-label span {
+        font-family: 'Times New Roman', serif;
+        font-size: 0.9rem;
+    }
+}
+
+/* Note: The above uses nested CSS syntax. For older browsers, you would write it as:
+.gosheesh-theme .artist-name { ... }
+.gosheesh-theme #accessHeadline { ... }
+etc.
+*/
+
+/* Logout button */
+.logout-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+}
+
+.gosheesh-theme .logout-button {
+    font-family: 'Bungee', cursive;
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .logout-button {
+    font-family: 'Times New Roman', serif;
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(78, 223, 177, 0.3);
+}
+
+.logout-button:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.gosheesh-theme .logout-button:hover {
+    box-shadow: 0 2px 8px rgba(64, 115, 255, 0.2);
+}
+
+.jaitea-theme .logout-button:hover {
+    box-shadow: 0 2px 8px rgba(78, 223, 177, 0.2);
+}
+
+@media (max-width: 768px) {
+    .logout-button {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin-top: 1rem;
+    }
 } 

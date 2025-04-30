@@ -14,6 +14,7 @@
     
     <header>
         <h1 class="artist-name" id="artistName">GOSHEESH</h1>
+        <button id="logoutButton" class="logout-button">Reset</button>
     </header>
     
     <main>
@@ -59,7 +60,13 @@
 
             <!-- Token Purchase Info Section (Initially Hidden) -->
             <div class="token-preview-section" id="tokenPreviewSection" style="display: none;">
-                <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
+                <!-- Content Unlock Toggle -->
+                <div class="content-unlock-toggle">
+                    <label class="unlock-label">
+                        <input type="checkbox" id="contentUnlockToggle">
+                        <span>🎵 Unlock the featured download for $1 (includes permanent access)</span>
+                    </label>
+                </div>
                 
                 <div class="slider-container">
                     <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
@@ -73,6 +80,7 @@
                             <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
                         </div>
                     </div>
+                    <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
                     <button id="buyButton" class="buy-button" onclick="handleBuyClick()">Buy Artistocks</button>
                 </div>
             </div>

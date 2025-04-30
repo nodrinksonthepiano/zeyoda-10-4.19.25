@@ -31,15 +31,19 @@ const artistData = {
 };
 
 // Current artist state
-let currentArtist = "gosheesh";
+let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
 let paymentSelected = false;
 let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
-let isAuthenticated = false; // Global authentication state that persists between artists
+let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false; // Global authentication state that persists between artists
+let contentUnlocked = {}; // Track which artists' content has been unlocked
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
+    // Set initial theme based on stored artist
+    document.body.className = `${currentArtist}-theme`;
+    
     // Create cosmic particles
     createCosmicParticles();
     
@@ -60,6 +64,53 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Set up video controls
     setupVideoControls();
+    
+    // Set up content unlock toggle
+    setupContentUnlockToggle();
+    
+    // Set up logout button
+    setupLogoutButton();
+    
+    // Check localStorage for previous unlocks and balances
+    const storedUnlocks = localStorage.getItem('artistUnlocked');
+    if (storedUnlocks) {
+        contentUnlocked = JSON.parse(storedUnlocks);
+        const toggle = document.getElementById('contentUnlockToggle');
+        if (toggle) {
+            toggle.checked = contentUnlocked[currentArtist] || false;
+        }
+    }
+    
+    const storedBalance = localStorage.getItem('artistocksBalance');
+    if (storedBalance) {
+        currentTokenAmount = parseInt(storedBalance);
+        updateFromTokenAmount(currentTokenAmount);
+    }
+
+    // Show appropriate sections based on authentication state
+    if (isAuthenticated) {
+        const loginSection = document.getElementById('loginSection');
+        if (loginSection) loginSection.style.display = 'none';
+        
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        if (tokenSection) {
+            tokenSection.style.display = 'block';
+            tokenSection.style.opacity = '1';
+            tokenSection.style.transform = 'translateY(0)';
+        }
+        
+        const purchaseSection = document.getElementById('purchaseSection');
+        if (purchaseSection) {
+            purchaseSection.style.display = 'block';
+            purchaseSection.style.opacity = '1';
+        }
+    }
+
+    // Update artist name and related elements
+    document.getElementById('artistName').textContent = currentArtist.toUpperCase();
+    document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
+    document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
+    document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
 });
 
 // Set up token slider functionality
@@ -73,7 +124,7 @@ function setupTokenSlider() {
     // Calculate price and limits
     const price = artistData[currentArtist].tokenPrice;
     const maxDollarAmount = 10000;
-    const minDollarAmount = 1;
+    const minDollarAmount = 0; // Changed from 1 to 0 to allow $0 purchases
     
     // Calculate token limits based on dollar amounts
     const maxTokens = Math.floor(maxDollarAmount / price);
@@ -83,8 +134,8 @@ function setupTokenSlider() {
     slider.min = minTokens;
     slider.max = maxTokens;
     
-    // Set initial value to 1% of max or minimum dollar amount equivalent, whichever is greater
-    const initialTokens = Math.max(minTokens, Math.floor(maxTokens * 0.01));
+    // Set initial value to 200,000 tokens (equivalent to $100)
+    const initialTokens = 200000;
     slider.value = initialTokens;
     
     // Update values on load
@@ -139,6 +190,21 @@ function setupTokenSlider() {
     
     // Function to update all elements from token amount
     function updateFromTokenAmount(tokens) {
+        const slider = document.getElementById('tokenSlider');
+        const tokenAmountInput = document.getElementById('tokenAmountInput');
+        const tokenTotalInput = document.getElementById('tokenTotalInput');
+        
+        if (!slider || !tokenAmountInput || !tokenTotalInput) return;
+        
+        // Calculate price and limits
+        const price = artistData[currentArtist].tokenPrice;
+        const maxDollarAmount = 10000;
+        const minDollarAmount = 0;
+        
+        // Calculate token limits based on dollar amounts
+        const maxTokens = Math.floor(maxDollarAmount / price);
+        const minTokens = Math.ceil(minDollarAmount / price);
+        
         // Ensure tokens is a number and within range
         tokens = Math.max(minTokens, Math.min(parseInt(tokens), maxTokens));
         
@@ -151,11 +217,8 @@ function setupTokenSlider() {
         // Update token amount input
         tokenAmountInput.value = tokens;
         
-        // Calculate total cost
-        const totalCost = (tokens * price).toFixed(4);
-        
-        // Update total input
-        tokenTotalInput.value = totalCost;
+        // Update total price
+        updateTotalPrice();
     }
 }
 
@@ -189,7 +252,7 @@ function updateArtistTokenPrice() {
     if (document.getElementById('tokenSlider')) {
         const slider = document.getElementById('tokenSlider');
         const maxDollarAmount = 10000;
-        const minDollarAmount = 1;
+        const minDollarAmount = 0;
         
         // Calculate token limits based on dollar amounts
         const maxTokens = Math.floor(maxDollarAmount / price);
@@ -217,7 +280,7 @@ function updateTokenValues(value) {
     
     // Calculate price and limits
     const price = artistData[currentArtist].tokenPrice;
-    const minTokens = Math.ceil(1 / price); // $1 minimum
+    const minTokens = Math.ceil(0 / price); // $0 minimum
     
     // Ensure value is within range
     value = Math.max(minTokens, parseInt(value));
@@ -468,6 +531,9 @@ function completeLogin(method) {
     isLoggedIn = true;
     isAuthenticated = true; // Set global authentication state
     
+    // Store authentication state
+    localStorage.setItem('isAuthenticated', 'true');
+    
     // Remember the selected token amount
     const purchaseAmount = document.getElementById('purchaseAmount');
     if (purchaseAmount) {
@@ -547,6 +613,10 @@ function unlockArtistock() {
     // Hide purchase section
     document.querySelector('.purchase-section').style.display = 'none';
     
+    // Get content unlock status
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const hasUnlockedContent = contentUnlockToggle && contentUnlockToggle.checked;
+    
     // Update purchase amount with formatted number
     document.getElementById('purchasedAmount').textContent = new Intl.NumberFormat().format(currentTokenAmount);
     
@@ -556,6 +626,32 @@ function unlockArtistock() {
     
     // Update artist stock name
     document.getElementById('artistStockName').textContent = artistData[currentArtist].name;
+    
+    // Update success message to include content unlock if applicable
+    const successMessage = document.querySelector('.success-section p');
+    if (hasUnlockedContent) {
+        // Mark content as unlocked for this artist
+        contentUnlocked[currentArtist] = true;
+        
+        // Store in localStorage
+        localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
+        localStorage.setItem('artistocksBalance', currentTokenAmount);
+        
+        // Generate simulated IPFS link
+        const ipfsHash = generateIPFSHash();
+        successMessage.innerHTML = `You've unlocked the download and received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        
+        // Activate the download button
+        const downloadBtn = document.querySelector('.download-btn');
+        if (downloadBtn) {
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = () => alert('Downloading content...');
+        }
+    } else {
+        // Store only Artistocks balance
+        localStorage.setItem('artistocksBalance', currentTokenAmount);
+        successMessage.textContent = `You've received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!`;
+    }
     
     // Set the explore button to switch to the other artist
     const exploreBtn = document.querySelector('.explore-btn');
@@ -569,6 +665,16 @@ function unlockArtistock() {
     
     // Ensure we maintain authenticated state
     isAuthenticated = true;
+}
+
+// Generate a simulated IPFS hash
+function generateIPFSHash() {
+    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    let hash = 'Qm';
+    for (let i = 0; i < 44; i++) {
+        hash += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return hash;
 }
 
 // Safeword detection
@@ -615,6 +721,9 @@ document.getElementById('chatInput').addEventListener('input', function(e) {
 function transitionToArtist(artistId) {
     // Update the global currentArtist variable
     currentArtist = artistId.toLowerCase();
+    
+    // Store current artist in localStorage
+    localStorage.setItem('currentArtist', currentArtist);
     
     // Update UI elements with the new artist name
     document.getElementById('artistName').textContent = artistId.toUpperCase();
@@ -844,4 +953,170 @@ function handleBuyClick() {
             paymentSection.style.opacity = '1';
         }, 50);
     }
+}
+
+// Set up content unlock toggle functionality
+function setupContentUnlockToggle() {
+    const toggle = document.getElementById('contentUnlockToggle');
+    if (!toggle) return;
+    
+    // Check if content is already unlocked for current artist
+    toggle.checked = contentUnlocked[currentArtist] || false;
+    
+    toggle.addEventListener('change', () => {
+        updateTotalPrice();
+    });
+}
+
+// Function to update total price
+function updateTotalPrice() {
+    const tokenTotalInput = document.getElementById('tokenTotalInput');
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    
+    if (!tokenTotalInput || !contentUnlockToggle) return;
+    
+    // Calculate Artistocks cost
+    const artistocksTotal = currentTokenAmount * artistData[currentArtist].tokenPrice;
+    
+    // Add $1 if content unlock is checked
+    const unlockCost = contentUnlockToggle.checked ? 1 : 0;
+    
+    // Calculate total
+    const total = artistocksTotal + unlockCost;
+    
+    // Update total input
+    tokenTotalInput.value = total.toFixed(4);
+    
+    // Update slider minimum if content is unlocked
+    const slider = document.getElementById('tokenSlider');
+    if (slider) {
+        const price = artistData[currentArtist].tokenPrice;
+        const minTokens = contentUnlockToggle.checked ? 0 : Math.ceil(1 / price);
+        slider.min = minTokens;
+        
+        // If current value is below new minimum, update it
+        if (parseInt(slider.value) < minTokens) {
+            slider.value = minTokens;
+            updateFromTokenAmount(minTokens);
+        }
+    }
+}
+
+// Set up logout button functionality
+function setupLogoutButton() {
+    const logoutButton = document.getElementById('logoutButton');
+    if (!logoutButton) return;
+
+    logoutButton.addEventListener('click', () => {
+        // Clear all localStorage
+        localStorage.removeItem('currentArtist');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('artistUnlocked');
+        localStorage.removeItem('artistocksBalance');
+
+        // Reset state variables
+        isLoggedIn = false;
+        isAuthenticated = false;
+        paymentSelected = false;
+        currentTokenAmount = 100;
+        contentUnlocked = {};
+
+        // Reset to default artist
+        currentArtist = 'gosheesh';
+        document.body.className = 'gosheesh-theme';
+
+        // Update UI elements
+        document.getElementById('artistName').textContent = 'GOSHEESH';
+        document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
+        document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
+        document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
+
+        // Reset video source and state
+        const video = document.getElementById('artistVideo');
+        const source = document.getElementById('videoSource');
+        if (video && source) {
+            // Store current mute state
+            const isMuted = video.muted;
+            
+            // Hide video during transition
+            video.style.opacity = '0';
+            
+            // Update source
+            source.src = `assets/${currentArtist}-video.mp4`;
+            
+            // Reload video
+            video.load();
+            
+            // When video is ready, show it
+            video.oncanplay = () => {
+                video.style.opacity = '1';
+                showVideoFallback(false);
+                video.muted = isMuted;
+                
+                // Update mute button icons
+                const mutedIcon = document.querySelector('.muted-icon');
+                const unmutedIcon = document.querySelector('.unmuted-icon');
+                const muteToggle = document.getElementById('muteToggle');
+                
+                if (mutedIcon && unmutedIcon && muteToggle) {
+                    if (video.muted) {
+                        mutedIcon.style.display = '';
+                        unmutedIcon.style.display = 'none';
+                        muteToggle.setAttribute('aria-label', 'Unmute');
+                    } else {
+                        mutedIcon.style.display = 'none';
+                        unmutedIcon.style.display = '';
+                        muteToggle.setAttribute('aria-label', 'Mute');
+                    }
+                }
+            };
+            
+            // Start playing
+            video.play().catch(() => {
+                showVideoFallback(true);
+            });
+        }
+
+        // Reset sections visibility
+        const loginSection = document.getElementById('loginSection');
+        if (loginSection) {
+            loginSection.style.display = 'flex';
+            loginSection.style.opacity = '1';
+        }
+
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        if (tokenSection) {
+            tokenSection.style.display = 'none';
+            tokenSection.style.opacity = '0';
+            tokenSection.style.transform = 'translateY(-20px)';
+        }
+
+        const purchaseSection = document.getElementById('purchaseSection');
+        if (purchaseSection) {
+            purchaseSection.style.display = 'none';
+            purchaseSection.style.opacity = '0';
+        }
+
+        const successSection = document.getElementById('successSection');
+        if (successSection) {
+            successSection.style.display = 'none';
+        }
+
+        // Reset content unlock toggle
+        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+        if (contentUnlockToggle) {
+            contentUnlockToggle.checked = false;
+        }
+
+        // Reset token slider
+        setupTokenSlider();
+
+        // Reset orbital tokens
+        setupOrbitalTokens(currentArtist);
+        orbitAnimationRunning = false;
+        animateOrbit();
+
+        // Show confirmation
+        alert('All data has been reset!');
+    });
 } 
