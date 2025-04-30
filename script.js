@@ -219,6 +219,12 @@ function setupTokenSlider() {
         
         // Update total price
         updateTotalPrice();
+
+        // Update purchase headline with formatted token amount
+        const purchaseAmount = document.getElementById('purchaseAmount');
+        if (purchaseAmount) {
+            purchaseAmount.textContent = new Intl.NumberFormat().format(tokens);
+        }
     }
 }
 
@@ -960,8 +966,8 @@ function setupContentUnlockToggle() {
     const toggle = document.getElementById('contentUnlockToggle');
     if (!toggle) return;
     
-    // Check if content is already unlocked for current artist
-    toggle.checked = contentUnlocked[currentArtist] || false;
+    // Always checked by default
+    toggle.checked = true;
     
     toggle.addEventListener('change', () => {
         updateTotalPrice();

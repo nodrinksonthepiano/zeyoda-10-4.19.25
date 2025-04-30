@@ -296,7 +296,7 @@ h2 {
 }
 
 .payment-btn.crypto::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23F7931A' d='M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zm-141.651-35.33c4.937-32.999-20.191-50.739-54.55-62.573l11.146-44.702-27.213-6.781-10.851 43.524c-7.154-1.783-14.502-3.464-21.803-5.13l10.929-43.81-27.198-6.781-11.153 44.686c-5.922-1.349-11.735-2.682-17.377-4.084l.031-.14-37.53-9.37-7.239 29.062s20.191 4.627 19.765 4.913c11.022 2.751 13.014 10.044 12.68 15.825l-12.696 50.925c.76.194 1.744.473 2.829.907-.907-.225-1.876-.473-2.876-.713l-17.796 71.338c-1.349 3.348-4.767 8.37-12.471 6.464.271.395-19.78-4.937-19.78-4.937l-13.51 31.147 35.414 8.827c6.588 1.651 13.045 3.379 19.4 5.006l-11.262 45.213 27.182 6.781 11.153-44.733a1038.209 1038.209 0 0 0 21.687 5.627l-11.115 44.523 27.213 6.781 11.262-45.128c46.404 8.781 81.299 5.239 95.986-36.727 11.836-33.79-.589-53.281-25.004-65.991 17.78-4.098 31.174-15.792 34.747-39.949zm-62.177 87.179c-8.41 33.79-65.308 15.523-83.755 10.943l14.944-59.899c18.446 4.603 77.6 13.717 68.811 48.956zm8.417-87.667c-7.673 30.736-55.031 15.12-70.393 11.292l13.548-54.327c15.363 3.828 64.836 10.973 56.845 43.035z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23F7931A' d='M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zm-141.651-35.33c4.937-32.999-20.191-50.739-54.55-62.573l11.146-44.702-27.213-6.781-10.851 43.524c-7.154-1.783-14.502-3.464-21.803-5.13l10.929-43.81-27.213-6.781-11.153 44.686c-5.922-1.349-11.735-2.682-17.377-4.084l.031-.14-37.53-9.37-7.239 29.062s20.191 4.627 19.765 4.913c11.022 2.751 13.014 10.044 12.68 15.825l-12.696 50.925c.76.194 1.744.473 2.829.907-.907-.225-1.876-.473-2.876-.713l-17.796 71.338c-1.349 3.348-4.767 8.37-12.471 6.464.271.395-19.78-4.937-19.78-4.937l-13.51 31.147 35.414 8.827c6.588 1.651 13.045 3.379 19.4 5.006l-11.262 45.213 27.182 6.781 11.153-44.733a1038.209 1038.209 0 0 0 21.687 5.627l-11.115 44.523 27.213 6.781 11.262-45.128c46.404 8.781 81.299 5.239 95.986-36.727 11.836-33.79-.589-53.281-25.004-65.991 17.78-4.098 31.174-15.792 34.747-39.949zm-62.177 87.179c-8.41 33.79-65.308 15.523-83.755 10.943l14.944-59.899c18.446 4.603 77.6 13.717 68.811 48.956zm8.417-87.667c-7.673 30.736-55.031 15.12-70.393 11.292l13.548-54.327c15.363 3.828 64.836 10.973 56.845 43.035z'/%3E%3C/svg%3E");
 }
 
 .gosheesh-theme .payment-btn {
@@ -1104,54 +1104,51 @@ footer {
 .content-unlock-toggle {
     margin: 1rem 0;
     padding: 1rem;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    width: 100%;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .unlock-label {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.3rem;
     cursor: pointer;
-    font-size: 0.95rem;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.gosheesh-theme .unlock-label span {
-    font-family: 'Bungee', cursive;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme .unlock-label span {
-    font-family: 'Times New Roman', serif;
-    font-size: 0.95rem;
+    position: relative;
+    width: 100%;
 }
 
 .unlock-label input[type="checkbox"] {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
     appearance: none;
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
     background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(64, 115, 255, 0.5);
+    border-radius: 4px;
     cursor: pointer;
-    position: relative;
     transition: all 0.3s ease;
 }
 
-.gosheesh-theme .unlock-label input[type="checkbox"] {
-    border-color: rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .unlock-label input[type="checkbox"] {
-    border-color: rgba(78, 223, 177, 0.5);
-}
-
 .unlock-label input[type="checkbox"]:checked {
-    background: rgba(255, 255, 255, 0.9);
+    background: #4CAF50;
+    border-color: #4CAF50;
 }
 
 .unlock-label input[type="checkbox"]:checked::after {
@@ -1160,21 +1157,44 @@ footer {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #000;
-    font-size: 14px;
+    color: white;
+    font-size: 16px;
     font-weight: bold;
 }
 
-.content-unlock-toggle:hover {
-    background: rgba(255, 255, 255, 0.08);
+.price-highlight {
+    background: linear-gradient(to right, #d4af37, #f9f295, #d4af37);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
+    font-size: 3rem;
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.7);
+    line-height: 1;
+    margin: 0;
+    padding: 0;
 }
 
-.gosheesh-theme .content-unlock-toggle:hover {
-    box-shadow: 0 0 15px rgba(64, 115, 255, 0.1);
+.secondary-text {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin: 0;
 }
 
-.jaitea-theme .content-unlock-toggle:hover {
-    box-shadow: 0 0 15px rgba(78, 223, 177, 0.1);
+@media (max-width: 480px) {
+    .content-unlock-toggle {
+        padding: 0.8rem;
+        max-width: 320px;
+    }
+    
+    .price-highlight {
+        font-size: 2.5rem;
+    }
+    
+    .secondary-text {
+        font-size: 0.75rem;
+    }
 }
 
 /* Download link in success message */
