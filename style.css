@@ -78,6 +78,7 @@ main {
     flex-direction: column;
     align-items: center;
     padding: 0 1rem 2rem;
+    padding-bottom: 5rem;
 }
 
 /* Video container */
@@ -684,49 +685,66 @@ h2 {
     box-shadow: 0 8px 20px rgba(78, 223, 177, 0.5);
 }
 
-/* Footer and chat input */
+/* Footer styling */
 footer {
-    padding: 1.5rem;
-    text-align: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 1rem;
+    z-index: 100;
 }
 
+/* Chat input styling */
 .chat-input-container {
     width: 100%;
-    max-width: 600px;
-    margin: 0 auto 2rem;
-    padding: 0 1rem;
+    max-width: 640px;
+    margin: 0 auto;
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 24px;
+    padding: 0.5rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.gosheesh-theme .chat-input-container {
+    border: 1px solid rgba(64, 115, 255, 0.4);
+}
+
+.jaitea-theme .chat-input-container {
+    border: 1px solid rgba(78, 223, 177, 0.4);
 }
 
 .chat-input {
     width: 100%;
-    padding: 1rem;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem 1rem;
+    border-radius: 20px;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
     color: white;
     font-size: 1rem;
+    outline: none;
     transition: all 0.3s ease;
 }
 
+.gosheesh-theme .chat-input {
+    box-shadow: 0 0 5px rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .chat-input {
+    box-shadow: 0 0 5px rgba(78, 223, 177, 0.3);
+}
+
 .chat-input:focus {
-    outline: none;
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
-.chat-input input::placeholder {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.chat-input input:focus {
-    outline: none;
-}
-
-.gosheesh-theme .chat-input input:focus {
+.gosheesh-theme .chat-input:focus {
     box-shadow: 0 0 10px rgba(64, 115, 255, 0.5);
 }
 
-.jaitea-theme .chat-input input:focus {
+.jaitea-theme .chat-input:focus {
     box-shadow: 0 0 10px rgba(78, 223, 177, 0.5);
 }
 
@@ -1052,11 +1070,33 @@ footer {
     box-shadow: 0 8px 20px rgba(78, 223, 177, 0.2);
 }
 
+/* Slider container */
+.slider-container {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    margin-left: auto;
+    margin-right: auto;
+    transition: all 0.3s ease;
+}
+
+#advancedPurchaseOptions {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.5s ease, max-height 0.5s ease;
+}
+
+#advancedPurchaseOptions.show {
+    opacity: 1;
+    max-height: 300px;
+    animation: fadeIn 0.5s forwards;
+}
+
 /* Buy button */
 .buy-button {
     width: 100%;
     padding: 12px;
-    margin-top: 20px;
+    margin-top: 10px;
     border: none;
     border-radius: 8px;
     font-size: 1rem;
@@ -1267,6 +1307,17 @@ footer {
     font-size: 1.3rem;
 }
 
+/* Price highlight in the purchase headline */
+.price-highlight-small {
+    background: linear-gradient(to right, #d4af37, #f9f295, #d4af37);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+}
+
 /* Artist-specific Typography
 ----------------------------------------
 This section controls all font styling that changes based on the artist theme.
@@ -1398,4 +1449,9 @@ etc.
         right: auto;
         margin-top: 1rem;
     }
+}
+
+/* When purchase section is shown, ensure payment section is visible too */
+.purchase-section[style*="display: block"] .payment-section {
+    display: grid !important;
 } 

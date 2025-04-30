@@ -54,12 +54,8 @@
         </div>
         
         <div class="content-section">
-            <div class="chat-input-container">
-                <input type="text" id="chatInput" placeholder="Type a message..." class="chat-input">
-            </div>
-
-            <!-- Token Purchase Info Section (Initially Hidden) -->
-            <div class="token-preview-section" id="tokenPreviewSection" style="display: none;">
+            <!-- Token Purchase Info Section (Initially Visible) -->
+            <div class="token-preview-section" id="tokenPreviewSection" style="display: block; opacity: 1; transform: translateY(0);">
                 <!-- Content Unlock Toggle -->
                 <div class="content-unlock-toggle">
                     <label class="unlock-label">
@@ -69,7 +65,7 @@
                     </label>
                 </div>
                 
-                <div class="slider-container">
+                <div class="slider-container" id="advancedPurchaseOptions" style="display: none;">
                     <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
                     <div class="slider-value-container">
                         <div class="token-input-group">
@@ -82,12 +78,12 @@
                         </div>
                     </div>
                     <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
-                    <button id="buyButton" class="buy-button" onclick="handleBuyClick()">Buy Artistocks</button>
                 </div>
+                <button id="buyButton" class="buy-button">Get Download ($1)</button>
             </div>
             
             <!-- Login Section -->
-            <div class="login-section" id="loginSection">
+            <div class="login-section" id="loginSection" style="display: flex; opacity: 1;">
                 <h3 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">GOSHEESH</span> Artistocks</h3>
                 
                 <div class="email-login-container">
@@ -106,9 +102,9 @@
             </div>
             
             <!-- Artistock Purchase Section (initially hidden) -->
-            <div class="purchase-section" id="purchaseSection" style="display: none;">
+            <div class="purchase-section" id="purchaseSection" style="display: none; opacity: 0; transition: opacity 0.3s ease;">
                 <h3 id="purchaseHeadline">Complete your purchase of <span id="purchaseAmount">100</span> <span id="artistStockPurchaseName">GOSHEESH</span> Artistocks</h3>
-                <div class="payment-section">
+                <div class="payment-section" style="display: grid; opacity: 1;">
                     <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
                     <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
                     <button class="payment-btn credit" onclick="handlePayment('credit')">Pay with Credit Card</button>
@@ -127,6 +123,9 @@
     </main>
     
     <footer>
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" placeholder="Type something here..." class="chat-input">
+        </div>
     </footer>
     
     <script src="script.js"></script>
