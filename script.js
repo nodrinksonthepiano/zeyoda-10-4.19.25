@@ -912,20 +912,20 @@ function transitionToArtist(artistId) {
     // Clear chat input
     document.getElementById('chatInput').value = '';
     
+    // Always show token preview section with $1 download button
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    if (tokenSection) {
+        tokenSection.style.display = 'block';
+        tokenSection.style.opacity = '1';
+        tokenSection.style.transform = 'translateY(0)';
+    }
+    
     // Show appropriate sections based on authentication status
     if (isAuthenticated) {
         // Hide login section
         const loginSection = document.getElementById('loginSection');
         if (loginSection) {
             loginSection.style.display = 'none';
-        }
-        
-        // Show token section
-        const tokenSection = document.getElementById('tokenPreviewSection');
-        if (tokenSection) {
-            tokenSection.style.display = 'block';
-            tokenSection.style.opacity = '1';
-            tokenSection.style.transform = 'translateY(0)';
         }
         
         // Show/hide advanced purchase options based on safeword state
@@ -979,12 +979,7 @@ function transitionToArtist(artistId) {
             document.getElementById('emailInput').value = '';
         }
         
-        // Hide other sections
-        const tokenSection = document.getElementById('tokenPreviewSection');
-        if (tokenSection) {
-            tokenSection.style.display = 'none';
-        }
-        
+        // Hide purchase and success sections
         const purchaseSection = document.getElementById('purchaseSection');
         if (purchaseSection) {
             purchaseSection.style.display = 'none';
@@ -994,6 +989,13 @@ function transitionToArtist(artistId) {
         const successSection = document.getElementById('successSection');
         if (successSection) {
             successSection.style.display = 'none';
+        }
+        
+        // Make sure the buy button shows "Get Download ($1)"
+        const buyButton = document.getElementById('buyButton');
+        if (buyButton) {
+            buyButton.textContent = 'Get Download ($1)';
+            buyButton.classList.remove('safeword-activated');
         }
     }
     
