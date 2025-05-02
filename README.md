@@ -1,61 +1,122 @@
-# ZEYODA - Artist-First Landing Page System
+# ZEYODA
 
-This is the MVP (Minimum Viable Product) for ZEYODA, a decentralized artist-first landing page system. This demo showcases the landing pages for two artists: GOSHEESH and JAI TEA.
+**Open-source, artist-owned, decentralized aggregator for NFTs and digital content**
 
-## Overview
+## 🚀 Vision
 
-ZEYODA is designed to provide artists with beautiful, interactive landing pages that engage their fans through a cosmic, orbital-themed interface. The system allows fans to support artists by purchasing "Artistocks" through various payment methods.
+ZEYODA is not a platform - it's an open-source template that artists can fork, customize, and deploy as their own. Each artist runs their own independent storefront while remaining connected to the larger ecosystem.
 
-## Features
+### What makes ZEYODA different?
 
-- **Cosmic Theme**: Each artist has a unique cosmic theme (GOSHEESH: sapphire, JAI TEA: emerald)
-- **Featured Video**: Central video player showcasing the artist's content
-- **Orbital Tokens**: Interactive floating tokens orbiting the video
-- **Payment Integration**: Simulated payment buttons (not functional in this MVP)
-- **Social Login**: Simulated login options (not functional in this MVP)
-- **Artist Transition**: Ability to explore different artists with unique themes
+- **Decentralized**: No central authority controlling the platform
+- **Artist-Owned**: You control your own storefront, pricing, and experience
+- **Customizable**: Fork the repo, modify the config, and make it your own
+- **Connected**: Your instance can link to other artist instances in the ecosystem
 
-## Getting Started
+## 🛠️ Getting Started
 
-1. Open `index.html` in a modern web browser
-2. Experience the cosmic design and orbit animations
-3. Test the simulated payment and login flow:
-   - Click any payment method button
-   - Click any login method button
-   - See the success message and "Artistock" confirmation
-4. Click "Explore More Artists" to switch between GOSHEESH and JAI TEA
+### Option 1: Fork This Repository
 
-## Technical Notes
+1. Fork this repository on GitHub
+2. Clone your fork to your local machine
+3. Modify the configuration (see below)
+4. Deploy to your preferred hosting service
 
-- This is a frontend-only MVP with simulated functionality
-- No actual payments or login are processed
-- All interactions are simulated with console.log messages
-- The chat input at the bottom is for aesthetic purposes only (non-functional)
+### Option 2: Download and Configure
 
-## Files Structure
+1. Download this repository
+2. Configure your artist settings in `artists/config.json`
+3. Add your media assets to the `assets` folder
+4. Deploy to your hosting service (Vercel, Netlify, GitHub Pages, etc.)
 
-- `index.html` - Main HTML structure
-- `style.css` - Styling and animations
-- `script.js` - JavaScript functionality
-- `assets/` - Directory for video and media files
+## ⚙️ Configuration
 
-## Video Placeholders
+ZEYODA uses a configuration-driven approach. You only need to modify the `artists/config.json` file to customize your storefront.
 
-Since this is an MVP, the video files referenced in the code need to be added manually:
+### Artist Configuration Example
 
-1. Add your own video files to the `assets/` directory:
-   - `gosheesh-video.mp4` 
-   - `jaitea-video.mp4`
-2. Or replace the video sources in the HTML with your own video URLs
+```json
+{
+  "artists": {
+    "yourartistid": {
+      "name": "YOUR ARTIST NAME",
+      "displayName": "YOUR DISPLAY NAME",
+      "tokenName": "YOUR TOKEN NAME",
+      "artworkTitle": "Your Artwork Title",
+      "artworkYear": "2025",
+      "tokenPrice": 0.0005,
+      "videoSrc": "assets/your-video.mp4",
+      "theme": {
+        "primaryColor": "#0a1a3b", 
+        "accentColor": "#4073ff",
+        "gradientStart": "#d4af37",
+        "gradientMiddle": "#f9f295",
+        "gradientEnd": "#d4af37",
+        "fontFamily": "Bungee, cursive"
+      },
+      "orbitalTokens": [
+        { "name": "OTHER ARTIST", "angle": 0 },
+        { "name": "ANOTHER ARTIST", "angle": 72 },
+        { "name": "THIRD ARTIST", "angle": 144 },
+        { "name": "FOURTH ARTIST", "angle": 216 },
+        { "name": "FIFTH ARTIST", "angle": 288 }
+      ]
+    }
+  }
+}
+```
 
-## Future Development
+### Key Configuration Elements
 
-- Backend integration for actual payment processing
-- Web3 wallet integration
-- Chat functionality
-- Artist dashboard for content management
-- More interactive orbital tokens with unlockable content
+- **artistid**: Your unique artist identifier (lowercase, no spaces)
+- **name**: Your displayed artist name (can use capitalization)
+- **tokenName**: What your tokens/stocks are called
+- **tokenPrice**: The price per token in USD
+- **videoSrc**: Path to your featured video
+- **theme**: Colors and styling for your storefront
+- **orbitalTokens**: Other artists in the ecosystem to display in your orbit
+
+## 🎨 Customizing Your Instance
+
+Beyond the configuration file, you can customize your ZEYODA instance by:
+
+1. **Adding Custom Assets**: Place your videos, images, and audio in the `assets` folder
+2. **Custom CSS**: Modify `style.css` to further customize your storefront
+3. **Enhanced Functionality**: Extend `script.js` to add your own features
+
+## 🔗 Connecting with Other Artists
+
+The "orbital tokens" in your configuration represent other artists in the ZEYODA ecosystem. When users click these tokens, they can navigate to other artist storefronts.
+
+To connect with other artists:
+1. Include their artist ID in your orbital tokens
+2. Have them include your artist ID in their configuration
+3. Agree on the URLs to use for cross-linking
+
+## 🌐 Deployment
+
+You can deploy your ZEYODA instance to:
+
+- **Vercel**: Connect your GitHub repo for automatic deployments
+- **Netlify**: Similar to Vercel, with drag-and-drop deployment
+- **GitHub Pages**: Free hosting directly from your GitHub repository
+- **IPFS**: For a fully decentralized deployment
+- **Your Own Domain**: Point your domain to any of the above services
+
+## 📜 License
+
+This project is released under the MIT License. Feel free to use it for your own artist storefront.
+
+## 🙏 Credits
+
+ZEYODA was created to empower artists by providing an alternative to centralized platforms.
+
+Special thanks to the original artists who believed in this vision:
+
+- GOSHEESH
+- JAI TEA
+- And all future contributors to the ecosystem
 
 ---
 
-Built as an MVP for ZEYODA - The most beautiful, functional, artist-first landing page in the universe. 
+Remember, ZEYODA is not a platform; it's a movement toward artist ownership and decentralization. Make it your own! 

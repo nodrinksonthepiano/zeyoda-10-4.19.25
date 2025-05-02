@@ -1,0 +1,34 @@
+{
+  "artists": {
+    "yourartistid": {
+      "name": "YOUR ARTIST NAME",
+      "displayName": "YOUR DISPLAY NAME",
+      "tokenName": "YOUR TOKEN NAME",
+      "artworkTitle": "Your Artwork Title",
+      "artworkYear": "2025",
+      "tokenPrice": 0.0005,
+      "videoSrc": "assets/your-video.mp4",
+      "theme": {
+        "primaryColor": "#0a1a3b", 
+        "accentColor": "#4073ff",
+        "gradientStart": "#d4af37",
+        "gradientMiddle": "#f9f295",
+        "gradientEnd": "#d4af37",
+        "fontFamily": "Bungee, cursive"
+      },
+      "orbitalTokens": [
+        { "name": "OTHER ARTIST", "angle": 0 },
+        { "name": "ANOTHER ARTIST", "angle": 72 },
+        { "name": "THIRD ARTIST", "angle": 144 },
+        { "name": "FOURTH ARTIST", "angle": 216 },
+        { "name": "FIFTH ARTIST", "angle": 288 }
+      ]
+    }
+  },
+  "defaults": {
+    "minimumPurchase": 1,
+    "initialTokenAmount": 100,
+    "maxTokens": 20000000,
+    "downloadPrice": 1
+  }
+} 

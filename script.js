@@ -1,49 +1,70 @@
-// Token data for both artists
-const tokenData = {
-    gosheesh: [
-        { name: "LONIARI", angle: 0 },
-        { name: "ANBRI SPPIR", angle: 72 },
-        { name: "IJA TEA", angle: 144 },
-        { name: "NYTO SAREGL", angle: 216 },
-        { name: "LUMLITANIDE\nSTRIPIS", angle: 288 }
-    ],
-    jaitea: [
-        { name: "LONIARI", angle: 0 },
-        { name: "ANBRI SPPIR", angle: 72 },
-        { name: "SHEEGOHS", angle: 144 },
-        { name: "NYTO SAREGL", angle: 216 },
-        { name: "LUMLITANIDE\nSTRIPIS", angle: 288 }
-    ]
-};
-
-// Artist specific data
-const artistData = {
-    gosheesh: {
-        tokenPrice: 0.0005, // $0.0005 per Artistock
-        name: "SHEEGOHS",
-        artworkTitle: "NLi10 #1"
-    },
-    jaitea: {
-        tokenPrice: 0.0004, // $0.0004 per Artistock
-        name: "IJA TEA",
-        artworkTitle: "Earth #2"
-    }
-};
-
-// Current artist state
+// Configuration and state management
+let config = null;
 let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
 let paymentSelected = false;
 let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
-let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false; // Global authentication state that persists between artists
-let contentUnlocked = {}; // Track which artists' content has been unlocked
-let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false; // Track if safeword has been used in this session
+let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false;
+let contentUnlocked = {};
+let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false;
 
-// Initialize the page
-document.addEventListener('DOMContentLoaded', () => {
+// Fetch configuration and initialize the page
+document.addEventListener('DOMContentLoaded', async () => {
+    // Load configuration
+    try {
+        const response = await fetch('artists/config.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load config (${response.status}): ${response.statusText}`);
+        }
+        config = await response.json();
+        
+        // Initialize with loaded configuration
+        initializeApp();
+        
+        // Wait a bit to make sure everything is fully initialized
+        setTimeout(() => {
+            console.log("Running post-initialization checks...");
+            
+            // Ensure buy button has a click handler
+            const buyButton = document.getElementById('buyButton');
+            if (buyButton) {
+                // Make sure we have the latest event handler
+                const newBuyButton = buyButton.cloneNode(true);
+                buyButton.parentNode.replaceChild(newBuyButton, buyButton);
+                newBuyButton.addEventListener('click', handleBuyClick);
+                console.log("Re-attached click handler to buy button after initialization");
+            }
+            
+            // Ensure payment buttons have event handlers
+            setupPaymentButtons();
+            
+            // Debug initial state
+            debugPurchaseFlow();
+        }, 500); // Wait half a second for everything to settle
+        
+    } catch (error) {
+        console.error('Error loading configuration:', error);
+        // Show error message to user
+        alert('Failed to load artist configuration. Please try again later.');
+    }
+});
+
+// Initialize the application after config is loaded
+function initializeApp() {
+    console.log("Initializing application");
+    
+    // Check authentication status
+    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    isLoggedIn = isAuthenticated;
+    
+    // Check safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    console.log("Initial state:", { isAuthenticated, isLoggedIn, safewordUsed, currentArtist });
+    
     // Set initial theme based on stored artist
-    document.body.className = `${currentArtist}-theme`;
+    applyArtistTheme(currentArtist);
     
     // Create cosmic particles
     createCosmicParticles();
@@ -78,15 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up buy button listener
     const buyButton = document.getElementById('buyButton');
     if (buyButton) {
-        buyButton.addEventListener('click', handleBuyClick);
-        // Update button text based on safeword state
-        if (safewordUsed) {
-            buyButton.textContent = 'Buy Artistocks';
-            buyButton.classList.add('safeword-activated');
-        } else {
-            buyButton.textContent = 'Get Download ($1)';
-            buyButton.classList.remove('safeword-activated');
-        }
+        // Remove existing listeners by replacing the element
+        const newBuyButton = buyButton.cloneNode(true);
+        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
+        newBuyButton.addEventListener('click', handleBuyClick);
     }
     
     // Set up explore button (important for switching between artists)
@@ -95,10 +111,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check localStorage for previous unlocks and balances
     const storedUnlocks = localStorage.getItem('artistUnlocked');
     if (storedUnlocks) {
-        contentUnlocked = JSON.parse(storedUnlocks);
-        const toggle = document.getElementById('contentUnlockToggle');
-        if (toggle) {
-            toggle.checked = contentUnlocked[currentArtist] || false;
+        try {
+            contentUnlocked = JSON.parse(storedUnlocks);
+            const toggle = document.getElementById('contentUnlockToggle');
+            if (toggle) {
+                toggle.checked = contentUnlocked[currentArtist] || true; // Default to true if not specified
+            }
+        } catch (e) {
+            console.error("Error parsing stored unlocks:", e);
+            contentUnlocked = {};
         }
     }
     
@@ -106,63 +127,123 @@ document.addEventListener('DOMContentLoaded', () => {
     if (storedBalance) {
         currentTokenAmount = parseInt(storedBalance);
         updateFromTokenAmount(currentTokenAmount);
+    } else {
+        currentTokenAmount = config.defaults.initialTokenAmount;
     }
 
-    // Always show token preview section with $1 download button
+    // Ensure the token preview section is always visible on initial load
+    // regardless of authentication state (so the download button is visible)
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
         tokenSection.style.display = 'block';
         tokenSection.style.opacity = '1';
         tokenSection.style.transform = 'translateY(0)';
     }
-    
-    // Show appropriate sections based on authentication state
-    if (isAuthenticated) {
-        // For authenticated users, hide login
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) loginSection.style.display = 'none';
-        
-        // Show/hide advanced purchase options based on safeword state
+
+    // Display advanced options if safeword is already used
+    if (safewordUsed && isAuthenticated) {
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
         if (advancedOptions) {
-            if (safewordUsed) {
-                advancedOptions.style.display = 'block';
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-            } else {
-                advancedOptions.style.display = 'none';
-                advancedOptions.classList.remove('show');
-                advancedOptions.style.opacity = '0';
-                advancedOptions.style.maxHeight = '0';
-            }
-        }
-    } else {
-        // For non-authenticated users, ensure login section is visible
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
+            advancedOptions.style.display = 'block';
+            advancedOptions.classList.add('show');
+            advancedOptions.style.opacity = '1';
+            advancedOptions.style.maxHeight = '300px';
         }
     }
 
-    // Always hide success and purchase sections on initial load
+    // Update UI based on authentication state
+    updateUIForAuthState();
+
+    // Always hide purchase and success sections on initial load
+    const purchaseSection = document.getElementById('purchaseSection');
     const successSection = document.getElementById('successSection');
+    
     if (successSection) {
         successSection.style.display = 'none';
     }
     
-    const purchaseSection = document.getElementById('purchaseSection');
     if (purchaseSection) {
         purchaseSection.style.display = 'none';
     }
     
     // Update artist name and related elements
-    document.getElementById('artistName').textContent = currentArtist.toUpperCase();
-    document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
-    document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
-    document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
-});
+    updateArtistElements();
+    
+    // Initialize buy button with correct text
+    updateBuyButton();
+    
+    // Set up payment buttons with event handlers
+    setupPaymentButtons();
+    
+    // Listen for window resize to reposition orbital tokens
+    window.addEventListener('resize', function() {
+        positionOrbitalTokens();
+    });
+    
+    console.log("Application initialized successfully");
+    
+    // Debug purchase flow
+    debugPurchaseFlow();
+}
+
+// Helper function to get current artist data from config
+function getCurrentArtistData() {
+    return config.artists[currentArtist];
+}
+
+// Apply theme based on artist configuration
+function applyArtistTheme(artistId) {
+    document.body.className = `${artistId}-theme`;
+    
+    // Apply CSS custom properties from config
+    if (config && config.artists && config.artists[artistId]) {
+        const theme = config.artists[artistId].theme;
+        const root = document.documentElement;
+        
+        // Set CSS custom properties
+        root.style.setProperty('--primary-color', theme.primaryColor);
+        root.style.setProperty('--accent-color', theme.accentColor);
+        root.style.setProperty('--gradient-start', theme.gradientStart);
+        root.style.setProperty('--gradient-middle', theme.gradientMiddle);
+        root.style.setProperty('--gradient-end', theme.gradientEnd);
+        root.style.setProperty('--artist-font', theme.fontFamily);
+        
+        // Convert hex to RGB for rgba() usage
+        const hexToRgb = (hex) => {
+            // Remove # if present
+            hex = hex.replace('#', '');
+            
+            // Parse the hex values
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            
+            return `${r}, ${g}, ${b}`;
+        };
+        
+        // Set RGB versions of colors for rgba usage
+        root.style.setProperty('--accent-color-rgb', hexToRgb(theme.accentColor));
+    }
+}
+
+// Update all UI elements with current artist data
+function updateArtistElements() {
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not update artist elements: No artist data available");
+        return;
+    }
+    
+    document.getElementById('artistName').textContent = artistData.name;
+    document.getElementById('artistTokenName').textContent = artistData.tokenName;
+    document.getElementById('artistNameAccess').textContent = artistData.tokenName;
+    document.getElementById('artistVideoName').textContent = artistData.name;
+    document.getElementById('artworkTitle').textContent = artistData.artworkTitle;
+    
+    // Update video source
+    const videoSource = document.getElementById('videoSource');
+    videoSource.src = artistData.videoSrc;
+}
 
 // Set up token slider functionality
 function setupTokenSlider() {
@@ -172,8 +253,10 @@ function setupTokenSlider() {
     
     if (!slider) return;
     
+    const artistData = getCurrentArtistData();
+    
     // Calculate price and limits
-    const price = artistData[currentArtist].tokenPrice;
+    const price = artistData.tokenPrice;
     const maxDollarAmount = 10000;
     const minDollarAmount = 0; // Changed from 1 to 0 to allow $0 purchases
     
@@ -195,167 +278,109 @@ function setupTokenSlider() {
     // Update when slider changes
     slider.addEventListener('input', () => {
         updateFromTokenAmount(slider.value);
+        // Update the buy button display
+        updateTotalPrice();
     });
     
     // Update when token amount input changes
-    tokenAmountInput.addEventListener('input', function() {
-        // Remove non-numeric characters
-        this.value = this.value.replace(/[^0-9]/g, '');
+    tokenAmountInput.addEventListener('input', () => {
+        let value = parseInt(tokenAmountInput.value.replace(/,/g, ''));
         
-        if (this.value === '' || parseInt(this.value) < minTokens) {
-            this.value = minTokens.toString();
+        // If the input is not a valid number, reset to default
+        if (isNaN(value) || value < 0) {
+            value = config.defaults.initialTokenAmount;
         }
         
-        // Make sure it's within token limits
-        const tokens = Math.min(Math.max(parseInt(this.value), minTokens), maxTokens);
-        this.value = tokens;
+        // Apply boundaries
+        value = Math.max(minTokens, Math.min(maxTokens, value));
         
-        // Update other elements
-        updateFromTokenAmount(tokens);
+        // Update the slider and values
+        slider.value = value;
+        updateFromTokenAmount(value);
+        // Update the buy button display
+        updateTotalPrice();
     });
     
     // Update when total amount input changes
-    tokenTotalInput.addEventListener('input', function() {
-        // Allow numbers and decimal point
-        this.value = this.value.replace(/[^0-9.]/g, '');
+    tokenTotalInput.addEventListener('input', () => {
+        let value = parseFloat(tokenTotalInput.value.replace(/,/g, ''));
         
-        // Only allow one decimal point
-        const decimalCount = (this.value.match(/\./g) || []).length;
-        if (decimalCount > 1) {
-            this.value = this.value.substring(0, this.value.lastIndexOf('.'));
+        // If the input is not a valid number, reset to default
+        if (isNaN(value) || value < 0) {
+            value = config.defaults.initialTokenAmount * price;
         }
         
-        if (this.value === '' || parseFloat(this.value) < minDollarAmount) {
-            this.value = minDollarAmount.toFixed(2);
-        }
+        // Apply boundaries
+        const minTotal = minTokens * price;
+        const maxTotal = maxTokens * price;
+        value = Math.max(minTotal, Math.min(maxTotal, value));
         
-        // Make sure it's within dollar limits
-        const total = Math.min(Math.max(parseFloat(this.value), minDollarAmount), maxDollarAmount);
+        // Convert to tokens
+        const tokens = Math.round(value / price);
         
-        // Calculate tokens from total
-        const tokens = Math.ceil(total / price);
-        
-        // Update other elements
-        updateFromTokenAmount(tokens);
-    });
-    
-    // Function to update all elements from token amount
-    function updateFromTokenAmount(tokens) {
-        const slider = document.getElementById('tokenSlider');
-        const tokenAmountInput = document.getElementById('tokenAmountInput');
-        const tokenTotalInput = document.getElementById('tokenTotalInput');
-        
-        if (!slider || !tokenAmountInput || !tokenTotalInput) return;
-        
-        // Calculate price and limits
-        const price = artistData[currentArtist].tokenPrice;
-        const maxDollarAmount = 10000;
-        const minDollarAmount = 0;
-        
-        // Calculate token limits based on dollar amounts
-        const maxTokens = Math.floor(maxDollarAmount / price);
-        const minTokens = Math.ceil(minDollarAmount / price);
-        
-        // Ensure tokens is a number and within range
-        tokens = Math.max(minTokens, Math.min(parseInt(tokens), maxTokens));
-        
-        // Update slider
+        // Update slider and values
         slider.value = tokens;
-        
-        // Update currentTokenAmount global variable
-        currentTokenAmount = tokens;
-        
-        // Update token amount input
-        tokenAmountInput.value = tokens;
-        
-        // Update total price
+        updateFromTokenAmount(tokens);
+        // Update the buy button display
         updateTotalPrice();
-
-        // Update purchase headline with formatted token amount
-        const purchaseAmount = document.getElementById('purchaseAmount');
-        if (purchaseAmount) {
-            purchaseAmount.textContent = new Intl.NumberFormat().format(tokens);
-        }
-    }
-}
-
-// Update artist token price in UI
-function updateArtistTokenPrice() {
-    const tokenUnitPrice = document.querySelectorAll('#tokenUnitPrice');
-    const artistTokenName = document.getElementById('artistTokenName');
-    const artistNameAccess = document.getElementById('artistNameAccess');
-    const artistStockPurchaseName = document.getElementById('artistStockPurchaseName');
-    
-    const price = artistData[currentArtist].tokenPrice;
-    
-    // Update all instances of the token price
-    tokenUnitPrice.forEach(el => {
-        if (el) el.textContent = price.toFixed(4);
     });
-    
-    if (artistTokenName) {
-        artistTokenName.textContent = artistData[currentArtist].name;
-    }
-    
-    if (artistNameAccess) {
-        artistNameAccess.textContent = artistData[currentArtist].name;
-    }
-    
-    if (artistStockPurchaseName) {
-        artistStockPurchaseName.textContent = artistData[currentArtist].name;
-    }
-    
-    // Recalculate token limits for slider
-    if (document.getElementById('tokenSlider')) {
-        const slider = document.getElementById('tokenSlider');
-        const maxDollarAmount = 10000;
-        const minDollarAmount = 0;
-        
-        // Calculate token limits based on dollar amounts
-        const maxTokens = Math.floor(maxDollarAmount / price);
-        const minTokens = Math.ceil(minDollarAmount / price);
-        
-        // Set min and max attributes
-        slider.min = minTokens;
-        slider.max = maxTokens;
-        
-        // Reset to a default value (1% of max or minimum, whichever is greater)
-        const defaultTokens = Math.max(minTokens, Math.floor(maxTokens * 0.01));
-        
-        // Update all fields with the new default value
-        updateTokenValues(defaultTokens);
-    }
 }
 
-// Helper function for updating token values (reused in updateArtistTokenPrice)
-function updateTokenValues(value) {
+// Update from token amount 
+function updateFromTokenAmount(tokens) {
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data in updateFromTokenAmount");
+        return;
+    }
+    
+    const price = artistData.tokenPrice;
+    
+    // Update current token amount for purchase
+    currentTokenAmount = parseInt(tokens);
+    
+    // Calculate total price for artistocks only
+    const artistocksPrice = (currentTokenAmount * price).toFixed(4);
+    
+    // Format token amount with commas
+    const formattedTokens = new Intl.NumberFormat().format(currentTokenAmount);
+    
+    // Update DOM elements
     const tokenAmountInput = document.getElementById('tokenAmountInput');
     const tokenTotalInput = document.getElementById('tokenTotalInput');
-    const slider = document.getElementById('tokenSlider');
+    const purchaseAmount = document.getElementById('purchaseAmount');
+    const purchasedAmount = document.getElementById('purchasedAmount');
     
-    if (!tokenAmountInput || !tokenTotalInput) return;
+    if (tokenAmountInput) {
+        tokenAmountInput.value = formattedTokens;
+    }
     
-    // Calculate price and limits
-    const price = artistData[currentArtist].tokenPrice;
-    const minTokens = Math.ceil(0 / price); // $0 minimum
+    if (tokenTotalInput) {
+        // Add the $1 download price if toggle is checked
+        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+        const includeDownload = contentUnlockToggle && contentUnlockToggle.checked;
+        const totalPrice = parseFloat(artistocksPrice) + (includeDownload ? 1 : 0);
+        tokenTotalInput.value = totalPrice.toFixed(4);
+    }
     
-    // Ensure value is within range
-    value = Math.max(minTokens, parseInt(value));
+    if (purchaseAmount) {
+        purchaseAmount.textContent = formattedTokens;
+    }
     
-    // Update slider
-    if (slider) slider.value = value;
+    if (purchasedAmount) {
+        purchasedAmount.textContent = formattedTokens;
+    }
     
-    // Update currentTokenAmount global variable
-    currentTokenAmount = value;
-    
-    // Update token amount input
-    tokenAmountInput.value = value;
-    
-    // Calculate total cost
-    const totalCost = (value * price).toFixed(4);
-    
-    // Update total input
-    tokenTotalInput.value = totalCost;
+    console.log(`Token amount updated: ${formattedTokens} tokens at $${price} = $${artistocksPrice}`);
+}
+
+// Update the token price display
+function updateArtistTokenPrice() {
+    const tokenPriceSpan = document.getElementById('tokenUnitPrice');
+    const artistData = getCurrentArtistData();
+    if (tokenPriceSpan) {
+        tokenPriceSpan.textContent = artistData.tokenPrice.toFixed(4);
+    }
 }
 
 // Handle video errors and show fallback
@@ -433,34 +458,61 @@ function createCosmicParticles() {
 
 // Set up orbital tokens for the given artist
 function setupOrbitalTokens(artist) {
-    const orbitalTokensContainer = document.getElementById('orbitalTokens');
-    orbitalTokensContainer.innerHTML = '';
+    const orbitalContainer = document.getElementById('orbitalTokens');
+    if (!orbitalContainer) return;
     
-    tokenData[artist].forEach((token, index) => {
+    // Clear existing tokens
+    orbitalContainer.innerHTML = '';
+    
+    // Get artist-specific orbital tokens
+    const artistData = config.artists[artist];
+    if (!artistData || !artistData.orbitalTokens) return;
+    
+    const tokens = artistData.orbitalTokens;
+    
+    // Create tokens
+    tokens.forEach(token => {
         const tokenElement = document.createElement('div');
-        tokenElement.classList.add('token');
-        tokenElement.setAttribute('data-index', index);
+        tokenElement.className = 'token';
+        tokenElement.textContent = token.name;
         tokenElement.setAttribute('data-angle', token.angle);
-        tokenElement.setAttribute('data-artist', token.name.replace('\n', ' '));
-        tokenElement.innerHTML = token.name;
         
-        // Make tokens clickable
+        // Enhanced token clicking logic with hardcoded fallbacks
         tokenElement.addEventListener('click', function() {
-            const tokenArtist = this.getAttribute('data-artist');
+            console.log(`Token clicked: ${token.name}`);
+            const tokenName = this.textContent;
             
-            // Handle navigation based on token name
-            if (tokenArtist === 'IJA TEA' && currentArtist.toLowerCase() === 'gosheesh') {
-                // Navigate to JAI TEA page
+            // Hardcoded navigation for known tokens to ensure it works
+            if (currentArtist === 'gosheesh' && tokenName === 'IJA TEA') {
+                console.log('Navigating to JAI TEA');
                 transitionToArtist('jaitea');
-            } else if (tokenArtist === 'SHEEGOHS' && currentArtist.toLowerCase() === 'jaitea') {
-                // Navigate to GOSHEESH page
+                return;
+            } else if (currentArtist === 'jaitea' && tokenName === 'SHEEGOHS') {
+                console.log('Navigating to GOSHEESH');
                 transitionToArtist('gosheesh');
+                return;
             }
-            // Add more cases for other artists when they have pages
+            
+            // Fallback to general search for other tokens
+            for (const artistId in config.artists) {
+                // Skip current artist
+                if (artistId === currentArtist) continue;
+                
+                // Check if token name matches any artist name or displayName
+                const artist = config.artists[artistId];
+                if (tokenName === artist.name || tokenName === artist.displayName) {
+                    console.log(`Navigating to artist: ${artistId}`);
+                    transitionToArtist(artistId);
+                    break;
+                }
+            }
         });
         
-        orbitalTokensContainer.appendChild(tokenElement);
+        orbitalContainer.appendChild(tokenElement);
     });
+    
+    // Position the tokens initially
+    setTimeout(positionOrbitalTokens, 100); // Small delay to ensure elements are rendered
 }
 
 // Animate the orbital tokens
@@ -470,22 +522,8 @@ function animateOrbit() {
     
     orbitAnimationRunning = true;
     
-    const tokens = document.querySelectorAll('.token');
-    const container = document.querySelector('.video-container');
-    const video = document.getElementById('artistVideo');
-    
-    // Animation properties
-    // Use video dimensions to calculate orbit radius
-    const videoWidth = video.offsetWidth;
-    const videoHeight = video.offsetHeight;
-    
-    // Match the orbital radius to the orbit-glow element 
-    // Using the video width to create a perfect circle - increased for longer artist names
-    const orbitRadius = videoWidth * 0.75; // Increased from 0.7 to 0.75
-    
-    const orbitSpeed = 0.004; // Adjusted speed of rotation
-    
     let lastTimestamp = 0;
+    const orbitSpeed = 0.004; // Adjusted speed of rotation
     
     function animate(timestamp) {
         // First animation frame doesn't have elapsed time
@@ -499,47 +537,70 @@ function animateOrbit() {
         const elapsed = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
         
+        const tokens = document.querySelectorAll('.token');
+        
         tokens.forEach(token => {
             // Get the token's base angle and add the rotation
-            let angle = parseFloat(token.getAttribute('data-angle'));
+            let angle = parseFloat(token.getAttribute('data-angle') || 0);
             angle += elapsed * orbitSpeed;
             
             // Normalize angle to keep it within 0-360
             if (angle >= 360) angle -= 360;
             token.setAttribute('data-angle', angle);
-            
-            // Convert angle to radians
-            const radians = angle * (Math.PI / 180);
-            
-            // Calculate x and y position using sine and cosine
-            const x = Math.cos(radians) * orbitRadius;
-            const y = Math.sin(radians) * orbitRadius;
-            
-            // Calculate center of container for positioning
-            const centerX = container.offsetWidth / 2;
-            const centerY = container.offsetHeight / 2;
-            
-            // Position token
-            token.style.left = `${centerX + x - token.offsetWidth / 2}px`;
-            token.style.top = `${centerY + y - token.offsetHeight / 2}px`;
-            
-            // Handle z-index based on position
-            // Higher z-index when in front (top half), lower when behind (bottom half)
-            // This creates a visual effect of tokens going behind the video
-            if (y < 0) {
-                // Token is in the top half of the orbit, in front
-                token.style.zIndex = "4";
-            } else {
-                // Token is in the bottom half of the orbit, behind
-                token.style.zIndex = "1";
-            }
         });
+        
+        // Position tokens based on updated angles
+        positionOrbitalTokens();
         
         requestAnimationFrame(animate);
     }
     
     // Start the animation
     requestAnimationFrame(animate);
+}
+
+// Position orbital tokens based on their current angles
+function positionOrbitalTokens() {
+    const tokens = document.querySelectorAll('.token');
+    const container = document.querySelector('.video-container');
+    const video = document.getElementById('artistVideo');
+    
+    if (!container || !video || tokens.length === 0) return;
+    
+    // Get dimensions for positioning
+    const videoWidth = video.offsetWidth;
+    const videoHeight = video.offsetHeight;
+    
+    // Calculate container center
+    const containerRect = container.getBoundingClientRect();
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    
+    // Calculate radius - use video width for consistent circular orbit
+    const orbitRadius = videoWidth * 0.75;
+    
+    tokens.forEach(token => {
+        // Get angle in radians
+        const angle = parseFloat(token.getAttribute('data-angle') || 0) * (Math.PI / 180);
+        
+        // Calculate position
+        const x = Math.cos(angle) * orbitRadius;
+        const y = Math.sin(angle) * orbitRadius;
+        
+        // Position from center of container
+        token.style.transform = `translate(-50%, -50%)`;
+        token.style.left = `${centerX + x}px`;
+        token.style.top = `${centerY + y}px`;
+        
+        // Adjust z-index based on y position
+        if (y < 0) {
+            // Token is in the top half of the orbit (in front)
+            token.style.zIndex = "4";
+        } else {
+            // Token is in the bottom half (behind)
+            token.style.zIndex = "1";
+        }
+    });
 }
 
 // Handle email login form
@@ -551,15 +612,23 @@ function handleEmailLogin() {
         console.log(`Login with email: ${email}`);
         completeLogin('email');
     } else {
-        // Show validation error
+        // Show validation error with enhanced shake animation
         const emailInput = document.getElementById('emailInput');
+        
+        // Add red border
         emailInput.style.borderColor = 'red';
+        
+        // Apply shake animation
         emailInput.style.animation = 'shake 0.5s';
         
+        // Clear styles after animation completes
         setTimeout(() => {
             emailInput.style.borderColor = '';
             emailInput.style.animation = '';
-        }, 1000);
+            
+            // Focus input to encourage correction
+            emailInput.focus();
+        }, 500);
     }
 }
 
@@ -585,20 +654,27 @@ function handleLogin(method) {
 
 // Complete login process and show purchase section
 function completeLogin(method) {
+    console.log(`Completing login via ${method}`);
+    
     // Set authentication state
     isAuthenticated = true;
+    isLoggedIn = true;
     localStorage.setItem('isAuthenticated', 'true');
 
-    // Hide login section
+    // Get safeword status from localStorage
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // Use centralized function to update UI based on authentication state
+    updateUIForAuthState();
+    
+    // Make sure login section is hidden
     const loginSection = document.getElementById('loginSection');
     if (loginSection) {
+        loginSection.style.display = 'none';
         loginSection.style.opacity = '0';
-        setTimeout(() => {
-            loginSection.style.display = 'none';
-        }, 300);
     }
     
-    // Show token preview section
+    // Make sure token section is visible with animation
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
         tokenSection.style.display = 'block';
@@ -609,44 +685,17 @@ function completeLogin(method) {
         }, 100);
     }
     
-    // Check if safeword was already entered
-    const safewordActive = window.safewordActivated ? window.safewordActivated() : false;
+    // Ensure the buy button has its event handler
     const buyButton = document.getElementById('buyButton');
-    
-    // Check if advanced options should be shown (if safeword was already entered)
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput && chatInput.value) {
-        const inputText = chatInput.value.toLowerCase();
-        const keywordMatches = [
-            'artistock', 'artist stock', 'art stock', 'artisstok', 
-            'art istok', 'artstock', 'art ist ock', 'artis tok'
-        ];
-        
-        const foundMatch = keywordMatches.some(keyword => inputText.includes(keyword));
-        
-        if (foundMatch) {
-            const advancedOptions = document.getElementById('advancedPurchaseOptions');
-            if (advancedOptions) {
-                // Update button text to reflect advanced capabilities
-                if (buyButton) {
-                    buyButton.textContent = 'Buy Artistocks';
-                    buyButton.classList.add('safeword-activated');
-                }
-                
-                // Show after a delay for better UX
-                setTimeout(() => {
-                    advancedOptions.style.display = 'block';
-                    advancedOptions.classList.add('show');
-                    advancedOptions.style.opacity = '1';
-                    advancedOptions.style.maxHeight = '300px';
-                }, 500);
-            }
-        }
-    } else if (safewordActive && buyButton) {
-        // If safeword was previously found but chat input is cleared, still show right button text
-        buyButton.textContent = 'Buy Artistocks';
-        buyButton.classList.add('safeword-activated');
+    if (buyButton) {
+        // Remove existing event listeners by cloning and replacing
+        const newBuyButton = buyButton.cloneNode(true);
+        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
+        newBuyButton.addEventListener('click', handleBuyClick);
     }
+    
+    // Update buy button text
+    updateBuyButton();
     
     // Auto-focus on chat input after login completes
     setTimeout(() => {
@@ -678,147 +727,185 @@ function flashLoginButton(method) {
 
 // Handle payment selection
 function handlePayment(method) {
-    console.log(`Payment selected: ${method}`);
+    console.log(`Payment selected: ${method} for artist: ${currentArtist}`);
     paymentSelected = true;
+    
+    // Ensure user stays authenticated
+    isAuthenticated = true;
+    localStorage.setItem('isAuthenticated', 'true');
+    
+    // Get safeword status and check if this includes artistocks
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // Determine the transaction type based on artistock amount
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data in handlePayment");
+        return;
+    }
+    
+    let artistocksTotal = 0;
+    let includesArtistocks = false;
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+    
+    // Calculate artistocks total if applicable
+    if (safewordUsed && currentTokenAmount > 0) {
+        artistocksTotal = currentTokenAmount * artistData.tokenPrice;
+        includesArtistocks = true;
+    }
+    
+    // Calculate total price
+    const totalPrice = (artistocksTotal + (includesDownload ? 1 : 0)).toFixed(2);
+    
+    // Log the purchase details
+    console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
     
     // Flash the selected payment button
     flashPaymentButton(method);
     
-    // Complete the payment process
+    // Complete the payment process after a short delay
+    // This ensures the UI has time to update
     setTimeout(() => {
-        unlockArtistock();
+        if (includesArtistocks) {
+            console.log("Completing payment process for artistocks + download...");
+        } else {
+            console.log("Completing payment process for download only...");
+        }
+        
+        // Direct approach to showing success
+        showSuccessSection(includesArtistocks);
     }, 800);
 }
 
-// Flash payment button animation
-function flashPaymentButton(method) {
-    const button = document.querySelector(`.payment-btn.${method}`);
-    if (!button) return;
+// Show success section directly
+function showSuccessSection(includesArtistocks = false) {
+    console.log(`Showing success section for ${includesArtistocks ? 'artistocks+download' : 'download only'}`);
     
-    button.style.transform = 'scale(1.05)';
-    button.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.5)';
+    // Ensure success section exists
+    let successSection = document.getElementById('successSection');
     
-    setTimeout(() => {
-        button.style.transform = '';
-        button.style.boxShadow = '';
-    }, 300);
-}
-
-// Unlock Artistock
-function unlockArtistock() {
-    console.log(`Unlocking ${currentTokenAmount} ${currentArtist} Artistock tokens`);
-    
-    // Hide purchase section
-    const purchaseSection = document.querySelector('.purchase-section');
-    if (purchaseSection) {
-        purchaseSection.style.display = 'none';
+    // Get artist data
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data in showSuccessSection");
+        return;
     }
     
-    // Get content unlock status
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    const hasUnlockedContent = contentUnlockToggle && contentUnlockToggle.checked;
-    
-    // Mark content as unlocked for this artist
-    contentUnlocked[currentArtist] = true;
-    
-    // Store in localStorage
-    localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
-    
-    // Hide token section
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    if (tokenSection) {
-        tokenSection.style.display = 'none';
-    }
-    
-    // Update purchase amount with formatted number
-    const purchasedAmount = document.getElementById('purchasedAmount');
-    if (purchasedAmount) {
-        if (!safewordUsed) {
-            // For non-safeword users, just use the minimum token amount for display
-            const price = artistData[currentArtist].tokenPrice;
-            const minTokenAmount = Math.ceil(1 / price);
-            purchasedAmount.textContent = new Intl.NumberFormat().format(minTokenAmount);
-        } else {
-            purchasedAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
-        }
-    }
-    
-    // Show success section
-    const successSection = document.getElementById('successSection');
-    if (successSection) {
-        successSection.style.display = 'block';
-    }
-    
-    // Update artist stock name
-    const artistStockName = document.getElementById('artistStockName');
-    if (artistStockName) {
-        artistStockName.textContent = artistData[currentArtist].name;
-    }
-    
-    // Update success message based on purchase type
-    const successMessage = document.querySelector('.success-section p');
-    const successTitle = document.querySelector('.success-section h3');
-    
-    if (!safewordUsed) {
-        // Download-only purchase for $1
-        // Update success title and message
-        if (successTitle) {
-            successTitle.textContent = "You've unlocked this download!";
+    // Create or update the success section
+    if (!successSection) {
+        console.log("Creating new success section");
+        const contentSection = document.querySelector('.content-section');
+        if (!contentSection) {
+            console.error("Content section not found!");
+            return;
         }
         
-        // Generate simulated IPFS link
-        const ipfsHash = generateIPFSHash();
-        if (successMessage) {
-            successMessage.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-        }
-    } else {
-        // Full Artistocks + optional download purchase
-        if (hasUnlockedContent) {
-            // Store in localStorage
-            localStorage.setItem('artistocksBalance', currentTokenAmount);
-            
-            // Generate simulated IPFS link
-            const ipfsHash = generateIPFSHash();
-            
-            // Update success title to reflect both purchase types
-            if (successTitle) {
-                successTitle.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData[currentArtist].name}</span> Artistocks + Download!`;
-            }
-            
-            if (successMessage) {
-                successMessage.innerHTML = `You've unlocked the download and received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-            }
+        successSection = document.createElement('div');
+        successSection.className = 'success-section';
+        successSection.id = 'successSection';
+        
+        // Create success content
+        const checkmark = document.createElement('div');
+        checkmark.className = 'success-check';
+        checkmark.textContent = '✓';
+        successSection.appendChild(checkmark);
+        
+        // Create title based on purchase type
+        const title = document.createElement('h3');
+        if (includesArtistocks) {
+            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
         } else {
-            // Artistocks only
-            localStorage.setItem('artistocksBalance', currentTokenAmount);
-            
-            // Update success title for Artistocks only
-            if (successTitle) {
-                successTitle.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData[currentArtist].name}</span> Artistocks`;
-            }
-            
-            if (successMessage) {
-                successMessage.textContent = `You've received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!`;
-            }
+            title.textContent = "You've unlocked this download!";
         }
+        successSection.appendChild(title);
+        
+        // Generate IPFS hash for download
+        const ipfsHash = generateIPFSHash();
+        
+        // Create message based on purchase type
+        const message = document.createElement('p');
+        if (includesArtistocks) {
+            message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        } else {
+            message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        }
+        successSection.appendChild(message);
+        
+        // Add explore button
+        const exploreBtn = document.createElement('button');
+        exploreBtn.className = 'explore-btn';
+        exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
+        exploreBtn.addEventListener('click', () => {
+            currentArtist === 'gosheesh' ? transitionToArtist('jaitea') : transitionToArtist('gosheesh');
+        });
+        successSection.appendChild(exploreBtn);
+        
+        // Add to DOM
+        contentSection.appendChild(successSection);
+    } else {
+        console.log("Updating existing success section");
+        
+        // Clear existing content
+        successSection.innerHTML = '';
+        
+        // Recreate all elements based on purchase type
+        const checkmark = document.createElement('div');
+        checkmark.className = 'success-check';
+        checkmark.textContent = '✓';
+        successSection.appendChild(checkmark);
+        
+        // Create title based on purchase type
+        const title = document.createElement('h3');
+        if (includesArtistocks) {
+            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+        } else {
+            title.textContent = "You've unlocked this download!";
+        }
+        successSection.appendChild(title);
+        
+        // Generate IPFS hash for download
+        const ipfsHash = generateIPFSHash();
+        
+        // Create message based on purchase type
+        const message = document.createElement('p');
+        if (includesArtistocks) {
+            message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        } else {
+            message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        }
+        successSection.appendChild(message);
+        
+        // Add explore button
+        const exploreBtn = document.createElement('button');
+        exploreBtn.className = 'explore-btn';
+        exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
+        exploreBtn.addEventListener('click', () => {
+            currentArtist === 'gosheesh' ? transitionToArtist('jaitea') : transitionToArtist('gosheesh');
+        });
+        successSection.appendChild(exploreBtn);
     }
     
-    // Make sure the explore button is visible and properly set up
-    const exploreBtn = document.querySelector('.explore-btn');
-    if (exploreBtn) {
-        exploreBtn.style.display = 'block';
-        exploreBtn.style.opacity = '1';
-        updateExploreButton();
-    }
+    // Mark this artist's content as unlocked
+    contentUnlocked[currentArtist] = true;
+    localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
+    localStorage.setItem(`${currentArtist}_unlocked`, 'true');
     
-    // Ensure we maintain authenticated state
-    isAuthenticated = true;
-    localStorage.setItem('isAuthenticated', 'true');
+    // Hide all sections except success
+    document.querySelectorAll('.content-section > div').forEach(section => {
+        section.style.display = 'none';
+    });
     
-    // Scroll to success section
+    // Show success section
     if (successSection) {
+        successSection.style.display = 'block';
+        successSection.style.opacity = '1';
+        
+        // Scroll to success section
         successSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    
+    console.log(`Purchase complete for ${includesArtistocks ? 'artistocks+download' : 'download only'}, artist: ${currentArtist}`);
 }
 
 // Generate a simulated IPFS hash
@@ -831,43 +918,50 @@ function generateIPFSHash() {
     return hash;
 }
 
-// Function to handle artist transition
+// Function to transition to a different artist
 function transitionToArtist(artistId) {
+    console.log(`Transitioning to artist: ${artistId}`);
+    
     // Update the global currentArtist variable
     currentArtist = artistId.toLowerCase();
     
     // Store current artist in localStorage
     localStorage.setItem('currentArtist', currentArtist);
     
-    // Update UI elements with the new artist name
-    document.getElementById('artistName').textContent = artistId.toUpperCase();
-    document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
-    document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
-    document.getElementById('artistVideoName').textContent = artistId.toUpperCase();
-    document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
+    // Make sure the artist exists in config
+    if (!config.artists[currentArtist]) {
+        console.error(`Artist ${currentArtist} not found in configuration`);
+        return;
+    }
     
-    // Update video source if needed
-    const videoSource = document.getElementById('videoSource');
-    videoSource.src = `assets/${artistId.toLowerCase()}-video.mp4`;
-    document.getElementById('artistVideo').load();
+    const artistData = getCurrentArtistData();
     
-    // Reset state but preserve authentication
+    // Important: Get authentication and safeword status FIRST
+    // to ensure they're preserved during transition
+    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     isLoggedIn = isAuthenticated;
-    paymentSelected = false;
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    console.log(`Artist transition - Auth state: ${isAuthenticated}, Safeword: ${safewordUsed}`);
+    
+    // Update UI elements with the new artist name
+    updateArtistElements();
     
     // Change theme
-    document.body.className = `${currentArtist}-theme`;
+    applyArtistTheme(currentArtist);
     
     // Update video source
     const video = document.getElementById('artistVideo');
     const source = document.getElementById('videoSource');
+    if (!video || !source) return;
+    
     const isMuted = video.muted; // Store the current mute state
     
     // Hide video temporarily during transition
     video.style.opacity = '0';
     
     // Update source
-    source.src = `assets/${currentArtist}-video.mp4`;
+    source.src = artistData.videoSrc;
     video.load();
     
     // When video is ready, show it
@@ -903,16 +997,22 @@ function transitionToArtist(artistId) {
     // Update token price and reset token slider
     updateArtistTokenPrice();
     
-    // Update purchase headline for the new artist
-    const purchaseAmount = document.getElementById('purchaseAmount');
-    if (purchaseAmount) {
-        purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
-    }
-    
     // Clear chat input
-    document.getElementById('chatInput').value = '';
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.value = '';
+        // For better UX, update placeholder
+        chatInput.placeholder = isAuthenticated ? 
+            "Type something here..." : 
+            "Type 'artistock' to unlock advanced options...";
+    }
+
+    // Reset UI: Hide all sections initially
+    document.querySelectorAll('.content-section > div').forEach(section => {
+        section.style.display = 'none';
+    });
     
-    // Always show token preview section with $1 download button
+    // Always ensure the token preview section is visible for all artists
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
         tokenSection.style.display = 'block';
@@ -920,82 +1020,62 @@ function transitionToArtist(artistId) {
         tokenSection.style.transform = 'translateY(0)';
     }
     
-    // Show appropriate sections based on authentication status
-    if (isAuthenticated) {
-        // Hide login section
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) {
+    // Ensure purchase section exists
+    ensurePurchaseSectionExists();
+    
+    // Set up login section properly based on authentication
+    const loginSection = document.getElementById('loginSection');
+    if (loginSection) {
+        if (isAuthenticated) {
             loginSection.style.display = 'none';
-        }
-        
-        // Show/hide advanced purchase options based on safeword state
-        const advancedOptions = document.getElementById('advancedPurchaseOptions');
-        const buyButton = document.getElementById('buyButton');
-        
-        if (advancedOptions) {
-            if (safewordUsed) {
-                advancedOptions.style.display = 'block';
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-                
-                if (buyButton) {
-                    buyButton.textContent = 'Buy Artistocks';
-                    buyButton.classList.add('safeword-activated');
-                }
-            } else {
-                advancedOptions.style.display = 'none';
-                advancedOptions.classList.remove('show');
-                advancedOptions.style.opacity = '0';
-                advancedOptions.style.maxHeight = '0';
-                
-                if (buyButton) {
-                    buyButton.textContent = 'Get Download ($1)';
-                    buyButton.classList.remove('safeword-activated');
-                }
-            }
-        }
-        
-        // Hide purchase and success sections
-        const purchaseSection = document.getElementById('purchaseSection');
-        if (purchaseSection) {
-            purchaseSection.style.display = 'none';
-        }
-        
-        const successSection = document.getElementById('successSection');
-        if (successSection) {
-            successSection.style.display = 'none';
-        }
-    } else {
-        // User is not authenticated, show login section
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) {
+            loginSection.style.opacity = '0';
+        } else {
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
         }
-        
-        // Reset email input
-        if (document.getElementById('emailInput')) {
-            document.getElementById('emailInput').value = '';
+    }
+    
+    // Set up content unlock toggle properly
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    if (contentUnlockToggle) {
+        // Default to true for download availability
+        contentUnlockToggle.checked = true;
+    }
+    
+    // Set up advanced purchase options based on safeword
+    const advancedOptions = document.getElementById('advancedPurchaseOptions');
+    if (advancedOptions) {
+        if (safewordUsed && isAuthenticated) {
+            advancedOptions.style.display = 'block';
+            advancedOptions.classList.add('show');
+            advancedOptions.style.opacity = '1';
+            advancedOptions.style.maxHeight = '300px';
+        } else {
+            advancedOptions.style.display = 'none';
+            advancedOptions.classList.remove('show');
+            advancedOptions.style.opacity = '0';
+            advancedOptions.style.maxHeight = '0';
         }
+    }
+    
+    // Set up buy button event handler
+    const buyButton = document.getElementById('buyButton');
+    if (buyButton) {
+        // Direct approach: Remove all existing listeners
+        const newBuyButton = buyButton.cloneNode(true);
+        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
         
-        // Hide purchase and success sections
-        const purchaseSection = document.getElementById('purchaseSection');
-        if (purchaseSection) {
-            purchaseSection.style.display = 'none';
-            purchaseSection.style.opacity = '0';
-        }
+        // Add click listener directly
+        newBuyButton.addEventListener('click', handleBuyClick);
+        console.log("Re-attached click handler to buy button");
         
-        const successSection = document.getElementById('successSection');
-        if (successSection) {
-            successSection.style.display = 'none';
-        }
-        
-        // Make sure the buy button shows "Get Download ($1)"
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            buyButton.textContent = 'Get Download ($1)';
-            buyButton.classList.remove('safeword-activated');
+        // Update buy button text
+        if (safewordUsed) {
+            newBuyButton.textContent = `Get Download ($${config.defaults.downloadPrice}) or Buy Artistocks`;
+            newBuyButton.classList.add('safeword-activated');
+        } else {
+            newBuyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+            newBuyButton.classList.remove('safeword-activated');
         }
     }
     
@@ -1008,6 +1088,27 @@ function transitionToArtist(artistId) {
     // Reset animation flag to ensure animation restarts with new tokens
     orbitAnimationRunning = false;
     animateOrbit();
+    
+    // Position tokens correctly after transition
+    setTimeout(positionOrbitalTokens, 200);
+    
+    // Do a final check after everything is set up
+    setTimeout(() => {
+        // Re-check buy button
+        const buyButton = document.getElementById('buyButton');
+        if (buyButton) {
+            // Make sure we can track clicks
+            buyButton.addEventListener('click', function() {
+                console.log('Buy button clicked (backup handler)');
+                handleBuyClick();
+            });
+        }
+        
+        // Debug the setup
+        debugPurchaseFlow();
+    }, 500);
+    
+    console.log(`Transition to ${currentArtist} complete`);
 }
 
 // Set up video controls
@@ -1092,111 +1193,221 @@ function setupVideoControls() {
 
 // Handle buy button click
 function handleBuyClick() {
-    console.log("Buy button clicked");
+    console.log("Buy button clicked - Current artist:", currentArtist); // Enhanced debugging
     
-    // Check if the user is authenticated
+    // Always check authentication from localStorage
+    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    isLoggedIn = isAuthenticated;
+    
+    console.log("Authentication state:", isAuthenticated); // Enhanced debugging
+    
     if (!isAuthenticated) {
-        // Flash the login section
+        // Shake the login section to indicate authentication required
         const loginSection = document.getElementById('loginSection');
         if (loginSection) {
+            console.log("Not authenticated, showing login"); // Debugging
+            // Make sure login section is visible first
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
+            
+            // Apply shake animation to the entire login section
             loginSection.style.animation = 'shake 0.5s';
             setTimeout(() => {
                 loginSection.style.animation = '';
             }, 500);
+            
+            // Scroll to login section
+            loginSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        
+        return; // Exit function - don't proceed with purchase
+    }
+    
+    console.log("Authenticated, proceeding with purchase flow"); // Debugging
+    
+    // SIMPLIFIED DIRECT APPROACH - Don't rely on existing elements
+    // Force-create the purchase section if it doesn't exist
+    ensurePurchaseSectionExists();
+    
+    // Get the purchase section directly
+    const purchaseSection = document.getElementById('purchaseSection');
+    if (!purchaseSection) {
+        console.error("Purchase section still not found after trying to create it!");
         return;
     }
     
-    // Set up for purchase according to mode
-    if (!safewordUsed) {
-        // Without safeword: Force $1 download purchase only
-        const price = artistData[currentArtist].tokenPrice;
-        const minTokenAmount = Math.ceil(1 / price); // Calculate tokens for $1
-        currentTokenAmount = minTokenAmount;
-        
-        // Make sure content unlock is checked
-        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-        if (contentUnlockToggle) {
-            contentUnlockToggle.checked = true;
+    // UPDATE UI DIRECTLY
+    // First hide all other sections
+    document.querySelectorAll('.content-section > div').forEach(section => {
+        if (section.id !== 'purchaseSection') {
+            section.style.display = 'none';
         }
+    });
+    
+    // Calculate the correct total price and update the headline
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data!");
+        return;
+    }
+    
+    // Get safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // Check if advanced purchase options are visible and have a value
+    let artistocksTotal = 0;
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const unlockCost = contentUnlockToggle && contentUnlockToggle.checked ? 1 : 0;
+    
+    if (safewordUsed) {
+        // Get token slider value if it exists
+        const slider = document.getElementById('tokenSlider');
+        const tokenAmountInput = document.getElementById('tokenAmountInput');
         
-        // Update values
-        if (typeof updateFromTokenAmount === 'function') {
-            updateFromTokenAmount(minTokenAmount);
+        // If we have a slider and artistocks amount, calculate that total
+        if (slider && tokenAmountInput) {
+            let tokenAmount = 0;
+            
+            // Try to get token amount from input first
+            if (tokenAmountInput.value) {
+                // Remove commas from formatted number
+                tokenAmount = parseInt(tokenAmountInput.value.replace(/,/g, ''));
+            }
+            
+            // Fallback to slider value
+            if (isNaN(tokenAmount) || tokenAmount <= 0) {
+                tokenAmount = parseInt(slider.value);
+            }
+            
+            // Update current token amount
+            currentTokenAmount = tokenAmount;
+            
+            // Calculate artistocks cost
+            artistocksTotal = tokenAmount * artistData.tokenPrice;
+            console.log(`Artistocks: ${tokenAmount} at ${artistData.tokenPrice} = $${artistocksTotal.toFixed(2)}`);
         }
-        
-        // Update purchase headline
-        const purchaseHeadline = document.getElementById('purchaseHeadline');
-        if (purchaseHeadline) {
+    }
+    
+    // Calculate total price (artistocks + $1 download)
+    const totalPrice = artistocksTotal + unlockCost;
+    console.log(`Total price: $${totalPrice.toFixed(2)} (Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost})`);
+    
+    // Explicitly update purchase headline
+    const purchaseHeadline = document.getElementById('purchaseHeadline');
+    if (purchaseHeadline) {
+        if (safewordUsed && artistocksTotal > 0) {
+            // Both artistocks and download
+            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
+        } else {
+            // Just download
             purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
         }
+    }
+    
+    // Now force display the purchase section
+    purchaseSection.style.display = 'block';
+    purchaseSection.style.opacity = '1';
+    
+    // Ensure payment section is visible
+    const paymentSection = purchaseSection.querySelector('.payment-section');
+    if (paymentSection) {
+        paymentSection.style.display = 'grid';
+        paymentSection.style.opacity = '1';
+    }
+    
+    // Extra check for payment buttons - create them if missing
+    if (document.querySelectorAll('.payment-btn').length === 0) {
+        createPaymentButtons();
+    }
+    
+    // Force redraw
+    void purchaseSection.offsetHeight;
+    
+    // Scroll it into view
+    purchaseSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    console.log("Purchase flow setup complete - Forced display of purchase section");
+}
+
+// Ensure purchase section exists
+function ensurePurchaseSectionExists() {
+    console.log("Ensuring purchase section exists");
+    
+    let purchaseSection = document.getElementById('purchaseSection');
+    
+    // If purchase section doesn't exist, create it
+    if (!purchaseSection) {
+        console.log("Purchase section not found, creating it");
+        const contentSection = document.querySelector('.content-section');
+        if (contentSection) {
+            purchaseSection = document.createElement('div');
+            purchaseSection.className = 'purchase-section';
+            purchaseSection.id = 'purchaseSection';
+            
+            // Add headline
+            const headline = document.createElement('h3');
+            headline.id = 'purchaseHeadline';
+            headline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+            purchaseSection.appendChild(headline);
+            
+            // Add payment section
+            const paymentSection = document.createElement('div');
+            paymentSection.className = 'payment-section';
+            purchaseSection.appendChild(paymentSection);
+            
+            // Add payment buttons
+            createPaymentButtons(paymentSection);
+            
+            // Add to DOM
+            contentSection.appendChild(purchaseSection);
+            console.log("Created new purchase section");
+        } else {
+            console.error("Content section not found, cannot create purchase section");
+        }
     } else {
-        // With safeword: Use advanced options if visible
-        const advancedOptions = document.getElementById('advancedPurchaseOptions');
-        const isAdvancedVisible = advancedOptions && window.getComputedStyle(advancedOptions).display !== 'none';
-        
-        // Check if content unlock toggle is checked (digital download)
-        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-        const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
-        
-        // Update purchase headline to focus on both download and tokens
-        const purchaseHeadline = document.getElementById('purchaseHeadline');
-        if (purchaseHeadline) {
-            if (includesDownload) {
-                // Show both Artistocks and download
-                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span>`;
-            } else {
-                // Show only Artistocks
-                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks`;
-            }
+        // Ensure purchase section has a payment section
+        let paymentSection = purchaseSection.querySelector('.payment-section');
+        if (!paymentSection) {
+            console.log("Payment section not found, creating it");
+            paymentSection = document.createElement('div');
+            paymentSection.className = 'payment-section';
+            purchaseSection.appendChild(paymentSection);
+            
+            // Add payment buttons
+            createPaymentButtons(paymentSection);
         }
     }
+}
+
+// Create payment buttons
+function createPaymentButtons(parentElement) {
+    const paymentSection = parentElement || document.querySelector('.payment-section');
+    if (!paymentSection) {
+        console.error("Cannot create payment buttons: no payment section found");
+        return;
+    }
     
-    // Show purchase section with payment options
-    const purchaseSection = document.getElementById('purchaseSection');
-    if (purchaseSection) {
-        // Make sure display is block and not none
-        purchaseSection.style.display = 'block';
+    console.log("Creating payment buttons");
+    
+    // Clear existing buttons
+    paymentSection.innerHTML = '';
+    
+    // Add payment buttons
+    const paymentMethods = ['credit', 'paypal', 'venmo', 'crypto'];
+    paymentMethods.forEach(method => {
+        const btn = document.createElement('button');
+        btn.className = `payment-btn ${method}`;
+        btn.textContent = method === 'credit' ? 'Credit Card' : 
+                         method === 'paypal' ? 'PayPal' : 
+                         method === 'venmo' ? 'Venmo' : 'Crypto';
         
-        // Immediately make purchase section visible
-        purchaseSection.style.opacity = '1';
+        // Add event listener directly
+        btn.addEventListener('click', () => handlePayment(method));
         
-        // Ensure payment section is visible
-        const paymentSection = purchaseSection.querySelector('.payment-section');
-        if (paymentSection) {
-            paymentSection.style.display = 'grid';
-            paymentSection.style.opacity = '1';
-        }
-        
-        // Scroll to purchase section
-        purchaseSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+        paymentSection.appendChild(btn);
+    });
     
-    // Hide token section
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    if (tokenSection) {
-        tokenSection.style.display = 'none';
-    }
-    
-    // Hide success section if visible
-    const successSection = document.getElementById('successSection');
-    if (successSection) {
-        successSection.style.display = 'none';
-    }
-    
-    // Update purchase amounts in the display
-    const purchaseAmount = document.getElementById('purchaseAmount');
-    const artistStockName = document.getElementById('artistStockPurchaseName');
-    
-    if (purchaseAmount) {
-        purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
-    }
-    
-    if (artistStockName) {
-        artistStockName.textContent = artistData[currentArtist].name;
-    }
+    console.log(`Created ${paymentMethods.length} payment buttons`);
 }
 
 // Set up content unlock toggle functionality
@@ -1204,23 +1415,42 @@ function setupContentUnlockToggle() {
     const toggle = document.getElementById('contentUnlockToggle');
     if (!toggle) return;
     
-    // Always checked by default
+    // Always checked by default to ensure download is available
     toggle.checked = true;
     
+    // Load artist-specific saved state if available
+    if (contentUnlocked[currentArtist]) {
+        toggle.checked = true;
+    }
+    
+    // Listen for changes to update total price
     toggle.addEventListener('change', () => {
+        // Update the total price calculation
         updateTotalPrice();
+        
+        // Also update buy button text to reflect the change
+        updateBuyButton();
+        
+        console.log(`Content unlock toggle changed to: ${toggle.checked ? 'checked' : 'unchecked'}`);
     });
 }
 
 // Function to update total price
 function updateTotalPrice() {
+    console.log("Updating total price");
     const tokenTotalInput = document.getElementById('tokenTotalInput');
     const contentUnlockToggle = document.getElementById('contentUnlockToggle');
     
     if (!tokenTotalInput || !contentUnlockToggle) return;
     
     // Calculate Artistocks cost
-    const artistocksTotal = currentTokenAmount * artistData[currentArtist].tokenPrice;
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data in updateTotalPrice");
+        return;
+    }
+    
+    const artistocksTotal = currentTokenAmount * artistData.tokenPrice;
     
     // Add $1 if content unlock is checked
     const unlockCost = contentUnlockToggle.checked ? 1 : 0;
@@ -1230,6 +1460,7 @@ function updateTotalPrice() {
     
     // Update total input
     tokenTotalInput.value = total.toFixed(4);
+    console.log(`Total updated: $${total.toFixed(2)} (Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost})`);
     
     // If purchase headline is visible, update it based on content unlock toggle
     const purchaseHeadline = document.getElementById('purchaseHeadline');
@@ -1240,11 +1471,19 @@ function updateTotalPrice() {
         safewordUsed) {
         
         if (contentUnlockToggle.checked) {
-            // Show both Artistocks and download
-            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span>`;
-        } else {
+            if (artistocksTotal > 0) {
+                // Show both Artistocks and download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
+            } else {
+                // Just download
+                purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+            }
+        } else if (artistocksTotal > 0) {
             // Show only Artistocks
-            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks`;
+            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
+        } else {
+            // No artistocks or download (shouldn't happen)
+            purchaseHeadline.innerHTML = `Complete your purchase`;
         }
         
         // Make sure purchaseAmount and artistStockPurchaseName are updated
@@ -1256,14 +1495,17 @@ function updateTotalPrice() {
         }
         
         if (artistStockName) {
-            artistStockName.textContent = artistData[currentArtist].name;
+            artistStockName.textContent = artistData.name;
         }
     }
+    
+    // Update buy button text to reflect the total
+    updateBuyButton();
     
     // Update slider minimum if content is unlocked
     const slider = document.getElementById('tokenSlider');
     if (slider) {
-        const price = artistData[currentArtist].tokenPrice;
+        const price = artistData.tokenPrice;
         const minTokens = contentUnlockToggle.checked ? 0 : Math.ceil(1 / price);
         slider.min = minTokens;
         
@@ -1302,9 +1544,9 @@ function setupLogoutButton() {
 
         // Update UI elements
         document.getElementById('artistName').textContent = 'GOSHEESH';
-        document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
-        document.getElementById('artistNameAccess').textContent = artistData[currentArtist].name;
-        document.getElementById('artworkTitle').textContent = artistData[currentArtist].artworkTitle;
+        document.getElementById('artistTokenName').textContent = getCurrentArtistData().name;
+        document.getElementById('artistNameAccess').textContent = getCurrentArtistData().name;
+        document.getElementById('artworkTitle').textContent = getCurrentArtistData().artworkTitle;
 
         // Reset advanced purchase options
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
@@ -1318,7 +1560,7 @@ function setupLogoutButton() {
         // Reset buy button text
         const buyButton = document.getElementById('buyButton');
         if (buyButton) {
-            buyButton.textContent = 'Get Download ($1)';
+            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
             buyButton.classList.remove('safeword-activated');
         }
 
@@ -1395,7 +1637,7 @@ function setupLogoutButton() {
         // Reset content unlock toggle
         const contentUnlockToggle = document.getElementById('contentUnlockToggle');
         if (contentUnlockToggle) {
-            contentUnlockToggle.checked = false;
+            contentUnlockToggle.checked = true; // Set to true by default for download availability
         }
 
         // Reset token slider
@@ -1416,11 +1658,13 @@ function setupChatInput() {
     const chatInput = document.getElementById('chatInput');
     if (!chatInput) return;
     
+    // Get safeword status from localStorage
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
     // If safeword was previously activated, show advanced options
     if (safewordUsed) {
+        // Show advanced options only, without affecting purchase functionality
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
-        const buyButton = document.getElementById('buyButton');
-        
         if (advancedOptions) {
             advancedOptions.style.display = 'block';
             advancedOptions.classList.add('show');
@@ -1428,16 +1672,16 @@ function setupChatInput() {
             advancedOptions.style.maxHeight = '300px';
         }
         
-        if (buyButton) {
-            buyButton.textContent = 'Buy Artistocks';
-            buyButton.classList.add('safeword-activated');
-        }
+        // Update the buy button text
+        updateBuyButton();
+        
+        // Update chat input placeholder
+        chatInput.placeholder = "Type something here...";
     }
     
     chatInput.addEventListener('input', function() {
         const inputText = this.value.toLowerCase();
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
-        const buyButton = document.getElementById('buyButton');
         
         // Check for variations of "artistock"
         const keywordMatches = [
@@ -1449,65 +1693,36 @@ function setupChatInput() {
         
         // Only trigger the animation if this is the first time finding the keyword
         if (foundMatch && !safewordUsed && advancedOptions) {
+            console.log("Safeword detected! Unlocking advanced options");
             safewordUsed = true;
             
-            // Store safeword status in localStorage
+            // Store safeword status in localStorage (globally, not per artist)
             localStorage.setItem('safewordUsed', 'true');
             
-            // Update the buy button text to reflect advanced capabilities
-            if (buyButton) {
-                buyButton.textContent = 'Buy Artistocks';
-                buyButton.classList.add('safeword-activated');
-            }
+            // Show advanced options with animation
+            advancedOptions.style.display = 'block';
+            advancedOptions.style.opacity = '0';
+            advancedOptions.style.maxHeight = '0';
             
-            // Update token purchase section to show if it's hidden
-            const tokenSection = document.getElementById('tokenPreviewSection');
-            if (tokenSection && tokenSection.style.display === 'none') {
-                tokenSection.style.display = 'block';
-                tokenSection.style.opacity = '1';
-                tokenSection.style.transform = 'translateY(0)';
-                
-                // Set timeout to ensure token section animation completes first
-                setTimeout(() => {
-                    // Show advanced options with animation
-                    advancedOptions.style.display = 'block';
-                    advancedOptions.style.opacity = '0';
-                    advancedOptions.style.maxHeight = '0';
-                    
-                    // Force reflow to ensure transition works
-                    void advancedOptions.offsetWidth;
-                    
-                    // Add class for animation
-                    advancedOptions.classList.add('show');
-                    advancedOptions.style.opacity = '1';
-                    advancedOptions.style.maxHeight = '300px';
-                    
-                    // Update slider and input values
-                    updateFromTokenAmount(currentTokenAmount);
-                }, 300);
-            } else {
-                // If token section is already visible, just show advanced options
-                advancedOptions.style.display = 'block';
-                advancedOptions.style.opacity = '0';
-                advancedOptions.style.maxHeight = '0';
-                
-                // Force reflow
-                void advancedOptions.offsetWidth;
-                
-                // Add class for animation
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-                
-                // Update slider and input values
-                updateFromTokenAmount(currentTokenAmount);
-            }
+            // Force reflow for animation
+            void advancedOptions.offsetWidth;
+            
+            // Add class for animation
+            advancedOptions.classList.add('show');
+            advancedOptions.style.opacity = '1';
+            advancedOptions.style.maxHeight = '300px';
             
             // Flash highlight on the unlocked slider
             advancedOptions.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
             setTimeout(() => {
                 advancedOptions.style.backgroundColor = '';
             }, 1000);
+            
+            // Update button text to reflect artistock purchase option is now available
+            updateBuyButton();
+            
+            // Update placeholder text
+            this.placeholder = "Type something here...";
         }
     });
     
@@ -1517,16 +1732,337 @@ function setupChatInput() {
     };
 }
 
-// Set up explore button (important for switching between artists)
+// Set up explore button for switching between artists
 function updateExploreButton() {
     const exploreBtn = document.querySelector('.explore-btn');
-    if (exploreBtn) {
-        if (currentArtist === 'gosheesh') {
-            exploreBtn.textContent = 'Explore JAI TEA';
-            exploreBtn.onclick = () => transitionToArtist('jaitea');
-        } else if (currentArtist === 'jaitea') {
-            exploreBtn.textContent = 'Explore GOSHEESH';
-            exploreBtn.onclick = () => transitionToArtist('gosheesh');
+    if (!exploreBtn) return;
+    
+    // For now, hard-code navigation between the two artists
+    // This ensures the navigation works even if other config features have issues
+    if (currentArtist === 'gosheesh') {
+        exploreBtn.textContent = 'Explore JAI TEA';
+        exploreBtn.onclick = () => transitionToArtist('jaitea');
+    } else {
+        exploreBtn.textContent = 'Explore GOSHEESH';
+        exploreBtn.onclick = () => transitionToArtist('gosheesh');
+    }
+}
+
+// Update buy button text based on current state
+function updateBuyButton() {
+    const buyButton = document.getElementById('buyButton');
+    if (!buyButton) return;
+    
+    // Get safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // Get content unlock status
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+    
+    // Get token amount for price calculation
+    const artistData = getCurrentArtistData();
+    if (!artistData) {
+        console.error("Could not get artist data in updateBuyButton");
+        return;
+    }
+    
+    // Calculate artistocks total
+    let artistocksTotal = 0;
+    if (currentTokenAmount > 0) {
+        artistocksTotal = currentTokenAmount * artistData.tokenPrice;
+    }
+    
+    // Calculate total
+    const total = artistocksTotal + (includesDownload ? 1 : 0);
+    
+    // Update button text based on purchase content
+    if (safewordUsed) {
+        if (artistocksTotal > 0) {
+            if (includesDownload) {
+                // Both artistocks and download
+                buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
+            } else {
+                // Just artistocks
+                buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
+            }
+        } else if (includesDownload) {
+            // Just download
+            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+        } else {
+            // No selection (rare case)
+            buyButton.textContent = `Select Purchase Options`;
+        }
+        buyButton.classList.add('safeword-activated');
+    } else {
+        // Standard download button when safeword is not used
+        buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+        buyButton.classList.remove('safeword-activated');
+    }
+}
+
+// Update UI elements based on authentication state
+function updateUIForAuthState() {
+    // Always check authentication from localStorage
+    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    isLoggedIn = isAuthenticated;
+    
+    // Check safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    console.log("updateUIForAuthState:", { 
+        isAuthenticated, 
+        safewordUsed, 
+        currentArtist 
+    });
+    
+    // Handle UI visibility based on authentication
+    const loginSection = document.getElementById('loginSection');
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    const advancedOptions = document.getElementById('advancedPurchaseOptions');
+    const purchaseSection = document.getElementById('purchaseSection');
+    const successSection = document.getElementById('successSection');
+    
+    // MOST IMPORTANT: Always ensure token preview section is visible, 
+    // regardless of authentication (so the download button is always available)
+    if (tokenSection) {
+        console.log("Making token section visible");
+        tokenSection.style.display = 'block';
+        tokenSection.style.opacity = '1';
+        tokenSection.style.transform = 'translateY(0)';
+    }
+    
+    // Clear purchase and success sections when updating UI
+    if (purchaseSection) {
+        purchaseSection.style.display = 'none';
+    }
+    
+    if (successSection) {
+        successSection.style.display = 'none';
+    }
+    
+    // Always update buy button text based on current safeword state
+    updateBuyButton();
+    
+    // Ensure content unlock toggle is checked by default for the $1 download
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    if (contentUnlockToggle) {
+        contentUnlockToggle.checked = true;
+    }
+    
+    if (isAuthenticated) {
+        console.log("User is authenticated - hiding login section");
+        // Hide login for authenticated users
+        if (loginSection) {
+            loginSection.style.display = 'none';
+            loginSection.style.opacity = '0';
+        }
+        
+        // Show advanced options if safeword has been used
+        if (advancedOptions) {
+            if (safewordUsed) {
+                console.log("Showing advanced options (safeword used)");
+                advancedOptions.style.display = 'block';
+                advancedOptions.classList.add('show');
+                advancedOptions.style.opacity = '1';
+                advancedOptions.style.maxHeight = '300px';
+            } else {
+                console.log("Hiding advanced options (safeword not used)");
+                advancedOptions.style.display = 'none';
+                advancedOptions.classList.remove('show');
+                advancedOptions.style.opacity = '0';
+                advancedOptions.style.maxHeight = '0';
+            }
+        }
+        
+        // Update chat input placeholder
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.placeholder = safewordUsed ? 
+                "Type something here..." : 
+                "Type 'artistock' to unlock advanced options...";
+        }
+        
+        // Ensure the buy button has its event handler
+        const buyButton = document.getElementById('buyButton');
+        if (buyButton) {
+            // Remove existing event listeners by cloning and replacing
+            const newBuyButton = buyButton.cloneNode(true);
+            buyButton.parentNode.replaceChild(newBuyButton, buyButton);
+            newBuyButton.addEventListener('click', handleBuyClick);
+        }
+    } else {
+        console.log("User is not authenticated - showing login section");
+        // Show login for non-authenticated users
+        if (loginSection) {
+            loginSection.style.display = 'flex';
+            loginSection.style.opacity = '1';
+        }
+        
+        // Always hide advanced options for non-authenticated users
+        if (advancedOptions) {
+            advancedOptions.style.display = 'none';
+            advancedOptions.classList.remove('show');
+            advancedOptions.style.opacity = '0';
+            advancedOptions.style.maxHeight = '0';
+        }
+        
+        // Reset email input for non-authenticated users
+        if (document.getElementById('emailInput')) {
+            document.getElementById('emailInput').value = '';
+        }
+        
+        // Update chat input placeholder
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.placeholder = "Type 'artistock' to unlock advanced options...";
         }
     }
+}
+
+// Helper function to set up payment buttons
+function setupPaymentButtons() {
+    console.log("Setting up payment buttons");
+    const paymentButtons = document.querySelectorAll('.payment-btn');
+    
+    if (paymentButtons.length === 0) {
+        console.error("No payment buttons found in the DOM!");
+        
+        // Try to find the payment section
+        const paymentSection = document.querySelector('.payment-section');
+        if (paymentSection) {
+            console.log("Payment section found, but no buttons. Creating them...");
+            
+            // Add payment buttons
+            const paymentMethods = ['credit', 'paypal', 'venmo', 'crypto'];
+            paymentMethods.forEach(method => {
+                const btn = document.createElement('button');
+                btn.className = `payment-btn ${method}`;
+                btn.textContent = method.charAt(0).toUpperCase() + method.slice(1);
+                paymentSection.appendChild(btn);
+            });
+            
+            // Now get the buttons again
+            const newButtons = document.querySelectorAll('.payment-btn');
+            console.log(`Created ${newButtons.length} payment buttons`);
+            
+            // Add event listeners
+            newButtons.forEach(button => {
+                const method = button.classList[1]; // Get the payment method from class
+                button.addEventListener('click', () => handlePayment(method));
+            });
+            
+            return;
+        } else {
+            console.error("Payment section not found either! Purchase flow is broken.");
+            debugPurchaseFlow();
+        }
+    }
+    
+    console.log(`Found ${paymentButtons.length} payment buttons, attaching handlers`);
+    
+    paymentButtons.forEach(button => {
+        // Remove existing event listeners by cloning and replacing
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        const method = newButton.classList[1]; // Get the payment method from class
+        
+        if (!method) {
+            console.error("Payment button missing method class:", newButton);
+        }
+        
+        newButton.addEventListener('click', () => handlePayment(method));
+    });
+}
+
+// Debug function to check purchase flow elements
+function debugPurchaseFlow() {
+    console.log("=== DEBUG PURCHASE FLOW ===");
+    console.log("Current artist:", currentArtist);
+    console.log("Authentication state:", isAuthenticated);
+    
+    // Check key elements
+    const elements = {
+        purchaseSection: document.getElementById('purchaseSection'),
+        tokenSection: document.getElementById('tokenPreviewSection'),
+        loginSection: document.getElementById('loginSection'),
+        successSection: document.getElementById('successSection'),
+        buyButton: document.getElementById('buyButton'),
+        paymentSection: document.querySelector('.payment-section'),
+        paymentButtons: document.querySelectorAll('.payment-btn'),
+        purchaseHeadline: document.getElementById('purchaseHeadline')
+    };
+    
+    // Log element existence and display status
+    for (const [name, element] of Object.entries(elements)) {
+        if (element) {
+            if (element.length !== undefined && element.length === 0) {
+                console.log(`${name}: Found but empty collection (length 0)`);
+            } else {
+                const style = window.getComputedStyle(element);
+                console.log(`${name}: Found, display=${style.display}, visibility=${style.visibility}, opacity=${style.opacity}`);
+            }
+        } else {
+            console.log(`${name}: NOT FOUND in DOM`);
+        }
+    }
+    
+    // Check content-section which contains our elements
+    const contentSection = document.querySelector('.content-section');
+    if (contentSection) {
+        console.log("Content section found, children:", contentSection.children.length);
+        // List direct children for debugging
+        Array.from(contentSection.children).forEach((child, index) => {
+            console.log(`Child ${index}: ${child.className}, display=${window.getComputedStyle(child).display}`);
+        });
+    } else {
+        console.error("Content section not found!");
+    }
+    
+    console.log("=== END DEBUG ===");
+}
+
+// Add direct event listeners after DOM is fully loaded
+window.addEventListener('load', function() {
+    console.log("Window loaded - applying direct event listeners");
+    
+    // Direct event listener for buy button
+    const buyButton = document.getElementById('buyButton');
+    if (buyButton) {
+        console.log("Adding direct click listener to buy button");
+        buyButton.addEventListener('click', function(e) {
+            console.log("Buy button clicked directly");
+            handleBuyClick();
+        });
+    }
+    
+    // Direct event listeners for payment buttons
+    document.querySelectorAll('.payment-btn').forEach(button => {
+        const method = button.classList[1]; // Get payment method from class
+        if (method) {
+            console.log(`Adding direct click listener to ${method} payment button`);
+            button.addEventListener('click', function(e) {
+                console.log(`${method} payment clicked directly`);
+                handlePayment(method);
+            });
+        }
+    });
+});
+
+// Flash payment button animation
+function flashPaymentButton(method) {
+    const button = document.querySelector(`.payment-btn.${method}`);
+    if (!button) {
+        console.error(`Payment button for method ${method} not found!`);
+        debugPurchaseFlow();
+        return;
+    }
+    
+    button.style.transform = 'scale(1.05)';
+    button.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.5)';
+    
+    setTimeout(() => {
+        button.style.transform = '';
+        button.style.boxShadow = '';
+    }, 300);
 } 

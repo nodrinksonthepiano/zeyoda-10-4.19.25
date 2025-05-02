@@ -5,6 +5,16 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Default theme values (will be overridden by JS) */
+    --primary-color: #0a1a3b;
+    --accent-color: #4073ff;
+    --gradient-start: #d4af37;
+    --gradient-middle: #f9f295;
+    --gradient-end: #d4af37;
+    --artist-font: 'Bungee', cursive;
+}
+
 body {
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
@@ -13,17 +23,27 @@ body {
     position: relative;
     overflow-x: hidden;
     transition: background-color 1s ease;
+    background-color: var(--primary-color);
+    color: white;
 }
 
 /* Theme styling */
 .gosheesh-theme {
-    background-color: #0a1a3b; /* Deep sapphire */
-    color: white;
+    --primary-color: #0a1a3b;
+    --accent-color: #4073ff;
+    --gradient-start: #d4af37;
+    --gradient-middle: #f9f295;
+    --gradient-end: #d4af37;
+    --artist-font: 'Bungee', cursive;
 }
 
 .jaitea-theme {
-    background-color: #0a3b1a; /* Deep emerald */
-    color: white;
+    --primary-color: #0a3b1a;
+    --accent-color: #4edfb1;
+    --gradient-start: #4edfb1;
+    --gradient-middle: #13e7e7;
+    --gradient-end: #4edfb1;
+    --artist-font: 'Times New Roman', serif;
 }
 
 /* Cosmic particles */
@@ -51,6 +71,12 @@ header {
     transition: all 0.8s ease;
     position: relative;
     display: inline-block;
+    font-family: var(--artist-font);
+    background: linear-gradient(to right, var(--gradient-start), var(--gradient-middle), var(--gradient-end));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.7);
 }
 
 .gosheesh-theme .artist-name {
@@ -150,6 +176,9 @@ video {
     z-index: 1;
     transition: box-shadow 1s ease;
     pointer-events: none;
+    box-shadow: 0 0 100px 20px rgba(var(--accent-color-rgb), 0.5), 
+                inset 0 0 60px 10px rgba(var(--accent-color-rgb), 0.3);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
 }
 
 .gosheesh-theme .orbit-glow {
@@ -171,19 +200,19 @@ video {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2; /* Below content section but above video */
+    z-index: 3; /* Increased to be above video */
     pointer-events: none;
 }
 
 .token {
     position: absolute;
-    width: 80px;
-    height: 80px;
+    width: 90px; /* Slightly larger */
+    height: 90px; /* Slightly larger */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.62rem;
+    font-size: 0.7rem; /* Slightly larger text */
     font-weight: 700;
     cursor: pointer;
     transition: transform 0.3s ease, box-shadow 0.3s ease, z-index 0.3s ease;
@@ -196,25 +225,26 @@ video {
     line-height: 1;
     letter-spacing: -0.2px;
     white-space: pre-line; /* Preserves line breaks */
+    transform: translate(-50%, -50%); /* Center token on its position */
 }
 
 .gosheesh-theme .token {
-    background: rgba(41, 77, 181, 0.7);
-    border: 2px solid rgba(64, 115, 255, 0.9);
-    box-shadow: 0 0 15px 2px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
+    background: rgba(41, 77, 181, 0.8); /* More opaque */
+    border: 3px solid rgba(64, 115, 255, 1); /* Thicker, more visible border */
+    box-shadow: 0 0 20px 5px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
 .jaitea-theme .token {
-    background: rgba(24, 128, 68, 0.7);
-    border: 2px solid rgba(78, 223, 177, 0.9);
-    box-shadow: 0 0 15px 2px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
+    background: rgba(24, 128, 68, 0.8); /* More opaque */
+    border: 3px solid rgba(78, 223, 177, 1); /* Thicker, more visible border */
+    box-shadow: 0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
 .token:hover {
-    transform: scale(1.15);
-    filter: brightness(1.3);
+    transform: translate(-50%, -50%) scale(1.2); /* Bigger scale on hover */
+    filter: brightness(1.5); /* Brighter on hover */
     z-index: 10 !important; /* Ensure hovered token is always on top */
 }
 

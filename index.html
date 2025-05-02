@@ -3,37 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZEYODA - Artist-First Landing Page</title>
+    <title>ZEYODA - Decentralized Artist Orbit</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="gosheesh-theme">
-    <div class="cosmic-particles" id="particles"></div>
+    <div id="particles" class="cosmic-particles"></div>
     
     <header>
-        <h1 class="artist-name" id="artistName">GOSHEESH</h1>
-        <button id="logoutButton" class="logout-button">Reset</button>
+        <h1 id="artistName" class="artist-name">GOSHEESH</h1>
+        <button id="logoutButton" class="logout-button">Reset Data</button>
     </header>
     
     <main>
         <div class="video-container">
-            <div class="orbit-glow"></div>
-            <video id="artistVideo" autoplay loop muted playsinline poster="assets/video-poster.jpg">
-                <source src="assets/gosheesh-video.mp4" type="video/mp4" id="videoSource">
-                <!-- Fallback content if video is not available -->
+            <video id="artistVideo" autoplay loop muted playsinline>
+                <source id="videoSource" src="assets/gosheesh-video.mp4" type="video/mp4">
+                Your browser does not support the video tag.
             </video>
-            <div class="video-fallback" id="videoFallback">
-                <div class="fallback-icon">▶️</div>
-                <p>Video placeholder for <span id="artistVideoName">GOSHEESH</span></p>
-                <p class="fallback-note">Content by featured artists: ARILONI, BRIAN RIPPS, JAI TEA, TONY GLASER, and ILLUMINATED SPIRITS</p>
+            
+            <div id="videoFallback" class="video-fallback" style="display: none;">
+                <div class="fallback-icon">📺</div>
+                <h3 id="artistVideoName">Artist</h3>'s content preview
+                <p class="fallback-note">Video content temporarily unavailable</p>
+            </div>
+            
+            <div class="orbit-glow"></div>
+            
+            <div id="orbitalTokens" class="orbital-tokens"></div>
+            
+            <div class="artwork-info">
+                <h3 id="artworkTitle" class="artwork-title">NLi10 #1</h3>
+                <small class="artwork-description">© 2025</small>
             </div>
             
             <div class="video-controls">
                 <button id="muteToggle" class="video-control-btn" aria-label="Unmute">
                     <span class="muted-icon">🔇</span>
-                    <span class="unmuted-icon" style="display:none">🔊</span>
+                    <span class="unmuted-icon" style="display: none;">🔊</span>
                 </button>
                 <button id="fullscreenToggle" class="video-control-btn" aria-label="Fullscreen">
                     <span class="fullscreen-icon">⛶</span>
@@ -41,15 +48,6 @@
                 <button id="downloadVideo" class="video-control-btn" aria-label="Download Video">
                     <span class="download-icon">⬇️</span>
                 </button>
-            </div>
-            
-            <div class="artwork-info">
-                <h2 id="artworkTitle" class="artwork-title">NLi10 #1</h2>
-                <span class="artwork-description">2025</span>
-            </div>
-            
-            <div class="orbital-tokens" id="orbitalTokens">
-                <!-- Tokens will be added by JavaScript -->
             </div>
         </div>
         
@@ -77,14 +75,14 @@
                             <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
                         </div>
                     </div>
-                    <p class="token-price-info">1 <span id="artistTokenName">GOSHEESH</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
+                    <p class="token-price-info">1 <span id="artistTokenName">Artist</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
                 </div>
                 <button id="buyButton" class="buy-button">Get Download ($1)</button>
             </div>
             
             <!-- Login Section -->
             <div class="login-section" id="loginSection" style="display: flex; opacity: 1;">
-                <h3 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">GOSHEESH</span> Artistocks</h3>
+                <h3 id="accessHeadline">Sign in to purchase <span id="artistNameAccess">Artist</span> Artistocks</h3>
                 
                 <div class="email-login-container">
                     <input type="email" id="emailInput" placeholder="Enter your email address" class="email-input">
@@ -102,21 +100,22 @@
             </div>
             
             <!-- Artistock Purchase Section (initially hidden) -->
-            <div class="purchase-section" id="purchaseSection" style="display: none; opacity: 0; transition: opacity 0.3s ease;">
-                <h3 id="purchaseHeadline">Complete your purchase of <span id="purchaseAmount">100</span> <span id="artistStockPurchaseName">GOSHEESH</span> Artistocks</h3>
-                <div class="payment-section" style="display: grid; opacity: 1;">
-                    <button class="payment-btn venmo" onclick="handlePayment('venmo')">Pay with Venmo</button>
-                    <button class="payment-btn paypal" onclick="handlePayment('paypal')">Pay with PayPal</button>
-                    <button class="payment-btn credit" onclick="handlePayment('credit')">Pay with Credit Card</button>
-                    <button class="payment-btn crypto" onclick="handlePayment('crypto')">Pay with Crypto</button>
+            <div class="purchase-section" id="purchaseSection" style="display: none;">
+                <h3 id="purchaseHeadline">Complete your purchase of <span id="purchaseAmount">100</span> <span id="artistStockPurchaseName">Artist</span> Artistocks</h3>
+                
+                <div class="payment-section">
+                    <button class="payment-btn credit">Credit Card</button>
+                    <button class="payment-btn paypal">PayPal</button>
+                    <button class="payment-btn venmo">Venmo</button>
+                    <button class="payment-btn crypto">Crypto</button>
                 </div>
             </div>
             
             <!-- Success Section (initially hidden) -->
             <div class="success-section" id="successSection" style="display: none;">
-                <div class="success-check">✅</div>
-                <h3>You now own <span id="purchasedAmount">100</span> <span id="artistStockName">GOSHEESH</span> Artistocks</h3>
-                <p>This track is now in your orbit forever</p>
+                <div class="success-check">✓</div>
+                <h3>You now own <span id="purchasedAmount">100</span> <span id="artistStockName">Artist</span> Artistocks!</h3>
+                <p>Your purchase is complete and you are now officially in the orbit.</p>
                 <button class="explore-btn">Explore More Artists</button>
             </div>
         </div>
@@ -124,7 +123,7 @@
     
     <footer>
         <div class="chat-input-container">
-            <input type="text" id="chatInput" placeholder="Type something here..." class="chat-input">
+            <input type="text" id="chatInput" placeholder="Type 'artistock' to unlock advanced options..." class="chat-input">
         </div>
     </footer>
     
