@@ -38,6 +38,7 @@ let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
 let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false; // Global authentication state that persists between artists
 let contentUnlocked = {}; // Track which artists' content has been unlocked
+let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false; // Track if safeword has been used in this session
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', () => {
@@ -78,6 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const buyButton = document.getElementById('buyButton');
     if (buyButton) {
         buyButton.addEventListener('click', handleBuyClick);
+        // Update button text based on safeword state
+        if (safewordUsed) {
+            buyButton.textContent = 'Buy Artistocks';
+            buyButton.classList.add('safeword-activated');
+        } else {
+            buyButton.textContent = 'Get Download ($1)';
+            buyButton.classList.remove('safeword-activated');
+        }
     }
     
     // Set up explore button (important for switching between artists)
@@ -99,23 +108,34 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFromTokenAmount(currentTokenAmount);
     }
 
+    // Always show token preview section with $1 download button
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    if (tokenSection) {
+        tokenSection.style.display = 'block';
+        tokenSection.style.opacity = '1';
+        tokenSection.style.transform = 'translateY(0)';
+    }
+    
     // Show appropriate sections based on authentication state
     if (isAuthenticated) {
-        // For authenticated users, hide login and show token section
+        // For authenticated users, hide login
         const loginSection = document.getElementById('loginSection');
         if (loginSection) loginSection.style.display = 'none';
         
-        const tokenSection = document.getElementById('tokenPreviewSection');
-        if (tokenSection) {
-            tokenSection.style.display = 'block';
-            tokenSection.style.opacity = '1';
-            tokenSection.style.transform = 'translateY(0)';
-        }
-        
-        const purchaseSection = document.getElementById('purchaseSection');
-        if (purchaseSection) {
-            purchaseSection.style.display = 'block';
-            purchaseSection.style.opacity = '1';
+        // Show/hide advanced purchase options based on safeword state
+        const advancedOptions = document.getElementById('advancedPurchaseOptions');
+        if (advancedOptions) {
+            if (safewordUsed) {
+                advancedOptions.style.display = 'block';
+                advancedOptions.classList.add('show');
+                advancedOptions.style.opacity = '1';
+                advancedOptions.style.maxHeight = '300px';
+            } else {
+                advancedOptions.style.display = 'none';
+                advancedOptions.classList.remove('show');
+                advancedOptions.style.opacity = '0';
+                advancedOptions.style.maxHeight = '0';
+            }
         }
     } else {
         // For non-authenticated users, ensure login section is visible
@@ -126,6 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Always hide success and purchase sections on initial load
+    const successSection = document.getElementById('successSection');
+    if (successSection) {
+        successSection.style.display = 'none';
+    }
+    
+    const purchaseSection = document.getElementById('purchaseSection');
+    if (purchaseSection) {
+        purchaseSection.style.display = 'none';
+    }
+    
     // Update artist name and related elements
     document.getElementById('artistName').textContent = currentArtist.toUpperCase();
     document.getElementById('artistTokenName').textContent = artistData[currentArtist].name;
@@ -677,69 +708,117 @@ function flashPaymentButton(method) {
 function unlockArtistock() {
     console.log(`Unlocking ${currentTokenAmount} ${currentArtist} Artistock tokens`);
     
-    // Check if safeword was activated (full purchase mode)
-    const safewordActive = window.safewordActivated ? window.safewordActivated() : false;
-    
     // Hide purchase section
-    document.querySelector('.purchase-section').style.display = 'none';
+    const purchaseSection = document.querySelector('.purchase-section');
+    if (purchaseSection) {
+        purchaseSection.style.display = 'none';
+    }
     
     // Get content unlock status
     const contentUnlockToggle = document.getElementById('contentUnlockToggle');
     const hasUnlockedContent = contentUnlockToggle && contentUnlockToggle.checked;
     
+    // Mark content as unlocked for this artist
+    contentUnlocked[currentArtist] = true;
+    
+    // Store in localStorage
+    localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
+    
+    // Hide token section
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    if (tokenSection) {
+        tokenSection.style.display = 'none';
+    }
+    
     // Update purchase amount with formatted number
-    document.getElementById('purchasedAmount').textContent = new Intl.NumberFormat().format(currentTokenAmount);
+    const purchasedAmount = document.getElementById('purchasedAmount');
+    if (purchasedAmount) {
+        if (!safewordUsed) {
+            // For non-safeword users, just use the minimum token amount for display
+            const price = artistData[currentArtist].tokenPrice;
+            const minTokenAmount = Math.ceil(1 / price);
+            purchasedAmount.textContent = new Intl.NumberFormat().format(minTokenAmount);
+        } else {
+            purchasedAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
+        }
+    }
     
     // Show success section
     const successSection = document.getElementById('successSection');
-    successSection.style.display = 'block';
+    if (successSection) {
+        successSection.style.display = 'block';
+    }
     
     // Update artist stock name
-    document.getElementById('artistStockName').textContent = artistData[currentArtist].name;
+    const artistStockName = document.getElementById('artistStockName');
+    if (artistStockName) {
+        artistStockName.textContent = artistData[currentArtist].name;
+    }
     
     // Update success message based on purchase type
     const successMessage = document.querySelector('.success-section p');
     const successTitle = document.querySelector('.success-section h3');
     
-    if (!safewordActive) {
+    if (!safewordUsed) {
         // Download-only purchase for $1
-        // Mark content as unlocked for this artist
-        contentUnlocked[currentArtist] = true;
-        
-        // Store in localStorage
-        localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
-        
         // Update success title and message
-        successTitle.textContent = "You've unlocked this download!";
+        if (successTitle) {
+            successTitle.textContent = "You've unlocked this download!";
+        }
         
         // Generate simulated IPFS link
         const ipfsHash = generateIPFSHash();
-        successMessage.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        if (successMessage) {
+            successMessage.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+        }
     } else {
         // Full Artistocks + optional download purchase
         if (hasUnlockedContent) {
-            // Mark content as unlocked for this artist
-            contentUnlocked[currentArtist] = true;
-            
             // Store in localStorage
-            localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
             localStorage.setItem('artistocksBalance', currentTokenAmount);
             
             // Generate simulated IPFS link
             const ipfsHash = generateIPFSHash();
-            successMessage.innerHTML = `You've unlocked the download and received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+            
+            // Update success title to reflect both purchase types
+            if (successTitle) {
+                successTitle.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData[currentArtist].name}</span> Artistocks + Download!`;
+            }
+            
+            if (successMessage) {
+                successMessage.innerHTML = `You've unlocked the download and received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
+            }
         } else {
             // Artistocks only
             localStorage.setItem('artistocksBalance', currentTokenAmount);
-            successMessage.textContent = `You've received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!`;
+            
+            // Update success title for Artistocks only
+            if (successTitle) {
+                successTitle.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData[currentArtist].name}</span> Artistocks`;
+            }
+            
+            if (successMessage) {
+                successMessage.textContent = `You've received ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks. Welcome to the orbit!`;
+            }
         }
     }
     
-    // Set up the explore button to switch to the other artist
-    updateExploreButton();
+    // Make sure the explore button is visible and properly set up
+    const exploreBtn = document.querySelector('.explore-btn');
+    if (exploreBtn) {
+        exploreBtn.style.display = 'block';
+        exploreBtn.style.opacity = '1';
+        updateExploreButton();
+    }
     
     // Ensure we maintain authenticated state
     isAuthenticated = true;
+    localStorage.setItem('isAuthenticated', 'true');
+    
+    // Scroll to success section
+    if (successSection) {
+        successSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
 // Generate a simulated IPFS hash
@@ -751,46 +830,6 @@ function generateIPFSHash() {
     }
     return hash;
 }
-
-// Safeword detection
-document.getElementById('chatInput').addEventListener('input', function(e) {
-    // Skip safeword detection if already authenticated
-    if (isAuthenticated) return;
-
-    const input = e.target.value.toLowerCase();
-    const safewordPatterns = [
-        'artistock',
-        'artist stock',
-        'artstock',
-        'art stock'
-    ];
-    
-    // Check for fuzzy matches
-    const matches = safewordPatterns.some(pattern => {
-        // Allow for plural forms and minor typos
-        const fuzzyPattern = pattern.replace(/\s+/g, '.*');
-        const regex = new RegExp(fuzzyPattern + 's?', 'i');
-        return regex.test(input);
-    });
-
-    if (matches) {
-        // Clear the input
-        e.target.value = '';
-        
-        // Show the token preview section with a smooth animation
-        const tokenSection = document.getElementById('tokenPreviewSection');
-        tokenSection.style.display = 'block';
-        tokenSection.style.opacity = '0';
-        tokenSection.style.transform = 'translateY(-20px)';
-        
-        // Trigger animation
-        setTimeout(() => {
-            tokenSection.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            tokenSection.style.opacity = '1';
-            tokenSection.style.transform = 'translateY(0)';
-        }, 10);
-    }
-});
 
 // Function to handle artist transition
 function transitionToArtist(artistId) {
@@ -811,38 +850,6 @@ function transitionToArtist(artistId) {
     const videoSource = document.getElementById('videoSource');
     videoSource.src = `assets/${artistId.toLowerCase()}-video.mp4`;
     document.getElementById('artistVideo').load();
-    
-    // Keep token preview section visible if authenticated
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    if (isAuthenticated) {
-        tokenSection.style.display = 'block';
-        tokenSection.style.opacity = '1';
-        tokenSection.style.transform = 'translateY(0)';
-        
-        // Check if safeword was activated - maintain state between artists
-        const safewordActive = window.safewordActivated ? window.safewordActivated() : false;
-        if (safewordActive) {
-            const advancedOptions = document.getElementById('advancedPurchaseOptions');
-            if (advancedOptions) {
-                advancedOptions.style.display = 'block';
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-            }
-            
-            // Update the buy button text for safeword mode
-            const buyButton = document.getElementById('buyButton');
-            if (buyButton) {
-                buyButton.textContent = 'Buy Artistocks';
-                buyButton.classList.add('safeword-activated');
-            }
-        }
-    } else {
-        tokenSection.style.display = 'none';
-    }
-    
-    // Clear chat input
-    document.getElementById('chatInput').value = '';
     
     // Reset state but preserve authentication
     isLoggedIn = isAuthenticated;
@@ -902,15 +909,18 @@ function transitionToArtist(artistId) {
         purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
     }
     
-    // Hide success section
-    document.getElementById('successSection').style.display = 'none';
+    // Clear chat input
+    document.getElementById('chatInput').value = '';
     
-    // Show appropriate section based on authentication status
+    // Show appropriate sections based on authentication status
     if (isAuthenticated) {
-        // User is already authenticated, show token section and hide login
+        // Hide login section
         const loginSection = document.getElementById('loginSection');
-        loginSection.style.display = 'none';
+        if (loginSection) {
+            loginSection.style.display = 'none';
+        }
         
+        // Show token section
         const tokenSection = document.getElementById('tokenPreviewSection');
         if (tokenSection) {
             tokenSection.style.display = 'block';
@@ -918,24 +928,73 @@ function transitionToArtist(artistId) {
             tokenSection.style.transform = 'translateY(0)';
         }
         
-        // Reset purchase section
+        // Show/hide advanced purchase options based on safeword state
+        const advancedOptions = document.getElementById('advancedPurchaseOptions');
+        const buyButton = document.getElementById('buyButton');
+        
+        if (advancedOptions) {
+            if (safewordUsed) {
+                advancedOptions.style.display = 'block';
+                advancedOptions.classList.add('show');
+                advancedOptions.style.opacity = '1';
+                advancedOptions.style.maxHeight = '300px';
+                
+                if (buyButton) {
+                    buyButton.textContent = 'Buy Artistocks';
+                    buyButton.classList.add('safeword-activated');
+                }
+            } else {
+                advancedOptions.style.display = 'none';
+                advancedOptions.classList.remove('show');
+                advancedOptions.style.opacity = '0';
+                advancedOptions.style.maxHeight = '0';
+                
+                if (buyButton) {
+                    buyButton.textContent = 'Get Download ($1)';
+                    buyButton.classList.remove('safeword-activated');
+                }
+            }
+        }
+        
+        // Hide purchase and success sections
         const purchaseSection = document.getElementById('purchaseSection');
-        purchaseSection.style.display = 'none';
+        if (purchaseSection) {
+            purchaseSection.style.display = 'none';
+        }
+        
+        const successSection = document.getElementById('successSection');
+        if (successSection) {
+            successSection.style.display = 'none';
+        }
     } else {
         // User is not authenticated, show login section
         const loginSection = document.getElementById('loginSection');
-        loginSection.style.display = 'flex';
-        loginSection.style.opacity = '1';
+        if (loginSection) {
+            loginSection.style.display = 'flex';
+            loginSection.style.opacity = '1';
+        }
         
         // Reset email input
         if (document.getElementById('emailInput')) {
             document.getElementById('emailInput').value = '';
         }
         
-        // Hide purchase section
+        // Hide other sections
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        if (tokenSection) {
+            tokenSection.style.display = 'none';
+        }
+        
         const purchaseSection = document.getElementById('purchaseSection');
-        purchaseSection.style.display = 'none';
-        purchaseSection.style.opacity = '0';
+        if (purchaseSection) {
+            purchaseSection.style.display = 'none';
+            purchaseSection.style.opacity = '0';
+        }
+        
+        const successSection = document.getElementById('successSection');
+        if (successSection) {
+            successSection.style.display = 'none';
+        }
     }
     
     // Update orbital tokens
@@ -1048,11 +1107,8 @@ function handleBuyClick() {
         return;
     }
     
-    // Check if safeword has been activated
-    const safewordActive = window.safewordActivated ? window.safewordActivated() : false;
-    
     // Set up for purchase according to mode
-    if (!safewordActive) {
+    if (!safewordUsed) {
         // Without safeword: Force $1 download purchase only
         const price = artistData[currentArtist].tokenPrice;
         const minTokenAmount = Math.ceil(1 / price); // Calculate tokens for $1
@@ -1079,10 +1135,20 @@ function handleBuyClick() {
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
         const isAdvancedVisible = advancedOptions && window.getComputedStyle(advancedOptions).display !== 'none';
         
+        // Check if content unlock toggle is checked (digital download)
+        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+        const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+        
         // Update purchase headline to focus on both download and tokens
         const purchaseHeadline = document.getElementById('purchaseHeadline');
         if (purchaseHeadline) {
-            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks`;
+            if (includesDownload) {
+                // Show both Artistocks and download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span>`;
+            } else {
+                // Show only Artistocks
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks`;
+            }
         }
     }
     
@@ -1104,6 +1170,18 @@ function handleBuyClick() {
         
         // Scroll to purchase section
         purchaseSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Hide token section
+    const tokenSection = document.getElementById('tokenPreviewSection');
+    if (tokenSection) {
+        tokenSection.style.display = 'none';
+    }
+    
+    // Hide success section if visible
+    const successSection = document.getElementById('successSection');
+    if (successSection) {
+        successSection.style.display = 'none';
     }
     
     // Update purchase amounts in the display
@@ -1151,6 +1229,35 @@ function updateTotalPrice() {
     // Update total input
     tokenTotalInput.value = total.toFixed(4);
     
+    // If purchase headline is visible, update it based on content unlock toggle
+    const purchaseHeadline = document.getElementById('purchaseHeadline');
+    const purchaseSection = document.getElementById('purchaseSection');
+    
+    if (purchaseHeadline && purchaseSection && 
+        window.getComputedStyle(purchaseSection).display !== 'none' && 
+        safewordUsed) {
+        
+        if (contentUnlockToggle.checked) {
+            // Show both Artistocks and download
+            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span>`;
+        } else {
+            // Show only Artistocks
+            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData[currentArtist].name}</span> Artistocks`;
+        }
+        
+        // Make sure purchaseAmount and artistStockPurchaseName are updated
+        const purchaseAmount = document.getElementById('purchaseAmount');
+        const artistStockName = document.getElementById('artistStockPurchaseName');
+        
+        if (purchaseAmount) {
+            purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
+        }
+        
+        if (artistStockName) {
+            artistStockName.textContent = artistData[currentArtist].name;
+        }
+    }
+    
     // Update slider minimum if content is unlocked
     const slider = document.getElementById('tokenSlider');
     if (slider) {
@@ -1177,7 +1284,7 @@ function setupLogoutButton() {
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('artistUnlocked');
         localStorage.removeItem('artistocksBalance');
-        localStorage.removeItem('safewordActivated');
+        localStorage.removeItem('safewordUsed');
 
         // Reset state variables
         isLoggedIn = false;
@@ -1185,6 +1292,7 @@ function setupLogoutButton() {
         paymentSelected = false;
         currentTokenAmount = 100;
         contentUnlocked = {};
+        safewordUsed = false;
 
         // Reset to default artist
         currentArtist = 'gosheesh';
@@ -1218,9 +1326,6 @@ function setupLogoutButton() {
         if (video && source) {
             // Store current mute state
             const isMuted = video.muted;
-            
-            // Hide video during transition
-            video.style.opacity = '0';
             
             // Update source
             source.src = `assets/${currentArtist}-video.mp4`;
@@ -1258,20 +1363,22 @@ function setupLogoutButton() {
             });
         }
 
-        // Reset sections visibility
+        // Show login section
         const loginSection = document.getElementById('loginSection');
         if (loginSection) {
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
         }
 
+        // Always show token preview section
         const tokenSection = document.getElementById('tokenPreviewSection');
         if (tokenSection) {
-            tokenSection.style.display = 'none';
-            tokenSection.style.opacity = '0';
-            tokenSection.style.transform = 'translateY(-20px)';
+            tokenSection.style.display = 'block';
+            tokenSection.style.opacity = '1';
+            tokenSection.style.transform = 'translateY(0)';
         }
 
+        // Hide purchase and success sections
         const purchaseSection = document.getElementById('purchaseSection');
         if (purchaseSection) {
             purchaseSection.style.display = 'none';
@@ -1307,11 +1414,8 @@ function setupChatInput() {
     const chatInput = document.getElementById('chatInput');
     if (!chatInput) return;
     
-    // Initialize keywordFound from localStorage if it exists
-    let keywordFound = localStorage.getItem('safewordActivated') === 'true' || false;
-    
     // If safeword was previously activated, show advanced options
-    if (keywordFound) {
+    if (safewordUsed) {
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
         const buyButton = document.getElementById('buyButton');
         
@@ -1342,11 +1446,11 @@ function setupChatInput() {
         const foundMatch = keywordMatches.some(keyword => inputText.includes(keyword));
         
         // Only trigger the animation if this is the first time finding the keyword
-        if (foundMatch && !keywordFound && advancedOptions) {
-            keywordFound = true;
+        if (foundMatch && !safewordUsed && advancedOptions) {
+            safewordUsed = true;
             
             // Store safeword status in localStorage
-            localStorage.setItem('safewordActivated', 'true');
+            localStorage.setItem('safewordUsed', 'true');
             
             // Update the buy button text to reflect advanced capabilities
             if (buyButton) {
@@ -1407,7 +1511,7 @@ function setupChatInput() {
     
     // Store safeword status in a property we can check elsewhere
     window.safewordActivated = function() {
-        return keywordFound;
+        return safewordUsed;
     };
 }
 
