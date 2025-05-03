@@ -2254,9 +2254,108 @@ function showLogoutSuccessToast() {
 }
 
 // Set up chat input to show advanced purchase options when "artistock" is typed
+// Also handles "zeyoda" safeword for artist onboarding
 function setupChatInput() {
     const chatInput = document.getElementById('chatInput');
     if (!chatInput) return;
+    
+    // First-time login users
+    if (!localStorage.getItem('magicUserMetadata')) {
+        chatInput.placeholder = "Type 'connect' to log in";
+    } else {
+        // For returning users
+        chatInput.placeholder = "Type something";
+    }
+    
+    // Create chat message container if it doesn't exist
+    if (!document.getElementById('chatMessages')) {
+        const chatMessages = document.createElement('div');
+        chatMessages.id = 'chatMessages';
+        chatMessages.className = 'chat-messages';
+        document.querySelector('.chat-input-container').before(chatMessages);
+        
+        // Add event listener to minimize/maximize chat
+        chatMessages.addEventListener('click', function(e) {
+            // Check if the click was on the button area (::before pseudo-element)
+            const rect = chatMessages.getBoundingClientRect();
+            if (e.clientX >= rect.right - 30 && e.clientX <= rect.right - 10 && 
+                e.clientY >= rect.top + 5 && e.clientY <= rect.top + 25) {
+                chatMessages.classList.toggle('minimized');
+                adjustContentForChat();
+            }
+        });
+        
+        // Initially hidden
+        chatMessages.style.display = 'none';
+    }
+    
+    // Function to adjust content when chat is visible
+    function adjustContentForChat() {
+        const chatMessages = document.getElementById('chatMessages');
+        const contentSection = document.querySelector('.content-section');
+        
+        if (!chatMessages || !contentSection) return;
+        
+        if (chatMessages.style.display !== 'none' && !chatMessages.classList.contains('minimized')) {
+            // Push content up when chat is visible
+            contentSection.style.marginBottom = '300px';
+        } else {
+            // Reset content position
+            contentSection.style.marginBottom = '0';
+        }
+    }
+    
+    // Modify the sendChatbotMessage function to ensure visibility and adjust content
+    window.sendChatbotMessage = function(message) {
+        const chatMessage = document.createElement('div');
+        chatMessage.className = 'chat-message bot';
+        chatMessage.textContent = message;
+        
+        // Get or create chat messages container
+        let chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) {
+            chatMessages = document.createElement('div');
+            chatMessages.id = 'chatMessages';
+            chatMessages.className = 'chat-messages';
+            document.querySelector('.chat-input-container').before(chatMessages);
+        }
+        
+        // Make sure chat is visible
+        chatMessages.style.display = 'flex';
+        
+        // Remove minimized class if it exists
+        chatMessages.classList.remove('minimized');
+        
+        // Add the message
+        chatMessages.appendChild(chatMessage);
+        
+        // Scroll to the bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Adjust content position
+        adjustContentForChat();
+    };
+    
+    // Override the displayUserMessage function to adjust content
+    window.displayUserMessage = function(text) {
+        const userMessage = document.createElement('div');
+        userMessage.className = 'chat-message user';
+        userMessage.textContent = text;
+        
+        // Get chat messages container
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages) {
+            // Make sure chat is visible
+            chatMessages.style.display = 'flex';
+            
+            // Add the message
+            chatMessages.appendChild(userMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Adjust content position
+            adjustContentForChat();
+        }
+    };
     
     // Get safeword status from localStorage
     safewordUsed = localStorage.getItem('safewordUsed') === 'true';
@@ -2279,6 +2378,15 @@ function setupChatInput() {
         chatInput.placeholder = "Type something";
     }
     
+    // Create chat message container if it doesn't exist
+    if (!document.getElementById('chatMessages')) {
+        const chatMessages = document.createElement('div');
+        chatMessages.id = 'chatMessages';
+        chatMessages.className = 'chat-messages';
+        document.querySelector('.chat-input-container').before(chatMessages);
+    }
+    
+    // Set up input event handler
     chatInput.addEventListener('input', function() {
         const inputText = this.value.toLowerCase();
         const advancedOptions = document.getElementById('advancedPurchaseOptions');
@@ -2326,10 +2434,110 @@ function setupChatInput() {
         }
     });
     
+    // Setup chat button to handle "Enter" key press
+    chatInput.addEventListener('keydown', function(event) {
+        // Check if Enter key was pressed
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            
+            const message = this.value.trim();
+            if (message) {
+                // Display user message in chat
+                displayUserMessage(message);
+                
+                // Check for onboarding safeword or reset command
+                if (message.trim().toLowerCase() === 'reset onboarding' && typeof resetOnboarding === 'function') {
+                    // Reset the onboarding process
+                    resetOnboarding();
+                } else if (checkForSafeword(message)) {
+                    // Handled by onboarding module
+                } else if (window.onboardingActive) {
+                    // Process message through onboarding flow
+                    const response = processOnboardingInput(message);
+                    if (response) {
+                        sendChatbotMessage(response);
+                    }
+                }
+                
+                // Clear input field
+                this.value = '';
+            }
+        }
+    });
+    
+    // Add file upload support for onboarding
+    const chatInputContainer = document.querySelector('.chat-input-container');
+    
+    // Create hidden file input
+    let fileInput = document.getElementById('chatFileInput');
+    if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'chatFileInput';
+        fileInput.style.display = 'none';
+        fileInput.accept = 'image/*,audio/*,video/*,text/*';
+        chatInputContainer.appendChild(fileInput);
+        
+        // Handle file selection
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0] && window.onboardingActive) {
+                const file = this.files[0];
+                
+                // Show selected filename in chat as user message
+                displayUserMessage(`Uploaded: ${file.name}`);
+                
+                // Process file through onboarding - only if still active
+                if (typeof processOnboardingInput === 'function' && window.onboardingActive === true) {
+                    console.log("Processing file upload in onboarding flow");
+                    const response = processOnboardingInput(file);
+                    if (response) {
+                        sendChatbotMessage(response);
+                    }
+                } else {
+                    console.error("Cannot process upload: onboardingActive =", window.onboardingActive);
+                    
+                    if (!window.onboardingActive) {
+                        sendChatbotMessage("The onboarding process has been completed. Please refresh the page to start over if needed.");
+                    } else {
+                        sendChatbotMessage("Sorry, there was an error processing your upload. Please try again.");
+                    }
+                }
+                
+                // Reset file input
+                this.value = '';
+            } else {
+                console.log("File upload ignored - conditions not met", {
+                    hasFiles: Boolean(this.files && this.files[0]),
+                    onboardingActive: Boolean(window.onboardingActive)
+                });
+            }
+        });
+    }
+    
+    // Create upload button next to chat input
+    let uploadButton = document.getElementById('chatUploadButton');
+    if (!uploadButton) {
+        uploadButton = document.createElement('button');
+        uploadButton.id = 'chatUploadButton';
+        uploadButton.className = 'chat-upload-button';
+        uploadButton.innerHTML = '📎';
+        uploadButton.title = 'Upload file';
+        uploadButton.style.display = 'none'; // Initially hidden
+        chatInputContainer.appendChild(uploadButton);
+        
+        // Handle upload button click
+        uploadButton.addEventListener('click', function() {
+            fileInput.click();
+        });
+    }
+    
     // Store safeword status in a property we can check elsewhere
     window.safewordActivated = function() {
         return safewordUsed;
     };
+    
+    // Expose the onboarding state
+    window.onboardingActive = false;
 }
 
 // Set up explore button for switching between artists
