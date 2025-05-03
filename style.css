@@ -201,7 +201,13 @@ video {
     width: 100%;
     height: 100%;
     z-index: 3; /* Increased to be above video */
-    pointer-events: none;
+    pointer-events: auto; /* Changed from 'none' to allow interaction */
+    touch-action: none; /* Prevent browser handling of gestures */
+    cursor: grab; /* Show grabbable cursor */
+}
+
+.orbital-tokens:active {
+    cursor: grabbing; /* Show grabbing cursor when active */
 }
 
 .token {
@@ -215,7 +221,7 @@ video {
     font-size: 0.7rem; /* Slightly larger text */
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, z-index 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, z-index 0.1s ease;
     pointer-events: auto;
     text-align: center;
     word-break: break-word;
@@ -226,6 +232,18 @@ video {
     letter-spacing: -0.2px;
     white-space: pre-line; /* Preserves line breaks */
     transform: translate(-50%, -50%); /* Center token on its position */
+    user-select: none; /* Prevent text selection during drag */
+}
+
+.token:hover {
+    transform: translate(-50%, -50%) scale(1.05);
+    z-index: 10 !important; /* Always on top when hovered */
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    filter: brightness(1.5); /* Brighter on hover */
+}
+
+.token:active {
+    transform: translate(-50%, -50%) scale(0.95);
 }
 
 .gosheesh-theme .token {
@@ -235,21 +253,15 @@ video {
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
+.gosheesh-theme .token:hover {
+    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7);
+}
+
 .jaitea-theme .token {
     background: rgba(24, 128, 68, 0.8); /* More opaque */
     border: 3px solid rgba(78, 223, 177, 1); /* Thicker, more visible border */
     box-shadow: 0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
-}
-
-.token:hover {
-    transform: translate(-50%, -50%) scale(1.2); /* Bigger scale on hover */
-    filter: brightness(1.5); /* Brighter on hover */
-    z-index: 10 !important; /* Ensure hovered token is always on top */
-}
-
-.gosheesh-theme .token:hover {
-    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7);
 }
 
 .jaitea-theme .token:hover {
@@ -1499,4 +1511,35 @@ etc.
 /* When purchase section is shown, ensure payment section is visible too */
 .purchase-section[style*="display: block"] .payment-section {
     display: grid !important;
+}
+
+/* Provide visual indication for draggable interface on mobile */
+@media (max-width: 768px) {
+    .orbital-tokens::before {
+        content: '';
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 25px;
+        height: 25px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='rgba(255,255,255,0.7)' d='M256 96c33.08 0 60.71-25.78 64-58.39v-.13c0-11.62-9.41-21.48-21.03-21.48-11.72 0-21.6 9.74-21.6 21.48v.13c-1.3 13.14-11.22 23.39-24.38 23.39s-23.08-10.25-24.38-23.39v-.13c0-11.75-9.88-21.48-21.6-21.48-11.62 0-21.03 9.86-21.03 21.48v.13c3.29 32.61 30.92 58.39 64.02 58.39zm-.64 32c-70.69 0-128 57.31-128 128v.13c0 16.41 13.19 32.48 32.47 32.48h4.92v96c0 35.29 28.71 64 64 64h53.22c35.29 0 64-28.71 64-64v-96h4.92c19.28 0 32.47-16.07 32.47-32.48v-.13c0-70.69-57.31-128-128-128z'/%3E%3C/svg%3E");
+        background-size: contain;
+        background-repeat: no-repeat;
+        opacity: 0.5;
+        pointer-events: none;
+        z-index: 10;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 0.5; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+        100% { opacity: 0.5; transform: scale(1); }
+    }
+    
+    /* Touch-friendly token size for mobile */
+    .token {
+        width: 80px; /* Slightly smaller on mobile for faster performance */
+        height: 80px;
+    }
 } 

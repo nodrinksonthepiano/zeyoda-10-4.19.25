@@ -8,16 +8,42 @@ let currentTokenAmount = 100;
 let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false;
 let contentUnlocked = {};
 let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false;
+// Add orbital animation state variables
+let orbitAnimationId = null;
+let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
+let lastOrbitTimestamp = 0;
 
 // Fetch configuration and initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
     // Load configuration
     try {
-        const response = await fetch('artists/config.json');
+        // Add cache control and credentials to ensure we get the latest file
+        const response = await fetch('artists/config.json', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            cache: 'no-store'
+        });
+        
         if (!response.ok) {
             throw new Error(`Failed to load config (${response.status}): ${response.statusText}`);
         }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Invalid content type: ${contentType}`);
+        }
+        
         config = await response.json();
+        
+        // Validate config data
+        if (!config || !config.artists || Object.keys(config.artists).length === 0) {
+            throw new Error('Invalid configuration: missing artists data');
+        }
+        
+        console.log('Configuration loaded successfully:', config);
         
         // Initialize with loaded configuration
         initializeApp();
@@ -45,8 +71,70 @@ document.addEventListener('DOMContentLoaded', async () => {
         
     } catch (error) {
         console.error('Error loading configuration:', error);
-        // Show error message to user
-        alert('Failed to load artist configuration. Please try again later.');
+        
+        // Provide fallback config if fetch fails
+        console.log('Using fallback configuration');
+        config = {
+            "artists": {
+                "gosheesh": {
+                    "name": "GOSHEESH",
+                    "displayName": "SHEEGOHS",
+                    "tokenName": "SHEEGOHS",
+                    "artworkTitle": "NLi10 #1",
+                    "artworkYear": "2025",
+                    "tokenPrice": 0.0005,
+                    "videoSrc": "assets/gosheesh-video.mp4",
+                    "theme": {
+                        "primaryColor": "#0a1a3b", 
+                        "accentColor": "#4073ff",
+                        "gradientStart": "#d4af37",
+                        "gradientMiddle": "#f9f295",
+                        "gradientEnd": "#d4af37",
+                        "fontFamily": "Bungee, cursive"
+                    },
+                    "orbitalTokens": [
+                        { "name": "LONIARI", "angle": 0 },
+                        { "name": "ANBRI SPPIR", "angle": 72 },
+                        { "name": "IJA TEA", "angle": 144 },
+                        { "name": "NYTO SAREGL", "angle": 216 },
+                        { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
+                    ]
+                },
+                "jaitea": {
+                    "name": "JAI TEA",
+                    "displayName": "IJA TEA",
+                    "tokenName": "IJA TEA",
+                    "artworkTitle": "Earth #2",
+                    "artworkYear": "2025",
+                    "tokenPrice": 0.0005,
+                    "videoSrc": "assets/jaitea-video.mp4",
+                    "theme": {
+                        "primaryColor": "#0a3b1a",
+                        "accentColor": "#4edfb1",
+                        "gradientStart": "#4edfb1",
+                        "gradientMiddle": "#13e7e7",
+                        "gradientEnd": "#4edfb1",
+                        "fontFamily": "Times New Roman, serif"
+                    },
+                    "orbitalTokens": [
+                        { "name": "LONIARI", "angle": 0 },
+                        { "name": "ANBRI SPPIR", "angle": 72 },
+                        { "name": "SHEEGOHS", "angle": 144 },
+                        { "name": "NYTO SAREGL", "angle": 216 },
+                        { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
+                    ]
+                }
+            },
+            "defaults": {
+                "minimumPurchase": 1,
+                "initialTokenAmount": 100,
+                "maxTokens": 20000000,
+                "downloadPrice": 1
+            }
+        };
+        
+        // Initialize with fallback configuration instead of showing an error
+        initializeApp();
     }
 });
 
@@ -71,6 +159,9 @@ function initializeApp() {
     
     // Set up orbital tokens
     setupOrbitalTokens(currentArtist);
+    
+    // Set up token drag controls for mobile/desktop interaction
+    setupTokenDragControls();
     
     // Start the orbital animation
     animateOrbit();
@@ -340,7 +431,7 @@ function updateFromTokenAmount(tokens) {
     currentTokenAmount = parseInt(tokens);
     
     // Calculate total price for artistocks only
-    const artistocksPrice = (currentTokenAmount * price).toFixed(4);
+    const artistocksPrice = (currentTokenAmount * price);
     
     // Format token amount with commas
     const formattedTokens = new Intl.NumberFormat().format(currentTokenAmount);
@@ -356,11 +447,10 @@ function updateFromTokenAmount(tokens) {
     }
     
     if (tokenTotalInput) {
-        // Add the $1 download price if toggle is checked
-        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-        const includeDownload = contentUnlockToggle && contentUnlockToggle.checked;
-        const totalPrice = parseFloat(artistocksPrice) + (includeDownload ? 1 : 0);
-        tokenTotalInput.value = totalPrice.toFixed(4);
+        // Just show the artistocks price, without adding the $1 download
+        tokenTotalInput.value = artistocksPrice.toFixed(2);
+        
+        console.log(`Artistocks price calculation: ${artistocksPrice.toFixed(4)} (${currentTokenAmount} tokens at $${price.toFixed(4)} each)`);
     }
     
     if (purchaseAmount) {
@@ -371,14 +461,17 @@ function updateFromTokenAmount(tokens) {
         purchasedAmount.textContent = formattedTokens;
     }
     
-    console.log(`Token amount updated: ${formattedTokens} tokens at $${price} = $${artistocksPrice}`);
+    // Update the buy button to reflect the new total
+    updateBuyButton();
+    
+    console.log(`Token amount updated: ${formattedTokens} tokens at $${price.toFixed(4)} = $${artistocksPrice.toFixed(4)}`);
 }
 
 // Update the token price display
 function updateArtistTokenPrice() {
     const tokenPriceSpan = document.getElementById('tokenUnitPrice');
     const artistData = getCurrentArtistData();
-    if (tokenPriceSpan) {
+    if (tokenPriceSpan && artistData) {
         tokenPriceSpan.textContent = artistData.tokenPrice.toFixed(4);
     }
 }
@@ -517,8 +610,11 @@ function setupOrbitalTokens(artist) {
 
 // Animate the orbital tokens
 function animateOrbit() {
-    // If animation is already running, don't start another instance
-    if (orbitAnimationRunning) return;
+    // If animation is already running, cancel it first
+    if (orbitAnimationId) {
+        cancelAnimationFrame(orbitAnimationId);
+        orbitAnimationId = null;
+    }
     
     orbitAnimationRunning = true;
     
@@ -529,7 +625,7 @@ function animateOrbit() {
         // First animation frame doesn't have elapsed time
         if (lastTimestamp === 0) {
             lastTimestamp = timestamp;
-            requestAnimationFrame(animate);
+            orbitAnimationId = requestAnimationFrame(animate);
             return;
         }
         
@@ -537,26 +633,21 @@ function animateOrbit() {
         const elapsed = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
         
-        const tokens = document.querySelectorAll('.token');
+        // Update the global angle offset (stored for persistence)
+        orbitAngleOffset += elapsed * orbitSpeed;
+        if (orbitAngleOffset >= 360) orbitAngleOffset -= 360;
         
-        tokens.forEach(token => {
-            // Get the token's base angle and add the rotation
-            let angle = parseFloat(token.getAttribute('data-angle') || 0);
-            angle += elapsed * orbitSpeed;
-            
-            // Normalize angle to keep it within 0-360
-            if (angle >= 360) angle -= 360;
-            token.setAttribute('data-angle', angle);
-        });
+        // Store the angle offset to localStorage for persistence across artist changes
+        localStorage.setItem('orbitAngleOffset', orbitAngleOffset.toString());
         
         // Position tokens based on updated angles
         positionOrbitalTokens();
         
-        requestAnimationFrame(animate);
+        orbitAnimationId = requestAnimationFrame(animate);
     }
     
     // Start the animation
-    requestAnimationFrame(animate);
+    orbitAnimationId = requestAnimationFrame(animate);
 }
 
 // Position orbital tokens based on their current angles
@@ -580,12 +671,18 @@ function positionOrbitalTokens() {
     const orbitRadius = videoWidth * 0.75;
     
     tokens.forEach(token => {
-        // Get angle in radians
-        const angle = parseFloat(token.getAttribute('data-angle') || 0) * (Math.PI / 180);
+        // Get base angle from the token
+        const baseAngle = parseFloat(token.getAttribute('data-angle') || 0);
+        
+        // Apply the global offset to get the current position
+        const currentAngle = (baseAngle + orbitAngleOffset) % 360;
+        
+        // Convert to radians
+        const angleRad = currentAngle * (Math.PI / 180);
         
         // Calculate position
-        const x = Math.cos(angle) * orbitRadius;
-        const y = Math.sin(angle) * orbitRadius;
+        const x = Math.cos(angleRad) * orbitRadius;
+        const y = Math.sin(angleRad) * orbitRadius;
         
         // Position from center of container
         token.style.transform = `translate(-50%, -50%)`;
@@ -760,6 +857,13 @@ function handlePayment(method) {
     
     // Log the purchase details
     console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
+    
+    // Don't allow payment if nothing is selected
+    if (artistocksTotal === 0 && !includesDownload) {
+        console.error("Nothing selected for purchase");
+        alert("Please select either artistocks or enable the download");
+        return;
+    }
     
     // Flash the selected payment button
     flashPaymentButton(method);
@@ -1085,7 +1189,15 @@ function transitionToArtist(artistId) {
     // Update the explore button
     updateExploreButton();
     
+    // Re-initialize token drag controls for new tokens
+    setupTokenDragControls();
+    
     // Reset animation flag to ensure animation restarts with new tokens
+    // Keep angle offset but restart the animation
+    if (orbitAnimationId) {
+        cancelAnimationFrame(orbitAnimationId);
+        orbitAnimationId = null;
+    }
     orbitAnimationRunning = false;
     animateOrbit();
     
@@ -1296,11 +1408,19 @@ function handleBuyClick() {
     const purchaseHeadline = document.getElementById('purchaseHeadline');
     if (purchaseHeadline) {
         if (safewordUsed && artistocksTotal > 0) {
-            // Both artistocks and download
-            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
-        } else {
+            if (unlockCost > 0) {
+                // Both artistocks and download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
+            } else {
+                // Just artistocks, no download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
+            }
+        } else if (unlockCost > 0) {
             // Just download
             purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+        } else {
+            // No purchase selected - add a message to select something
+            purchaseHeadline.innerHTML = `Please select either artistocks or enable the download`;
         }
     }
     
@@ -1425,13 +1545,22 @@ function setupContentUnlockToggle() {
     
     // Listen for changes to update total price
     toggle.addEventListener('change', () => {
+        console.log(`Content unlock toggle changed to: ${toggle.checked ? 'checked' : 'unchecked'}`);
+        
         // Update the total price calculation
         updateTotalPrice();
         
-        // Also update buy button text to reflect the change
+        // Update buy button text to reflect the change
         updateBuyButton();
         
-        console.log(`Content unlock toggle changed to: ${toggle.checked ? 'checked' : 'unchecked'}`);
+        // If no artistocks are selected and download is unchecked, warn the user
+        if (safewordUsed && currentTokenAmount === 0 && !toggle.checked) {
+            console.warn("No purchase selected");
+            alert("Please select either artistocks or enable the download");
+            toggle.checked = true; // Force toggle back on
+            updateTotalPrice(); // Update price again
+            updateBuyButton(); // Update button again
+        }
     });
 }
 
@@ -1452,15 +1581,15 @@ function updateTotalPrice() {
     
     const artistocksTotal = currentTokenAmount * artistData.tokenPrice;
     
-    // Add $1 if content unlock is checked
+    // Add $1 if content unlock is checked (for the blue button, but not the input field)
     const unlockCost = contentUnlockToggle.checked ? 1 : 0;
     
-    // Calculate total
+    // Calculate total for the button
     const total = artistocksTotal + unlockCost;
     
-    // Update total input
-    tokenTotalInput.value = total.toFixed(4);
-    console.log(`Total updated: $${total.toFixed(2)} (Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost})`);
+    // Update total input with artistocks price only (not including the $1 download)
+    tokenTotalInput.value = artistocksTotal.toFixed(2);
+    console.log(`Artistocks total: $${artistocksTotal.toFixed(4)}, Button total with download: $${total.toFixed(2)}`);
     
     // If purchase headline is visible, update it based on content unlock toggle
     const purchaseHeadline = document.getElementById('purchaseHeadline');
@@ -1476,11 +1605,11 @@ function updateTotalPrice() {
                 purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
             } else {
                 // Just download
-                purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+                purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
             }
         } else if (artistocksTotal > 0) {
             // Show only Artistocks
-            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
+            purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${artistocksTotal.toFixed(2)}</span>`;
         } else {
             // No artistocks or download (shouldn't happen)
             purchaseHeadline.innerHTML = `Complete your purchase`;
@@ -1522,7 +1651,12 @@ function setupLogoutButton() {
     const logoutButton = document.getElementById('logoutButton');
     if (!logoutButton) return;
 
-    logoutButton.addEventListener('click', () => {
+    // Remove any existing event listeners by cloning and replacing the button
+    const newLogoutButton = logoutButton.cloneNode(true);
+    logoutButton.parentNode.replaceChild(newLogoutButton, logoutButton);
+    
+    // Add a single event listener to the new button
+    newLogoutButton.addEventListener('click', () => {
         // Clear all localStorage
         localStorage.removeItem('currentArtist');
         localStorage.removeItem('isAuthenticated');
@@ -1647,6 +1781,10 @@ function setupLogoutButton() {
         setupOrbitalTokens(currentArtist);
         orbitAnimationRunning = false;
         animateOrbit();
+
+        // Reset angle offset
+        orbitAngleOffset = 0;
+        localStorage.setItem('orbitAngleOffset', '0');
 
         // Show confirmation
         alert('All data has been reset!');
@@ -1776,27 +1914,28 @@ function updateBuyButton() {
     // Calculate total
     const total = artistocksTotal + (includesDownload ? 1 : 0);
     
-    // Update button text based on purchase content
+    // Update button text based on purchase content and safeword status
     if (safewordUsed) {
+        // Safeword has been used, show all options
         if (artistocksTotal > 0) {
             if (includesDownload) {
                 // Both artistocks and download
                 buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
             } else {
                 // Just artistocks
-                buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
+                buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${artistocksTotal.toFixed(2)})`;
             }
         } else if (includesDownload) {
             // Just download
-            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
         } else {
             // No selection (rare case)
             buyButton.textContent = `Select Purchase Options`;
         }
         buyButton.classList.add('safeword-activated');
     } else {
-        // Standard download button when safeword is not used
-        buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+        // Safeword has NOT been used, only show download option
+        buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
         buyButton.classList.remove('safeword-activated');
     }
 }
@@ -2065,4 +2204,208 @@ function flashPaymentButton(method) {
         button.style.transform = '';
         button.style.boxShadow = '';
     }, 300);
+}
+
+// Add touch and drag functionality to the orbital tokens
+function setupTokenDragControls() {
+    const orbitalContainer = document.getElementById('orbitalTokens');
+    if (!orbitalContainer) return;
+    
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let dragThreshold = 5; // Minimum movement to consider as a drag
+    let dragTimeout = null;
+    
+    // When animation is active, pause it during dragging
+    function pauseAnimation() {
+        if (orbitAnimationId) {
+            cancelAnimationFrame(orbitAnimationId);
+            orbitAnimationId = null;
+        }
+        orbitAnimationRunning = false;
+    }
+    
+    function resumeAnimation() {
+        if (!orbitAnimationRunning) {
+            orbitAnimationRunning = true;
+            animateOrbit();
+        }
+    }
+    
+    // Touch start handler
+    orbitalContainer.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            lastX = startX;
+            lastY = startY;
+            
+            // Clear any existing resume timeout
+            if (dragTimeout) {
+                clearTimeout(dragTimeout);
+                dragTimeout = null;
+            }
+            
+            // Don't prevent default scrolling here - we'll check for drag first
+        }
+    }, { passive: true }); // Use passive: true for better scroll performance
+    
+    // Touch move handler
+    orbitalContainer.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 1) {
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            
+            // Calculate movement delta
+            const diffX = currentX - startX;
+            const diffY = currentY - startY;
+            
+            // If we're already dragging or if the movement is significant and horizontal
+            // (to avoid interfering with vertical scrolling)
+            const isHorizontalDrag = Math.abs(diffX) > Math.abs(diffY) * 1.5;
+            
+            if (!isDragging && (Math.abs(diffX) > dragThreshold || Math.abs(diffY) > dragThreshold)) {
+                // Only consider it a drag if movement is more horizontal than vertical,
+                // otherwise allow normal scrolling
+                if (isHorizontalDrag) {
+                    isDragging = true;
+                    pauseAnimation();
+                    e.preventDefault(); // Prevent scrolling when horizontal drag is detected
+                }
+            }
+            
+            // If we're dragging, adjust the orbit angle
+            if (isDragging) {
+                // Get center of container to determine rotation direction
+                const containerRect = orbitalContainer.getBoundingClientRect();
+                const centerX = containerRect.left + containerRect.width / 2;
+                const centerY = containerRect.top + containerRect.height / 2;
+                
+                // Calculate vector from center to last position
+                const lastVectorX = lastX - centerX;
+                const lastVectorY = lastY - centerY;
+                
+                // Calculate vector from center to current position
+                const currentVectorX = currentX - centerX;
+                const currentVectorY = currentY - centerY;
+                
+                // Calculate angle change (in degrees)
+                const angle1 = Math.atan2(lastVectorY, lastVectorX);
+                const angle2 = Math.atan2(currentVectorY, currentVectorX);
+                let angleDiff = (angle2 - angle1) * (180 / Math.PI);
+                
+                // Update orbit angle
+                orbitAngleOffset += angleDiff;
+                if (orbitAngleOffset >= 360) orbitAngleOffset -= 360;
+                if (orbitAngleOffset < 0) orbitAngleOffset += 360;
+                
+                // Update token positions
+                positionOrbitalTokens();
+                
+                // Store current position for next move
+                lastX = currentX;
+                lastY = currentY;
+                
+                // Prevent default only when actively dragging
+                e.preventDefault();
+            }
+        }
+    }, { passive: false }); // Need passive: false to call preventDefault
+    
+    // Touch end handler
+    orbitalContainer.addEventListener('touchend', function(e) {
+        if (isDragging) {
+            // Resume animation after a short delay
+            dragTimeout = setTimeout(resumeAnimation, 500);
+            isDragging = false;
+            
+            // Store the current angle offset to localStorage
+            localStorage.setItem('orbitAngleOffset', orbitAngleOffset.toString());
+        }
+    }, { passive: true });
+    
+    // For desktop: mouse controls
+    let isMouseDown = false;
+    
+    orbitalContainer.addEventListener('mousedown', function(e) {
+        startX = e.clientX;
+        startY = e.clientY;
+        lastX = startX;
+        lastY = startY;
+        isMouseDown = true;
+        
+        if (dragTimeout) {
+            clearTimeout(dragTimeout);
+            dragTimeout = null;
+        }
+        
+        // Don't set isDragging immediately - wait to see if it's a click or drag
+    });
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isMouseDown) {
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+            
+            // Check if movement is beyond threshold
+            const diffX = currentX - startX;
+            const diffY = currentY - startY;
+            
+            if (!isDragging && (Math.abs(diffX) > dragThreshold || Math.abs(diffY) > dragThreshold)) {
+                isDragging = true;
+                pauseAnimation();
+            }
+            
+            if (isDragging) {
+                // Get center of container
+                const containerRect = orbitalContainer.getBoundingClientRect();
+                const centerX = containerRect.left + containerRect.width / 2;
+                const centerY = containerRect.top + containerRect.height / 2;
+                
+                // Calculate vectors and angles
+                const lastVectorX = lastX - centerX;
+                const lastVectorY = lastY - centerY;
+                const currentVectorX = currentX - centerX;
+                const currentVectorY = currentY - centerY;
+                
+                const angle1 = Math.atan2(lastVectorY, lastVectorX);
+                const angle2 = Math.atan2(currentVectorY, currentVectorX);
+                let angleDiff = (angle2 - angle1) * (180 / Math.PI);
+                
+                // Update orbit angle
+                orbitAngleOffset += angleDiff;
+                if (orbitAngleOffset >= 360) orbitAngleOffset -= 360;
+                if (orbitAngleOffset < 0) orbitAngleOffset += 360;
+                
+                // Update token positions
+                positionOrbitalTokens();
+                
+                // Store current position for next move
+                lastX = currentX;
+                lastY = currentY;
+            }
+        }
+    });
+    
+    document.addEventListener('mouseup', function(e) {
+        if (isDragging) {
+            dragTimeout = setTimeout(resumeAnimation, 500);
+            localStorage.setItem('orbitAngleOffset', orbitAngleOffset.toString());
+        }
+        isMouseDown = false;
+        isDragging = false;
+    });
+    
+    // Make sure to cancel dragging if mouse leaves window
+    document.addEventListener('mouseleave', function(e) {
+        if (isDragging) {
+            dragTimeout = setTimeout(resumeAnimation, 500);
+            localStorage.setItem('orbitAngleOffset', orbitAngleOffset.toString());
+        }
+        isMouseDown = false;
+        isDragging = false;
+    });
 } 
