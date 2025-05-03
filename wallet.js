@@ -379,9 +379,10 @@ function clearAssets() {
  * @param {String} artistId Artist ID
  * @param {Boolean} includesArtistocks Whether purchase includes artistocks
  * @param {Number} tokenAmount Amount of tokens purchased
+ * @param {Boolean} includesDownload Whether purchase includes the download (added parameter)
  */
-function onPurchaseComplete(artistId, includesArtistocks, tokenAmount) {
-    console.log(`Purchase complete for ${artistId}: tokens=${includesArtistocks ? tokenAmount : 0}, download=${!includesArtistocks}`);
+function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesDownload = false) {
+    console.log(`Purchase complete for ${artistId}: tokens=${includesArtistocks ? tokenAmount : 0}, download=${includesDownload}`);
     
     // Initialize wallet if not already initialized
     if (!walletInitialized) {
@@ -393,12 +394,9 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount) {
         addArtistTokens(artistId, tokenAmount);
     }
     
-    // Check if the content is unlocked for this artist (which means a download was purchased)
-    const contentUnlockedData = JSON.parse(localStorage.getItem('artistUnlocked') || '{}');
-    const isContentUnlocked = contentUnlockedData[artistId] || localStorage.getItem(`${artistId}_unlocked`) === 'true';
-    
-    // Add download if content is unlocked and we don't already have it
-    if (isContentUnlocked) {
+    // Add download ONLY if specifically purchased (when includesDownload is true)
+    // This fixes the bug where downloads appear even when only tokens were purchased
+    if (includesDownload) {
         // Check if we already have this download
         const artistAssets = userAssets[artistId] || { tokens: 0, downloads: [] };
         const artistData = getCurrentArtistData();

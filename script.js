@@ -7,7 +7,7 @@ let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
 let isAuthenticated = false; // Will be properly set during initialization
 let contentUnlocked = {};
-let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false;
+let safewordUsed = localStorage.getItem('safewordUsed') === 'true';
 // Add orbital animation state variables
 let orbitAnimationId = null;
 let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
@@ -1200,9 +1200,9 @@ function handlePayment(method) {
         // Wait a moment for the success section to complete its work
         // before updating the wallet, to ensure contentUnlocked is saved
         setTimeout(() => {
-            // Update wallet with the purchase
+            // Update wallet with the purchase, including whether download was purchased
             if (window.wallet) {
-                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount);
+                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount, includesDownload);
             }
         }, 200);
     }, 800);
