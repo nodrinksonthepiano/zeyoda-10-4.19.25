@@ -372,6 +372,11 @@ function initializeApp() {
 
     // Update UI based on authentication state
     updateUIForAuthState();
+    
+    // Initialize wallet if available
+    if (window.wallet && typeof window.wallet.init === 'function') {
+        window.wallet.init();
+    }
 
     // Always hide purchase and success sections on initial load
     const purchaseSection = document.getElementById('purchaseSection');
@@ -1059,13 +1064,18 @@ function completeLogin(method) {
     // Show success toast message
     showLoginSuccessMessage();
     
+    // Initialize wallet if available
+    if (window.wallet && typeof window.wallet.init === 'function') {
+        window.wallet.init();
+    }
+    
     // Auto-focus on chat input after login completes
     setTimeout(() => {
         const chatInput = document.getElementById('chatInput');
         if (chatInput) {
             chatInput.focus();
             // Update placeholder to be more subtle
-            chatInput.placeholder = "Type something here...";
+            chatInput.placeholder = "Type something";
         }
     }, 800);
     
@@ -1186,6 +1196,15 @@ function handlePayment(method) {
         
         // Direct approach to showing success
         showSuccessSection(includesArtistocks);
+        
+        // Wait a moment for the success section to complete its work
+        // before updating the wallet, to ensure contentUnlocked is saved
+        setTimeout(() => {
+            // Update wallet with the purchase
+            if (window.wallet) {
+                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount);
+            }
+        }, 200);
     }, 800);
 }
 
@@ -1381,6 +1400,16 @@ function transitionToArtist(artistId) {
         showVideoFallback(false);
         video.muted = isMuted; // Restore the mute state
         
+        // If unmuted, make sure audio is playing
+        if (!video.muted) {
+            video.play().catch(err => {
+                console.error('Error playing video:', err);
+                // If autoplay with sound fails, mute and try again
+                video.muted = true;
+                video.play().catch(err2 => console.error('Video still cannot play:', err2));
+            });
+        }
+        
         // Update mute button icons to match the video state
         const mutedIcon = document.querySelector('.muted-icon');
         const unmutedIcon = document.querySelector('.unmuted-icon');
@@ -1413,9 +1442,7 @@ function transitionToArtist(artistId) {
     if (chatInput) {
         chatInput.value = '';
         // For better UX, update placeholder
-        chatInput.placeholder = isAuthenticated ? 
-            "Type something here..." : 
-            "Type 'artistock' to unlock advanced options...";
+        chatInput.placeholder = "Type something";
     }
 
     // Reset UI: Hide all sections initially
@@ -1541,10 +1568,39 @@ function setupVideoControls() {
     
     if (!video || !muteToggle || !fullscreenToggle || !downloadButton) return;
     
+    // Ensure initial UI state matches video state
+    if (video.muted) {
+        mutedIcon.style.display = '';
+        unmutedIcon.style.display = 'none';
+        muteToggle.setAttribute('aria-label', 'Unmute');
+    } else {
+        mutedIcon.style.display = 'none';
+        unmutedIcon.style.display = '';
+        muteToggle.setAttribute('aria-label', 'Mute');
+    }
+    
+    // Listen for browser-initiated mute events (e.g., autoplay policy)
+    video.addEventListener('volumechange', () => {
+        if (video.muted) {
+            mutedIcon.style.display = '';
+            unmutedIcon.style.display = 'none';
+            muteToggle.setAttribute('aria-label', 'Unmute');
+        } else {
+            mutedIcon.style.display = 'none';
+            unmutedIcon.style.display = '';
+            muteToggle.setAttribute('aria-label', 'Mute');
+        }
+    });
+    
     // Mute toggle functionality
     muteToggle.addEventListener('click', () => {
         // Toggle muted state
         video.muted = !video.muted;
+        
+        // Play video if it's not playing
+        if (!video.muted && video.paused) {
+            video.play().catch(err => console.error('Error playing video:', err));
+        }
         
         // Update UI
         if (video.muted) {
@@ -1984,6 +2040,11 @@ function setupLogoutButton() {
             }
         }
         
+        // Clear wallet data if wallet module is available
+        if (window.wallet && typeof window.wallet.clear === 'function') {
+            window.wallet.clear();
+        }
+        
         // Remove wallet display if it exists
         const walletDisplay = document.getElementById('walletDisplay');
         if (walletDisplay) {
@@ -2061,6 +2122,16 @@ function setupLogoutButton() {
                 video.style.opacity = '1';
                 showVideoFallback(false);
                 video.muted = isMuted;
+                
+                // If unmuted, make sure audio is playing
+                if (!video.muted) {
+                    video.play().catch(err => {
+                        console.error('Error playing video:', err);
+                        // If autoplay with sound fails, mute and try again
+                        video.muted = true;
+                        video.play().catch(err2 => console.error('Video still cannot play:', err2));
+                    });
+                }
                 
                 // Update mute button icons
                 const mutedIcon = document.querySelector('.muted-icon');
@@ -2205,7 +2276,7 @@ function setupChatInput() {
         updateBuyButton();
         
         // Update chat input placeholder
-        chatInput.placeholder = "Type something here...";
+        chatInput.placeholder = "Type something";
     }
     
     chatInput.addEventListener('input', function() {
@@ -2251,7 +2322,7 @@ function setupChatInput() {
             updateBuyButton();
             
             // Update placeholder text
-            this.placeholder = "Type something here...";
+            this.placeholder = "Type something";
         }
     });
     
@@ -2455,8 +2526,8 @@ function updateUIForAuthState() {
         const chatInput = document.getElementById('chatInput');
         if (chatInput) {
             chatInput.placeholder = safewordUsed ? 
-                "Type something here..." : 
-                "Type 'artistock' to unlock advanced options...";
+                "Type something" : 
+                "Type something";
         }
         
         // Ensure the buy button has its event handler
@@ -2491,7 +2562,7 @@ function updateUIForAuthState() {
         // Update chat input placeholder
         const chatInput = document.getElementById('chatInput');
         if (chatInput) {
-            chatInput.placeholder = "Type 'artistock' to unlock advanced options...";
+            chatInput.placeholder = "Type something";
         }
     }
 }
@@ -2601,6 +2672,38 @@ function debugPurchaseFlow() {
 // Add direct event listeners after DOM is fully loaded
 window.addEventListener('load', function() {
     console.log("Window loaded - applying direct event listeners");
+    
+    // Direct event listener for mute toggle button
+    const muteToggle = document.getElementById('muteToggle');
+    const video = document.getElementById('artistVideo');
+    if (muteToggle && video) {
+        console.log("Adding direct click listener to mute toggle button");
+        muteToggle.addEventListener('click', function(e) {
+            console.log("Mute toggle clicked directly");
+            // Toggle muted state and update UI
+            video.muted = !video.muted;
+            
+            // Play video if unmuting
+            if (!video.muted && video.paused) {
+                video.play().catch(err => console.error('Error playing video:', err));
+            }
+            
+            // Update UI
+            const mutedIcon = document.querySelector('.muted-icon');
+            const unmutedIcon = document.querySelector('.unmuted-icon');
+            if (mutedIcon && unmutedIcon) {
+                if (video.muted) {
+                    mutedIcon.style.display = '';
+                    unmutedIcon.style.display = 'none';
+                    muteToggle.setAttribute('aria-label', 'Unmute');
+                } else {
+                    mutedIcon.style.display = 'none';
+                    unmutedIcon.style.display = '';
+                    muteToggle.setAttribute('aria-label', 'Mute');
+                }
+            }
+        });
+    }
     
     // Direct event listener for buy button
     const buyButton = document.getElementById('buyButton');
