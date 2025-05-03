@@ -2035,6 +2035,14 @@ function setupLogoutButton() {
             buyButton.classList.remove('safeword-activated');
         }
 
+        // Hide the login feedback message
+        const loginFeedback = document.getElementById('loginFeedback');
+        if (loginFeedback) {
+            loginFeedback.style.display = 'none';
+            loginFeedback.textContent = '';
+            loginFeedback.classList.remove('error');
+        }
+
         // Reset video source and state
         const video = document.getElementById('artistVideo');
         const source = document.getElementById('videoSource');
@@ -2352,6 +2360,14 @@ function updateUIForAuthState() {
     const advancedOptions = document.getElementById('advancedPurchaseOptions');
     const purchaseSection = document.getElementById('purchaseSection');
     const successSection = document.getElementById('successSection');
+    const loginFeedback = document.getElementById('loginFeedback');
+    
+    // Reset login feedback message
+    if (loginFeedback) {
+        loginFeedback.style.display = 'none';
+        loginFeedback.textContent = '';
+        loginFeedback.classList.remove('error');
+    }
     
     // MOST IMPORTANT: Always ensure token preview section is visible, 
     // regardless of authentication (so the download button is always available)
