@@ -1375,137 +1375,189 @@ footer {
     text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
 }
 
-/* Artist-specific Typography
-----------------------------------------
-This section controls all font styling that changes based on the artist theme.
-The theme is controlled by the class on the body tag:
-- class="gosheesh-theme" for GOSHEESH
-- class="jaitea-theme" for JAI TEA
----------------------------------------- */
-
-/* GOSHEESH Theme Typography */
-.gosheesh-theme {
-    /* Main artist name in header */
-    .artist-name {
-        font-family: 'Bungee', cursive;
-        font-size: 3rem;
-        letter-spacing: 2px;
-    }
-
-    /* All section headlines */
-    #accessHeadline,
-    #purchaseHeadline,
-    .purchase-section h3,
-    .success-section h3 {
-        font-family: 'Bungee', cursive;
-        font-size: 1.2rem;
-        letter-spacing: 0.5px;
-    }
-
-    /* Interactive elements */
-    .buy-button {
-        font-family: 'Bungee', cursive;
-        font-size: 0.95rem;
-        letter-spacing: 0.5px;
-    }
-
-    /* Labels and info text */
-    .token-price-info,
-    .token-input-group label,
-    .total-input-group label,
-    .unlock-label span {
-        font-family: 'Bungee', cursive;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
-    }
+/* Wallet display styles */
+.wallet-display {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    font-size: 0.8rem;
+    margin-top: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: monospace;
+    letter-spacing: 0.5px;
 }
 
-/* JAI TEA Theme Typography */
-.jaitea-theme {
-    /* Main artist name in header */
-    .artist-name {
-        font-family: 'Times New Roman', serif;
-        font-size: 3rem;
-    }
-
-    /* All section headlines */
-    #accessHeadline,
-    #purchaseHeadline,
-    .purchase-section h3,
-    .success-section h3 {
-        font-family: 'Times New Roman', serif;
-        font-size: 1.3rem;
-    }
-
-    /* Interactive elements */
-    .buy-button {
-        font-family: 'Times New Roman', serif;
-        font-size: 1rem;
-    }
-
-    /* Labels and info text */
-    .token-price-info,
-    .token-input-group label,
-    .total-input-group label,
-    .unlock-label span {
-        font-family: 'Times New Roman', serif;
-        font-size: 0.9rem;
-    }
+.wallet-display:hover {
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
-/* Note: The above uses nested CSS syntax. For older browsers, you would write it as:
-.gosheesh-theme .artist-name { ... }
-.gosheesh-theme #accessHeadline { ... }
-etc.
-*/
+.wallet-display::before {
+    content: "⚡";
+    margin-right: 6px;
+    font-size: 0.9rem;
+}
+
+.gosheesh-theme .wallet-display {
+    background-color: rgba(64, 115, 255, 0.2);
+    border: 1px solid rgba(64, 115, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.gosheesh-theme .wallet-display:hover {
+    background-color: rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .wallet-display {
+    background-color: rgba(78, 223, 177, 0.2);
+    border: 1px solid rgba(78, 223, 177, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.jaitea-theme .wallet-display:hover {
+    background-color: rgba(78, 223, 177, 0.3);
+}
+
+/* Toast notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    max-width: 320px;
+}
+
+.toast-message {
+    display: flex;
+    align-items: center;
+    background-color: rgba(30, 30, 30, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast-message.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast-message.success {
+    border-left: 4px solid #4CAF50;
+}
+
+.toast-message.error {
+    border-left: 4px solid #F44336;
+}
+
+.toast-message.info {
+    border-left: 4px solid #2196F3;
+}
+
+.toast-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.toast-message.success .toast-icon {
+    color: #4CAF50;
+}
+
+.toast-message.error .toast-icon {
+    color: #F44336;
+}
+
+.toast-message.info .toast-icon {
+    color: #2196F3;
+}
+
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.toast-subtitle {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Login processing message */
+.login-processing-msg {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+    color: white;
+    animation: pulse 1.5s infinite alternate;
+}
+
+.gosheesh-theme .login-processing-msg {
+    background-color: rgba(64, 115, 255, 0.2);
+}
+
+.jaitea-theme .login-processing-msg {
+    background-color: rgba(78, 223, 177, 0.2);
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+    100% {
+        opacity: 1;
+    }
+}
 
 /* Logout button */
 .logout-button {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    border: none;
+    right: 20px;
+    top: 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.7rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(5px);
+    transition: all 0.2s ease;
 }
 
 .gosheesh-theme .logout-button {
-    font-family: 'Bungee', cursive;
-    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(64, 115, 255, 0.1);
     border: 1px solid rgba(64, 115, 255, 0.3);
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .jaitea-theme .logout-button {
-    font-family: 'Times New Roman', serif;
-    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(78, 223, 177, 0.1);
     border: 1px solid rgba(78, 223, 177, 0.3);
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .logout-button:hover {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.15);
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white;
 }
 
 .gosheesh-theme .logout-button:hover {
-    box-shadow: 0 2px 8px rgba(64, 115, 255, 0.2);
+    background-color: rgba(64, 115, 255, 0.2);
 }
 
 .jaitea-theme .logout-button:hover {
-    box-shadow: 0 2px 8px rgba(78, 223, 177, 0.2);
-}
-
-@media (max-width: 768px) {
-    .logout-button {
-        position: relative;
-        top: auto;
-        right: auto;
-        margin-top: 1rem;
-    }
+    background-color: rgba(78, 223, 177, 0.2);
 }
 
 /* When purchase section is shown, ensure payment section is visible too */
@@ -1542,4 +1594,151 @@ etc.
         width: 80px; /* Slightly smaller on mobile for faster performance */
         height: 80px;
     }
+
+    .logout-button {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin-top: 1rem;
+    }
+}
+
+/* Artist-specific Typography
+----------------------------------------
+This section controls all font styling that changes based on the artist theme.
+The theme is controlled by the class on the body tag:
+- class="gosheesh-theme" for GOSHEESH
+- class="jaitea-theme" for JAI TEA
+---------------------------------------- */
+
+/* GOSHEESH Theme Typography */
+.gosheesh-theme .artist-name {
+    font-family: 'Bungee', cursive;
+    font-size: 3rem;
+    letter-spacing: 2px;
+}
+
+.gosheesh-theme #accessHeadline,
+.gosheesh-theme #purchaseHeadline,
+.gosheesh-theme .purchase-section h3,
+.gosheesh-theme .success-section h3 {
+    font-family: 'Bungee', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 0.5px;
+}
+
+.gosheesh-theme .buy-button {
+    font-family: 'Bungee', cursive;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+}
+
+.gosheesh-theme .token-price-info,
+.gosheesh-theme .token-input-group label,
+.gosheesh-theme .total-input-group label,
+.gosheesh-theme .unlock-label span {
+    font-family: 'Bungee', cursive;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+/* JAI TEA Theme Typography */
+.jaitea-theme .artist-name {
+    font-family: 'Times New Roman', serif;
+    font-size: 3rem;
+}
+
+.jaitea-theme #accessHeadline,
+.jaitea-theme #purchaseHeadline,
+.jaitea-theme .purchase-section h3,
+.jaitea-theme .success-section h3 {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.3rem;
+}
+
+.jaitea-theme .buy-button {
+    font-family: 'Times New Roman', serif;
+    font-size: 1rem;
+}
+
+.jaitea-theme .token-price-info,
+.jaitea-theme .token-input-group label,
+.jaitea-theme .total-input-group label,
+.jaitea-theme .unlock-label span {
+    font-family: 'Times New Roman', serif;
+    font-size: 0.9rem;
+}
+
+/* Login error states */
+.login-processing-msg.error {
+    background-color: rgba(255, 0, 0, 0.2) !important;
+    border-left: 3px solid rgba(255, 0, 0, 0.6);
+}
+
+.gosheesh-theme .login-processing-msg.error {
+    background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+.jaitea-theme .login-processing-msg.error {
+    background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+.email-input.error {
+    border-color: rgba(255, 0, 0, 0.6) !important;
+    background-color: rgba(255, 0, 0, 0.05);
+}
+
+/* Loading spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Improve login button states */
+.login-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.login-btn.loading {
+    position: relative;
+}
+
+.login-btn.loading::before {
+    display: inline-block;
+    content: "";
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+/* Make login section more prominent */
+.login-section {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gosheesh-theme .login-section {
+    border-color: rgba(64, 115, 255, 0.2);
+}
+
+.jaitea-theme .login-section {
+    border-color: rgba(78, 223, 177, 0.2);
 } 

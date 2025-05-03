@@ -5,7 +5,7 @@ let isLoggedIn = false;
 let paymentSelected = false;
 let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
-let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' || false;
+let isAuthenticated = false; // Will be properly set during initialization
 let contentUnlocked = {};
 let safewordUsed = localStorage.getItem('safewordUsed') === 'true' || false;
 // Add orbital animation state variables
@@ -13,8 +13,136 @@ let orbitAnimationId = null;
 let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
 let lastOrbitTimestamp = 0;
 
+// Magic SDK instance
+let magic = null;
+let userWalletAddress = null;
+let userEmail = null;
+
+// Initialize Magic SDK
+function initMagic() {
+    try {
+        // Initialize Magic instance with minimal configuration
+        // Use only the required network parameter for Sepolia testnet
+        magic = new Magic('pk_live_0A9CA1AC494AF3E6', {
+            network: 'ethereum-sepolia'
+        });
+        
+        console.log('Magic SDK initialized');
+        
+        // Check if user is already logged in
+        checkUserSession();
+    } catch (error) {
+        console.error('Error initializing Magic SDK:', error);
+        alert('Failed to initialize authentication service. Please refresh the page and try again.');
+    }
+}
+
+// Check if the user already has an active session
+async function checkUserSession() {
+    try {
+        console.log('Checking Magic user session...');
+        
+        // Make sure Magic SDK is initialized
+        if (!magic) {
+            console.error('Magic SDK not initialized when checking session');
+            resetAuthState();
+            return false;
+        }
+        
+        // First check if the user has an active session with Magic
+        let isLoggedInWithMagic = false;
+        try {
+            isLoggedInWithMagic = await magic.user.isLoggedIn();
+            console.log('Magic.user.isLoggedIn() result:', isLoggedInWithMagic);
+        } catch (sessionError) {
+            console.error('Error checking Magic login status:', sessionError);
+            // Continue with fallback rather than exiting
+        }
+        
+        if (isLoggedInWithMagic) {
+            console.log('Active Magic session found');
+            
+            // Get user metadata (including wallet address and email)
+            try {
+                const userMetadata = await magic.user.getMetadata();
+                console.log('User metadata:', userMetadata);
+                
+                userWalletAddress = userMetadata.publicAddress;
+                userEmail = userMetadata.email;
+                
+                // Save user data to localStorage
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                
+                // Set authentication state
+                isAuthenticated = true;
+                isLoggedIn = true;
+                localStorage.setItem('isAuthenticated', 'true');
+                
+                console.log(`Retrieved user data: ${userEmail} (${userWalletAddress})`);
+                
+                // Update UI based on authenticated state
+                updateUIForAuthState();
+                return true;
+            } catch (metadataError) {
+                console.error('Error getting user metadata:', metadataError);
+                // Continue with fallback rather than exiting
+            }
+        }
+        
+        // Try to recover from localStorage as a fallback
+        userWalletAddress = localStorage.getItem('userWalletAddress');
+        userEmail = localStorage.getItem('userEmail');
+        
+        if (userWalletAddress && userEmail) {
+            console.log(`No active Magic session, but found stored credentials: ${userEmail}`);
+            
+            // We'll consider the user logged in based on localStorage
+            isAuthenticated = true;
+            isLoggedIn = true;
+            localStorage.setItem('isAuthenticated', 'true');
+            
+            // Update UI based on authenticated state
+            updateUIForAuthState();
+            return true;
+        } else {
+            console.log('No active Magic session or stored credentials');
+            resetAuthState();
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking Magic session:', error);
+        resetAuthState();
+        return false;
+    }
+}
+
+// Reset authentication state
+function resetAuthState() {
+    console.log('Resetting authentication state');
+    isAuthenticated = false;
+    isLoggedIn = false;
+    userWalletAddress = null;
+    userEmail = null;
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userWalletAddress');
+    localStorage.removeItem('userEmail');
+    
+    // Update UI for non-authenticated state
+    updateUIForAuthState();
+}
+
 // Fetch configuration and initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Magic SDK
+    initMagic();
+    
+    // Set up email login button
+    const emailLoginBtn = document.getElementById('emailLoginBtn');
+    if (emailLoginBtn) {
+        emailLoginBtn.addEventListener('click', handleEmailLogin);
+    }
+    
     // Load configuration
     try {
         // Add cache control and credentials to ensure we get the latest file
@@ -701,29 +829,133 @@ function positionOrbitalTokens() {
 }
 
 // Handle email login form
-function handleEmailLogin() {
+async function handleEmailLogin() {
     const email = document.getElementById('emailInput').value;
+    const emailInput = document.getElementById('emailInput');
+    const emailLoginBtn = document.getElementById('emailLoginBtn');
+    const loginFeedback = document.getElementById('loginFeedback');
+    
+    // Reset any previous error states
+    emailInput.classList.remove('error');
+    if (loginFeedback) {
+        loginFeedback.style.display = 'none';
+        loginFeedback.classList.remove('error');
+    }
+    
+    // Check if Magic SDK is initialized
+    if (!magic) {
+        console.error('Magic SDK not initialized!');
+        
+        // Try to initialize it now
+        initMagic();
+        
+        // Check again
+        if (!magic) {
+            if (loginFeedback) {
+                loginFeedback.textContent = 'Authentication service not available. Please refresh the page.';
+                loginFeedback.classList.add('error');
+                loginFeedback.style.display = 'block';
+            }
+            return;
+        }
+    }
     
     // Very basic email validation
     if (email && email.includes('@') && email.includes('.')) {
-        console.log(`Login with email: ${email}`);
-        completeLogin('email');
+        try {
+            console.log(`Attempting login with email: ${email}`);
+            
+            // Show loading state on the button
+            if (emailLoginBtn) {
+                emailLoginBtn.innerHTML = '<span class="loading-spinner"></span>Sending...';
+                emailLoginBtn.disabled = true;
+                emailLoginBtn.classList.add('loading');
+            }
+            
+            // Show processing message
+            if (loginFeedback) {
+                loginFeedback.textContent = 'Processing login... Check your email for the verification link';
+                loginFeedback.style.display = 'block';
+            }
+            
+            // Try the simplest approach first - just call Magic SDK login
+            try {
+                // Call Magic Link login - simplest version
+                await magic.auth.loginWithEmailOTP({ email });
+                
+                // If we get here, login was successful
+                console.log('Magic login successful');
+                
+                try {
+                    // Get user metadata
+                    const userMetadata = await magic.user.getMetadata();
+                    userWalletAddress = userMetadata.publicAddress;
+                    userEmail = userMetadata.email;
+                    
+                    // Save to localStorage
+                    localStorage.setItem('userWalletAddress', userWalletAddress);
+                    localStorage.setItem('userEmail', userEmail);
+                    localStorage.setItem('isAuthenticated', 'true');
+                    
+                    console.log(`Login complete - wallet: ${userWalletAddress}`);
+                } catch (metadataError) {
+                    console.error('Error getting user metadata:', metadataError);
+                }
+                
+                // Complete login flow
+                completeLogin('email');
+            } catch (error) {
+                console.error('Magic SDK login error:', error);
+                
+                // Show error message
+                if (loginFeedback) {
+                    loginFeedback.textContent = 'Login failed. Please try again.';
+                    loginFeedback.classList.add('error');
+                    loginFeedback.style.display = 'block';
+                }
+                
+                // Mark input as error
+                emailInput.classList.add('error');
+            }
+            
+            // Reset button state
+            if (emailLoginBtn) {
+                emailLoginBtn.innerHTML = 'Continue with Email';
+                emailLoginBtn.disabled = false;
+                emailLoginBtn.classList.remove('loading');
+            }
+        } catch (error) {
+            console.error('Error during login process:', error);
+            
+            // Reset button state
+            if (emailLoginBtn) {
+                emailLoginBtn.innerHTML = 'Continue with Email';
+                emailLoginBtn.disabled = false;
+                emailLoginBtn.classList.remove('loading');
+            }
+            
+            // Show error feedback
+            if (loginFeedback) {
+                loginFeedback.textContent = 'Login process error. Please try again.';
+                loginFeedback.classList.add('error');
+                loginFeedback.style.display = 'block';
+            }
+        }
     } else {
-        // Show validation error with enhanced shake animation
-        const emailInput = document.getElementById('emailInput');
-        
-        // Add red border
-        emailInput.style.borderColor = 'red';
-        
-        // Apply shake animation
+        // Invalid email
+        emailInput.classList.add('error');
         emailInput.style.animation = 'shake 0.5s';
         
-        // Clear styles after animation completes
+        // Show error message
+        if (loginFeedback) {
+            loginFeedback.textContent = 'Please enter a valid email address.';
+            loginFeedback.classList.add('error');
+            loginFeedback.style.display = 'block';
+        }
+        
+        // Reset animation
         setTimeout(() => {
-            emailInput.style.borderColor = '';
             emailInput.style.animation = '';
-            
-            // Focus input to encourage correction
             emailInput.focus();
         }, 500);
     }
@@ -733,6 +965,11 @@ function handleEmailLogin() {
 function handleLogin(method) {
     console.log(`Login selected: ${method}`);
     
+    // For now, social logins are disabled (show a message instead)
+    alert(`${method} login will be available in the upcoming Next.js version.`);
+    return;
+    
+    // The code below will not execute until social logins are enabled
     // Simulate wallet creation
     if (method === 'email') {
         const emailInput = document.getElementById('emailInput');
@@ -760,6 +997,31 @@ function completeLogin(method) {
 
     // Get safeword status from localStorage
     safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // Add wallet address to the header if it exists
+    if (userWalletAddress) {
+        // Either update existing wallet display or create a new one
+        let walletDisplay = document.getElementById('walletDisplay');
+        
+        if (!walletDisplay) {
+            walletDisplay = document.createElement('div');
+            walletDisplay.id = 'walletDisplay';
+            walletDisplay.className = 'wallet-display';
+            
+            // Insert wallet display after artist name
+            const artistName = document.getElementById('artistName');
+            if (artistName && artistName.parentNode) {
+                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
+            }
+        }
+        
+        // Show abbreviated wallet address
+        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
+        walletDisplay.textContent = shortAddress;
+        
+        // Add tooltip with full address and email
+        walletDisplay.title = `${userEmail}\n${userWalletAddress}`;
+    }
     
     // Use centralized function to update UI based on authentication state
     updateUIForAuthState();
@@ -794,6 +1056,9 @@ function completeLogin(method) {
     // Update buy button text
     updateBuyButton();
     
+    // Show success toast message
+    showLoginSuccessMessage();
+    
     // Auto-focus on chat input after login completes
     setTimeout(() => {
         const chatInput = document.getElementById('chatInput');
@@ -806,6 +1071,48 @@ function completeLogin(method) {
     
     // Log the login method for analytics (in a real app)
     console.log(`User logged in via ${method}`);
+}
+
+// Show success message after login
+function showLoginSuccessMessage() {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toastContainer');
+    
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast message
+    const toast = document.createElement('div');
+    toast.className = 'toast-message success';
+    
+    // Add content to toast
+    toast.innerHTML = `
+        <div class="toast-icon">✓</div>
+        <div class="toast-content">
+            <div class="toast-title">Login Successful</div>
+            <div class="toast-subtitle">Welcome back${userEmail ? ', ' + userEmail.split('@')[0] : ''}!</div>
+        </div>
+    `;
+    
+    // Add toast to container
+    toastContainer.appendChild(toast);
+    
+    // Show toast with animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 100);
+    
+    // Remove toast after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 5000);
 }
 
 // Add a brief highlight animation to selected login button
@@ -1656,13 +1963,41 @@ function setupLogoutButton() {
     logoutButton.parentNode.replaceChild(newLogoutButton, logoutButton);
     
     // Add a single event listener to the new button
-    newLogoutButton.addEventListener('click', () => {
+    newLogoutButton.addEventListener('click', async () => {
+        // Ask for confirmation
+        if (!confirm('Are you sure you want to reset data? This will log you out.')) {
+            return;
+        }
+        
+        // Change button text to indicate logout in progress
+        newLogoutButton.textContent = 'Logging out...';
+        newLogoutButton.disabled = true;
+        
+        // Log out from Magic if it's initialized
+        if (magic) {
+            try {
+                console.log('Attempting to logout from Magic...');
+                await magic.user.logout();
+                console.log('Successfully logged out from Magic');
+            } catch (error) {
+                console.error('Error logging out from Magic:', error);
+            }
+        }
+        
+        // Remove wallet display if it exists
+        const walletDisplay = document.getElementById('walletDisplay');
+        if (walletDisplay) {
+            walletDisplay.remove();
+        }
+        
         // Clear all localStorage
         localStorage.removeItem('currentArtist');
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('artistUnlocked');
         localStorage.removeItem('artistocksBalance');
         localStorage.removeItem('safewordUsed');
+        localStorage.removeItem('userWalletAddress');
+        localStorage.removeItem('userEmail');
 
         // Reset state variables
         isLoggedIn = false;
@@ -1671,6 +2006,8 @@ function setupLogoutButton() {
         currentTokenAmount = 100;
         contentUnlocked = {};
         safewordUsed = false;
+        userWalletAddress = null;
+        userEmail = null;
 
         // Reset to default artist
         currentArtist = 'gosheesh';
@@ -1786,9 +2123,55 @@ function setupLogoutButton() {
         orbitAngleOffset = 0;
         localStorage.setItem('orbitAngleOffset', '0');
 
-        // Show confirmation
-        alert('All data has been reset!');
+        // Reset button state
+        newLogoutButton.textContent = 'Reset Data';
+        newLogoutButton.disabled = false;
+        
+        // Show logout success toast
+        showLogoutSuccessToast();
     });
+}
+
+// Show success message after logout
+function showLogoutSuccessToast() {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toastContainer');
+    
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast message
+    const toast = document.createElement('div');
+    toast.className = 'toast-message info';
+    
+    // Add content to toast
+    toast.innerHTML = `
+        <div class="toast-icon">ℹ</div>
+        <div class="toast-content">
+            <div class="toast-title">Data Reset</div>
+            <div class="toast-subtitle">All local data has been cleared.</div>
+        </div>
+    `;
+    
+    // Add toast to container
+    toastContainer.appendChild(toast);
+    
+    // Show toast with animation
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 100);
+    
+    // Remove toast after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 5000);
 }
 
 // Set up chat input to show advanced purchase options when "artistock" is typed
@@ -1949,10 +2332,18 @@ function updateUIForAuthState() {
     // Check safeword status
     safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
+    // Retrieve wallet address and email if they're in localStorage
+    if (isAuthenticated) {
+        userWalletAddress = localStorage.getItem('userWalletAddress') || userWalletAddress;
+        userEmail = localStorage.getItem('userEmail') || userEmail;
+    }
+    
     console.log("updateUIForAuthState:", { 
         isAuthenticated, 
         safewordUsed, 
-        currentArtist 
+        currentArtist,
+        userEmail: userEmail ? userEmail.substring(0, 3) + '...' : null,
+        walletAddress: userWalletAddress ? userWalletAddress.substring(0, 6) + '...' : null
     });
     
     // Handle UI visibility based on authentication
@@ -1987,6 +2378,36 @@ function updateUIForAuthState() {
     const contentUnlockToggle = document.getElementById('contentUnlockToggle');
     if (contentUnlockToggle) {
         contentUnlockToggle.checked = true;
+    }
+    
+    // Handle wallet display
+    const existingWalletDisplay = document.getElementById('walletDisplay');
+    
+    if (isAuthenticated && userWalletAddress) {
+        // Create or update wallet display
+        let walletDisplay = existingWalletDisplay;
+        
+        if (!walletDisplay) {
+            walletDisplay = document.createElement('div');
+            walletDisplay.id = 'walletDisplay';
+            walletDisplay.className = 'wallet-display';
+            
+            // Insert wallet display after artist name
+            const artistName = document.getElementById('artistName');
+            if (artistName && artistName.parentNode) {
+                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
+            }
+        }
+        
+        // Show abbreviated wallet address
+        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
+        walletDisplay.textContent = shortAddress;
+        
+        // Add tooltip with full address and email
+        walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
+    } else if (existingWalletDisplay) {
+        // Remove wallet display if user is not authenticated
+        existingWalletDisplay.remove();
     }
     
     if (isAuthenticated) {

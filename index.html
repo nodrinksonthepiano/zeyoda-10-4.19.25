@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' data: 'unsafe-inline' 'unsafe-eval' https://auth.magic.link;">
     <title>ZEYODA - Decentralized Artist Orbit</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Magic SDK - reverting to original config -->
+    <script src="https://auth.magic.link/sdk"></script>
 </head>
 <body class="gosheesh-theme">
     <div id="particles" class="cosmic-particles"></div>
@@ -86,7 +89,8 @@
                 
                 <div class="email-login-container">
                     <input type="email" id="emailInput" placeholder="Enter your email address" class="email-input">
-                    <button class="login-btn email" onclick="handleEmailLogin()">Continue with Email</button>
+                    <button id="emailLoginBtn" class="login-btn email">Continue with Email</button>
+                    <div id="loginFeedback" class="login-processing-msg" style="display: none;"></div>
                 </div>
                 <div class="social-login-container">
                     <p class="login-separator">or continue with</p>
