@@ -140,7 +140,7 @@
     
     <footer>
         <div class="chat-input-container">
-            <input type="text" id="chatInput" placeholder="Type something" class="chat-input">
+            <input type="text" id="chatInput" placeholder="Type something" class="chat-input" oninput="checkForSafewordAsTyped(this.value)">
         </div>
     </footer>
     
@@ -148,5 +148,48 @@
     <script src="onboardArtist.js"></script>
     <script src="wallet.js"></script>
     <script src="script.js?v=1.0.1"></script>
+    <script>
+        // Check for safeword as the user types
+        function checkForSafewordAsTyped(input) {
+            const safeword = 'zeyoda';
+            
+            // Check if the input ends with the safeword (case insensitive)
+            if (input.trim().toLowerCase().endsWith(safeword)) {
+                console.log('Safeword detected while typing!');
+                
+                // Clear the input field
+                document.getElementById('chatInput').value = '';
+                
+                // Call the checkForSafeword function if it exists
+                if (window.checkForSafeword && typeof window.checkForSafeword === 'function') {
+                    window.checkForSafeword(safeword);
+                }
+            }
+        }
+        
+        // Ensure buy button targets the current artist
+        document.addEventListener('DOMContentLoaded', function() {
+            const buyButton = document.getElementById('buyButton');
+            if (buyButton) {
+                // Override the original click handler
+                buyButton.addEventListener('click', function(e) {
+                    console.log('Buy button clicked for current artist profile');
+                    
+                    // If we're in a new artist profile, ensure it uses the correct artist data
+                    if (document.body.classList.contains('new-artist-theme') && 
+                        window.artistData && window.artistData.name) {
+                        
+                        // You would call your purchase function here
+                        alert(`Purchasing Artistocks for ${window.artistData.name}`);
+                        
+                        // Prevent the default handler that might use old artist data
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                }, true); // Use capture to intercept before other handlers
+            }
+        });
+    </script>
 </body>
 </html> 
