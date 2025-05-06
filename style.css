@@ -2125,3 +2125,25 @@ The theme is controlled by the class on the body tag:
 }
 
 /* Chat input styling */
+
+/* Success Toast */
+.toast.success-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast.success-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}

@@ -13,6 +13,11 @@ let orbitAnimationId = null;
 let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
 let lastOrbitTimestamp = 0;
 
+// DEVELOPER MODE SETTINGS
+// Set to true to bypass Magic authentication (for development only)
+const DEVELOPER_MODE = false; 
+const BYPASS_MAGIC_AUTH = false;
+
 // Magic SDK instance
 let magic = null;
 let userWalletAddress = null;
@@ -21,11 +26,9 @@ let userEmail = null;
 // Initialize Magic SDK
 function initMagic() {
     try {
-        // Initialize Magic instance with minimal configuration
-        // Use only the required network parameter for Sepolia testnet
-        magic = new Magic('pk_live_0A9CA1AC494AF3E6', {
-            network: 'ethereum-sepolia'
-        });
+        // Initialize Magic instance with a simpler configuration
+        // This matches the working v7 configuration
+        magic = new Magic('pk_live_0A9CA1AC494AF3E6');
         
         console.log('Magic SDK initialized');
         
@@ -42,6 +45,26 @@ async function checkUserSession() {
     try {
         console.log('Checking Magic user session...');
         
+        // DEVELOPER MODE: Skip Magic SDK auth if developer mode is enabled
+        if (DEVELOPER_MODE && BYPASS_MAGIC_AUTH) {
+            console.warn('⚠️ DEVELOPER MODE ENABLED - Magic authentication bypassed ⚠️');
+            
+            // Use test values
+            userWalletAddress = '0x0000000000000000000000000000000000000DEV';
+            userEmail = 'dev@example.com';
+            
+            // Set authentication state
+            isAuthenticated = true;
+            isLoggedIn = true;
+            localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userWalletAddress', userWalletAddress);
+            localStorage.setItem('userEmail', userEmail);
+            
+            // Update UI based on authenticated state
+            updateUIForAuthState();
+            return true;
+        }
+        
         // Make sure Magic SDK is initialized
         if (!magic) {
             console.error('Magic SDK not initialized when checking session');
@@ -49,20 +72,14 @@ async function checkUserSession() {
             return false;
         }
         
-        // First check if the user has an active session with Magic
-        let isLoggedInWithMagic = false;
-        try {
-            isLoggedInWithMagic = await magic.user.isLoggedIn();
-            console.log('Magic.user.isLoggedIn() result:', isLoggedInWithMagic);
-        } catch (sessionError) {
-            console.error('Error checking Magic login status:', sessionError);
-            // Continue with fallback rather than exiting
-        }
+        // Simple check if the user is logged in
+        const isLoggedInWithMagic = await magic.user.isLoggedIn();
+        console.log('Magic.user.isLoggedIn() result:', isLoggedInWithMagic);
         
         if (isLoggedInWithMagic) {
             console.log('Active Magic session found');
             
-            // Get user metadata (including wallet address and email)
+            // Get user metadata
             try {
                 const userMetadata = await magic.user.getMetadata();
                 console.log('User metadata:', userMetadata);
@@ -84,29 +101,13 @@ async function checkUserSession() {
                 // Update UI based on authenticated state
                 updateUIForAuthState();
                 return true;
-            } catch (metadataError) {
-                console.error('Error getting user metadata:', metadataError);
-                // Continue with fallback rather than exiting
+            } catch (error) {
+                console.error('Error getting user metadata:', error);
+                resetAuthState();
+                return false;
             }
-        }
-        
-        // Try to recover from localStorage as a fallback
-        userWalletAddress = localStorage.getItem('userWalletAddress');
-        userEmail = localStorage.getItem('userEmail');
-        
-        if (userWalletAddress && userEmail) {
-            console.log(`No active Magic session, but found stored credentials: ${userEmail}`);
-            
-            // We'll consider the user logged in based on localStorage
-            isAuthenticated = true;
-            isLoggedIn = true;
-            localStorage.setItem('isAuthenticated', 'true');
-            
-            // Update UI based on authenticated state
-            updateUIForAuthState();
-            return true;
         } else {
-            console.log('No active Magic session or stored credentials');
+            console.log('No active Magic session found - user needs to authenticate');
             resetAuthState();
             return false;
         }
@@ -134,7 +135,7 @@ function resetAuthState() {
 
 // Fetch configuration and initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Magic SDK
+    // Initialize Magic SDK first
     initMagic();
     
     // Set up email login button
@@ -173,6 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         console.log('Configuration loaded successfully:', config);
         
+        // Run a second authentication check after config loads
+        try {
+            console.log('Double-checking authentication status after config load');
+            await checkUserSession();
+        } catch (authCheckError) {
+            console.error('Auth check after config load failed:', authCheckError);
+        }
+        
         // Initialize with loaded configuration
         initializeApp();
         
@@ -193,9 +202,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Ensure payment buttons have event handlers
             setupPaymentButtons();
             
+            // Run one final authentication check
+            try {
+                console.log('Final authentication check on startup');
+                if (magic) {
+                    magic.user.isLoggedIn().then(isLoggedIn => {
+                        console.log('Final Magic login check:', isLoggedIn);
+                        if (isLoggedIn) {
+                            // Ensure UI reflects authenticated state
+                            isAuthenticated = true;
+                            localStorage.setItem('isAuthenticated', 'true');
+                            updateUIForAuthState();
+                        }
+                    }).catch(err => console.error('Final auth check error:', err));
+                }
+            } catch (finalAuthError) {
+                console.error('Final auth check exception:', finalAuthError);
+            }
+            
             // Debug initial state
             debugPurchaseFlow();
-        }, 500); // Wait half a second for everything to settle
+        }, 1000); // Increased timeout for more reliable initialization
         
     } catch (error) {
         console.error('Error loading configuration:', error);
@@ -354,6 +381,7 @@ function initializeApp() {
     // regardless of authentication state (so the download button is visible)
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
+        console.log("Making token section visible in initializeApp");
         tokenSection.style.display = 'block';
         tokenSection.style.opacity = '1';
         tokenSection.style.transform = 'translateY(0)';
@@ -833,48 +861,65 @@ function positionOrbitalTokens() {
     });
 }
 
-// Handle email login form
+// Handle email login
 async function handleEmailLogin() {
-    const email = document.getElementById('emailInput').value;
+    console.log('Email login button clicked');
+    
+    // Get email input element
     const emailInput = document.getElementById('emailInput');
+    if (!emailInput) {
+        console.error('Email input not found in the DOM');
+        return;
+    }
+    
+    // Get email login button to show processing state
     const emailLoginBtn = document.getElementById('emailLoginBtn');
+    if (emailLoginBtn) {
+        emailLoginBtn.innerHTML = '<div class="loading-spinner"></div>';
+        emailLoginBtn.disabled = true;
+        emailLoginBtn.classList.add('loading');
+    }
+    
+    // Get login feedback display element
     const loginFeedback = document.getElementById('loginFeedback');
     
-    // Reset any previous error states
+    // Clear any previous errors
     emailInput.classList.remove('error');
     if (loginFeedback) {
-        loginFeedback.style.display = 'none';
         loginFeedback.classList.remove('error');
+        loginFeedback.style.display = 'none';
     }
     
-    // Check if Magic SDK is initialized
-    if (!magic) {
-        console.error('Magic SDK not initialized!');
-        
-        // Try to initialize it now
-        initMagic();
-        
-        // Check again
-        if (!magic) {
-            if (loginFeedback) {
-                loginFeedback.textContent = 'Authentication service not available. Please refresh the page.';
-                loginFeedback.classList.add('error');
-                loginFeedback.style.display = 'block';
-            }
-            return;
-        }
-    }
+    // Get and validate email
+    const email = emailInput.value.trim();
     
-    // Very basic email validation
-    if (email && email.includes('@') && email.includes('.')) {
+    if (email && email.includes('@')) {
         try {
-            console.log(`Attempting login with email: ${email}`);
-            
-            // Show loading state on the button
-            if (emailLoginBtn) {
-                emailLoginBtn.innerHTML = '<span class="loading-spinner"></span>Sending...';
-                emailLoginBtn.disabled = true;
-                emailLoginBtn.classList.add('loading');
+            // DEVELOPER MODE: Skip Magic SDK auth if developer mode is enabled
+            if (DEVELOPER_MODE && BYPASS_MAGIC_AUTH) {
+                console.warn('⚠️ DEVELOPER MODE ENABLED - Magic authentication bypassed ⚠️');
+                
+                // Use test values
+                userWalletAddress = '0x0000000000000000000000000000000000000DEV';
+                userEmail = email;
+                
+                // Set authentication state
+                isAuthenticated = true;
+                isLoggedIn = true;
+                localStorage.setItem('isAuthenticated', 'true');
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                
+                // Reset button state
+                if (emailLoginBtn) {
+                    emailLoginBtn.innerHTML = 'Continue with Email';
+                    emailLoginBtn.disabled = false;
+                    emailLoginBtn.classList.remove('loading');
+                }
+                
+                // Complete login process
+                completeLogin('email');
+                return;
             }
             
             // Show processing message
@@ -883,16 +928,21 @@ async function handleEmailLogin() {
                 loginFeedback.style.display = 'block';
             }
             
-            // Try the simplest approach first - just call Magic SDK login
+            // Use the simpler Magic Link implementation
             try {
-                // Call Magic Link login - simplest version
-                await magic.auth.loginWithEmailOTP({ email });
+                // Call Magic Link login with email
+                await magic.auth.loginWithMagicLink({ email });
                 
                 // If we get here, login was successful
                 console.log('Magic login successful');
                 
+                // Set authentication state
+                isAuthenticated = true;
+                isLoggedIn = true;
+                localStorage.setItem('isAuthenticated', 'true');
+                
+                // Get user metadata
                 try {
-                    // Get user metadata
                     const userMetadata = await magic.user.getMetadata();
                     userWalletAddress = userMetadata.publicAddress;
                     userEmail = userMetadata.email;
@@ -900,12 +950,18 @@ async function handleEmailLogin() {
                     // Save to localStorage
                     localStorage.setItem('userWalletAddress', userWalletAddress);
                     localStorage.setItem('userEmail', userEmail);
-                    localStorage.setItem('isAuthenticated', 'true');
                     
                     console.log(`Login complete - wallet: ${userWalletAddress}`);
                 } catch (metadataError) {
                     console.error('Error getting user metadata:', metadataError);
+                    
+                    // Use email from input as fallback
+                    userEmail = email;
+                    localStorage.setItem('userEmail', userEmail);
                 }
+                
+                // Update UI based on authenticated state
+                updateUIForAuthState();
                 
                 // Complete login flow
                 completeLogin('email');
@@ -963,6 +1019,13 @@ async function handleEmailLogin() {
             emailInput.style.animation = '';
             emailInput.focus();
         }, 500);
+        
+        // Reset button state
+        if (emailLoginBtn) {
+            emailLoginBtn.innerHTML = 'Continue with Email';
+            emailLoginBtn.disabled = false;
+            emailLoginBtn.classList.remove('loading');
+        }
     }
 }
 
@@ -995,134 +1058,45 @@ function handleLogin(method) {
 function completeLogin(method) {
     console.log(`Completing login via ${method}`);
     
-    // Set authentication state
+    // Ensure authentication state is set
     isAuthenticated = true;
     isLoggedIn = true;
-    localStorage.setItem('isAuthenticated', 'true');
-
-    // Get safeword status from localStorage
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
-    // Add wallet address to the header if it exists
-    if (userWalletAddress) {
-        // Either update existing wallet display or create a new one
-        let walletDisplay = document.getElementById('walletDisplay');
-        
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
-            walletDisplay.id = 'walletDisplay';
-            walletDisplay.className = 'wallet-display';
-            
-            // Insert wallet display after artist name
-            const artistName = document.getElementById('artistName');
-            if (artistName && artistName.parentNode) {
-                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
-            }
-        }
-        
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail}\n${userWalletAddress}`;
-    }
-    
-    // Use centralized function to update UI based on authentication state
-    updateUIForAuthState();
-    
-    // Make sure login section is hidden
-    const loginSection = document.getElementById('loginSection');
-    if (loginSection) {
-        loginSection.style.display = 'none';
-        loginSection.style.opacity = '0';
-    }
-    
-    // Make sure token section is visible with animation
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    if (tokenSection) {
-        tokenSection.style.display = 'block';
-        // Animation delay
-        setTimeout(() => {
-            tokenSection.style.opacity = '1';
-            tokenSection.style.transform = 'translateY(0)';
-        }, 100);
-    }
-    
-    // Ensure the buy button has its event handler
-    const buyButton = document.getElementById('buyButton');
-    if (buyButton) {
-        // Remove existing event listeners by cloning and replacing
-        const newBuyButton = buyButton.cloneNode(true);
-        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-        newBuyButton.addEventListener('click', handleBuyClick);
-    }
-    
-    // Update buy button text
-    updateBuyButton();
-    
-    // Show success toast message
+    // Show success message
     showLoginSuccessMessage();
     
-    // Initialize wallet if available
-    if (window.wallet && typeof window.wallet.init === 'function') {
-        window.wallet.init();
+    // Update UI based on new authentication state
+    updateUIForAuthState();
+    
+    // Make sure wallet is initialized
+    if (typeof initWallet === 'function') {
+        initWallet();
     }
-    
-    // Auto-focus on chat input after login completes
-    setTimeout(() => {
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.focus();
-            // Update placeholder to be more subtle
-            chatInput.placeholder = "Type something";
-        }
-    }, 800);
-    
-    // Log the login method for analytics (in a real app)
-    console.log(`User logged in via ${method}`);
 }
 
-// Show success message after login
+// Show login success message
 function showLoginSuccessMessage() {
-    // Create toast container if it doesn't exist
-    let toastContainer = document.getElementById('toastContainer');
+    console.log('Showing login success message');
     
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.id = 'toastContainer';
-        toastContainer.className = 'toast-container';
-        document.body.appendChild(toastContainer);
+    // Create toast element if it doesn't exist
+    let toast = document.getElementById('successToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'successToast';
+        toast.className = 'toast success-toast';
+        document.body.appendChild(toast);
     }
     
-    // Create toast message
-    const toast = document.createElement('div');
-    toast.className = 'toast-message success';
-    
-    // Add content to toast
-    toast.innerHTML = `
-        <div class="toast-icon">✓</div>
-        <div class="toast-content">
-            <div class="toast-title">Login Successful</div>
-            <div class="toast-subtitle">Welcome back${userEmail ? ', ' + userEmail.split('@')[0] : ''}!</div>
-        </div>
-    `;
-    
-    // Add toast to container
-    toastContainer.appendChild(toast);
+    // Update toast content
+    toast.textContent = 'Login successful';
     
     // Show toast with animation
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 100);
+    toast.classList.add('show');
     
-    // Remove toast after 5 seconds
+    // Hide toast after delay
     setTimeout(() => {
         toast.classList.remove('show');
-        setTimeout(() => {
-            toast.remove();
-        }, 300);
-    }, 5000);
+    }, 3000);
 }
 
 // Add a brief highlight animation to selected login button
@@ -1173,7 +1147,7 @@ function handlePayment(method) {
     const totalPrice = (artistocksTotal + (includesDownload ? 1 : 0)).toFixed(2);
     
     // Log the purchase details
-    console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
+    console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1' : 'No'})`);
     
     // Don't allow payment if nothing is selected
     if (artistocksTotal === 0 && !includesDownload) {
@@ -1453,6 +1427,7 @@ function transitionToArtist(artistId) {
     // Always ensure the token preview section is visible for all artists
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
+        console.log("Making token section visible in artist transition");
         tokenSection.style.display = 'block';
         tokenSection.style.opacity = '1';
         tokenSection.style.transform = 'translateY(0)';
@@ -1509,10 +1484,10 @@ function transitionToArtist(artistId) {
         
         // Update buy button text
         if (safewordUsed) {
-            newBuyButton.textContent = `Get Download ($${config.defaults.downloadPrice}) or Buy Artistocks`;
+            newBuyButton.textContent = `Get Download ($1) or Buy Artistocks`;
             newBuyButton.classList.add('safeword-activated');
         } else {
-            newBuyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+            newBuyButton.textContent = `Get Download ($1)`;
             newBuyButton.classList.remove('safeword-activated');
         }
     }
@@ -2092,7 +2067,7 @@ function setupLogoutButton() {
         // Reset buy button text
         const buyButton = document.getElementById('buyButton');
         if (buyButton) {
-            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
+            buyButton.textContent = `Get Download ($1)`;
             buyButton.classList.remove('safeword-activated');
         }
 
@@ -2597,7 +2572,7 @@ function updateBuyButton() {
             }
         } else if (includesDownload) {
             // Just download
-            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
+            buyButton.textContent = `Get Download ($1)`;
         } else {
             // No selection (rare case)
             buyButton.textContent = `Select Purchase Options`;
@@ -2605,101 +2580,60 @@ function updateBuyButton() {
         buyButton.classList.add('safeword-activated');
     } else {
         // Safeword has NOT been used, only show download option
-        buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
+        buyButton.textContent = `Get Download ($1)`;
         buyButton.classList.remove('safeword-activated');
     }
 }
 
-// Update UI elements based on authentication state
+// Update UI based on authentication state
 function updateUIForAuthState() {
-    // Always check authentication from localStorage
-    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    isLoggedIn = isAuthenticated;
-    
-    // Check safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Retrieve wallet address and email if they're in localStorage
-    if (isAuthenticated) {
-        userWalletAddress = localStorage.getItem('userWalletAddress') || userWalletAddress;
-        userEmail = localStorage.getItem('userEmail') || userEmail;
-    }
-    
-    console.log("updateUIForAuthState:", { 
-        isAuthenticated, 
-        safewordUsed, 
-        currentArtist,
-        userEmail: userEmail ? userEmail.substring(0, 3) + '...' : null,
-        walletAddress: userWalletAddress ? userWalletAddress.substring(0, 6) + '...' : null
-    });
-    
-    // Handle UI visibility based on authentication
+    // Get relevant elements
+    const tokenPreviewSection = document.getElementById('tokenPreviewSection');
     const loginSection = document.getElementById('loginSection');
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    const advancedOptions = document.getElementById('advancedPurchaseOptions');
     const purchaseSection = document.getElementById('purchaseSection');
     const successSection = document.getElementById('successSection');
-    const loginFeedback = document.getElementById('loginFeedback');
-    
-    // Reset login feedback message
-    if (loginFeedback) {
-        loginFeedback.style.display = 'none';
-        loginFeedback.textContent = '';
-        loginFeedback.classList.remove('error');
-    }
+    const advancedOptions = document.getElementById('advancedPurchaseOptions');
     
     // MOST IMPORTANT: Always ensure token preview section is visible, 
     // regardless of authentication (so the download button is always available)
-    if (tokenSection) {
+    if (tokenPreviewSection) {
         console.log("Making token section visible");
-        tokenSection.style.display = 'block';
-        tokenSection.style.opacity = '1';
-        tokenSection.style.transform = 'translateY(0)';
+        tokenPreviewSection.style.display = 'block';
+        tokenPreviewSection.style.opacity = '1';
+        tokenPreviewSection.style.transform = 'translateY(0)';
     }
     
-    // Clear purchase and success sections when updating UI
-    if (purchaseSection) {
-        purchaseSection.style.display = 'none';
-    }
-    
-    if (successSection) {
-        successSection.style.display = 'none';
-    }
-    
-    // Always update buy button text based on current safeword state
-    updateBuyButton();
-    
-    // Ensure content unlock toggle is checked by default for the $1 download
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    if (contentUnlockToggle) {
-        contentUnlockToggle.checked = true;
-    }
-    
-    // Handle wallet display
+    // Create wallet display if authenticated
     const existingWalletDisplay = document.getElementById('walletDisplay');
-    
     if (isAuthenticated && userWalletAddress) {
-        // Create or update wallet display
-        let walletDisplay = existingWalletDisplay;
+        // Initialize wallet
+        if (typeof initWallet === 'function') {
+            initWallet();
+        }
         
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
+        // Create wallet display if it doesn't exist yet
+        if (!existingWalletDisplay) {
+            const walletDisplay = document.createElement('div');
             walletDisplay.id = 'walletDisplay';
             walletDisplay.className = 'wallet-display';
             
-            // Insert wallet display after artist name
+            // Insert after artist name
             const artistName = document.getElementById('artistName');
             if (artistName && artistName.parentNode) {
                 artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
             }
         }
         
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
+        // Get the wallet display element (may have just been created)
+        const walletDisplay = document.getElementById('walletDisplay');
+        if (walletDisplay) {
+            // Show abbreviated wallet address
+            const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
+            walletDisplay.textContent = shortAddress;
+            
+            // Add tooltip with full address and email
+            walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
+        }
     } else if (existingWalletDisplay) {
         // Remove wallet display if user is not authenticated
         existingWalletDisplay.remove();
@@ -2707,10 +2641,21 @@ function updateUIForAuthState() {
     
     if (isAuthenticated) {
         console.log("User is authenticated - hiding login section");
-        // Hide login for authenticated users
+        
+        // Hide login section
         if (loginSection) {
             loginSection.style.display = 'none';
             loginSection.style.opacity = '0';
+        }
+        
+        // Hide purchase section (will be shown when needed)
+        if (purchaseSection) {
+            purchaseSection.style.display = 'none';
+        }
+        
+        // Hide success section (will be shown when needed)
+        if (successSection) {
+            successSection.style.display = 'none';
         }
         
         // Show advanced options if safeword has been used
@@ -2748,10 +2693,21 @@ function updateUIForAuthState() {
         }
     } else {
         console.log("User is not authenticated - showing login section");
-        // Show login for non-authenticated users
+        
+        // Show login section
         if (loginSection) {
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
+        }
+        
+        // Hide purchase section
+        if (purchaseSection) {
+            purchaseSection.style.display = 'none';
+        }
+        
+        // Hide success section
+        if (successSection) {
+            successSection.style.display = 'none';
         }
         
         // Always hide advanced options for non-authenticated users
