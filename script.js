@@ -701,96 +701,171 @@ function setupOrbitalTokens(artist) {
     
     const tokens = artistData.orbitalTokens;
     
-    // Check if user owns any assets for this artist (tokens or downloads)
+    // Check if user owns any assets for the current artist
     const hasAssetsForCurrentArtist = window.wallet && window.wallet.hasAnyArtistAssets ? 
                       window.wallet.hasAnyArtistAssets(artist) : false;
     
-    console.log(`Setting up orbital tokens for ${artist}, user has assets: ${hasAssetsForCurrentArtist}`);
+    console.log(`Setting up orbital tokens for ${artist}, user has assets for current artist: ${hasAssetsForCurrentArtist}`);
     
-    // Create tokens
+    // Track tokens to show for additional organization
+    let tokensToShow = [];
+    
+    // STEP 1: First, check if the wallet has any assets and get all artists the user owns
+    const ownedArtistIds = [];
+    
+    if (window.wallet && window.wallet.loadAssets) {
+        const userAssets = window.wallet.loadAssets();
+        // Get all artist IDs the user has assets for
+        Object.keys(userAssets).forEach(artistId => {
+            if (window.wallet.hasAnyArtistAssets(artistId)) {
+                ownedArtistIds.push(artistId);
+                console.log(`User has assets for: ${artistId}`);
+            }
+        });
+    }
+    
+    // STEP 2: Add a token representing the current artist if user has assets for it
+    if (hasAssetsForCurrentArtist) {
+        // Create token info for the current artist itself
+        tokensToShow.push({
+            name: artistData.displayName || artistData.name,
+            angle: 180, // Using 180 degrees for 6 o'clock position as starting position
+            index: 0 // Will be shown first
+        });
+    }
+    
+    // STEP 3: Process all tokens to find matches with owned artists
     tokens.forEach((token, index) => {
-        const tokenElement = document.createElement('div');
-        tokenElement.className = 'token';
-        
-        // Get the artist ID this token represents (needed to check if user has assets for it)
+        // Create a more comprehensive mapping of token names to artist IDs
         let representedArtistId = null;
         
-        // Check if this token represents another artist in our config
-        // STRICT MATCHING: Only recognize specific known artists
-        // Only these mappings will be shown - other tokens are considered placeholders
-        if (currentArtist === 'gosheesh' && token.name === 'IJA TEA') {
+        // Try multiple methods to identify which artist this token represents
+        
+        // Method 1: Direct name matching for known tokens
+        if (token.name === 'IJA TEA' || token.name === 'JAI TEA') {
             representedArtistId = 'jaitea';
-        } else if (currentArtist === 'jaitea' && token.name === 'SHEEGOHS') {
+        } else if (token.name === 'SHEEGOHS' || token.name === 'GOSHEESH') {
             representedArtistId = 'gosheesh';
         }
         
-        // Default visibility - hidden unless proven visible
-        let shouldShowToken = false;
-        
-        // Only show tokens for artists the user has purchased from
-        if (hasAssetsForCurrentArtist && representedArtistId) {
-            // Check if user has assets for the artist this token represents
-            const hasAssetsForToken = window.wallet && window.wallet.hasAnyArtistAssets && 
-                            window.wallet.hasAnyArtistAssets(representedArtistId);
-            shouldShowToken = hasAssetsForToken;
-            
-            console.log(`Token "${token.name}" represents artist "${representedArtistId}", user has assets: ${hasAssetsForToken}`);
-        } else {
-            // This is either a placeholder token or the user doesn't have assets for the current artist
-            shouldShowToken = false;
-            console.log(`Token "${token.name}" is a placeholder or user has no assets for current artist`);
-        }
-        
-        // Set visibility based on whether user has assets
-        if (!shouldShowToken) {
-            tokenElement.style.opacity = '0';
-            tokenElement.style.pointerEvents = 'none';
-            console.log(`Hiding token: ${token.name}`);
-        } else {
-            console.log(`Showing token: ${token.name}`);
-            // If user has assets, add staggered reveal effect
-            tokenElement.style.opacity = '0';
-            // Delay each token slightly for staggered effect
-            setTimeout(() => {
-                tokenElement.style.opacity = '1';
-            }, 200 * index);
-        }
-        
-        tokenElement.textContent = token.name;
-        tokenElement.setAttribute('data-angle', token.angle);
-        
-        // Enhanced token clicking logic with hardcoded fallbacks
-        tokenElement.addEventListener('click', function() {
-            console.log(`Token clicked: ${token.name}`);
-            const tokenName = this.textContent;
-            
-            // Hardcoded navigation for known tokens to ensure it works
-            if (currentArtist === 'gosheesh' && tokenName === 'IJA TEA') {
-                console.log('Navigating to JAI TEA');
-                transitionToArtist('jaitea');
-                return;
-            } else if (currentArtist === 'jaitea' && tokenName === 'SHEEGOHS') {
-                console.log('Navigating to GOSHEESH');
-                transitionToArtist('gosheesh');
-                return;
-            }
-            
-            // Fallback to general search for other tokens
+        // Method 2: Search through artist data for matching names/display names
+        if (!representedArtistId) {
             for (const artistId in config.artists) {
-                // Skip current artist
-                if (artistId === currentArtist) continue;
-                
-                // Check if token name matches any artist name or displayName
                 const artist = config.artists[artistId];
-                if (tokenName === artist.name || tokenName === artist.displayName) {
-                    console.log(`Navigating to artist: ${artistId}`);
-                    transitionToArtist(artistId);
+                if (token.name === artist.name || 
+                    token.name === artist.displayName || 
+                    token.name.includes(artist.name) || 
+                    token.name.includes(artist.displayName)) {
+                    representedArtistId = artistId;
                     break;
                 }
             }
+        }
+        
+        // If we found a matching artist ID and user owns assets for it, show the token
+        if (representedArtistId && ownedArtistIds.includes(representedArtistId)) {
+            tokensToShow.push({
+                name: token.name,
+                angle: token.angle,
+                index: index + 1 // Display after the self token
+            });
+            console.log(`Will show token "${token.name}" for artist "${representedArtistId}"`);
+        } else if (representedArtistId) {
+            console.log(`Token "${token.name}" represents artist "${representedArtistId}", but user has no assets for it`);
+        } else {
+            console.log(`Token "${token.name}" is a placeholder or doesn't match a known artist`);
+        }
+    });
+    
+    // STEP 4: Ensure all owned artists have a token in the orbit
+    // This is a fallback mechanism to ensure wallet contents are always reflected
+    ownedArtistIds.forEach(ownedArtistId => {
+        // Skip current artist as it's already handled
+        if (ownedArtistId === artist) return;
+        
+        // Check if we already added a token for this artist
+        const alreadyAdded = tokensToShow.some(token => {
+            // Try to find artist ID from token name
+            for (const artistId in config.artists) {
+                const artist = config.artists[artistId];
+                if (artistId === ownedArtistId && 
+                    (token.name === artist.name || 
+                     token.name === artist.displayName ||
+                     token.name.includes(artist.name) ||
+                     token.name.includes(artist.displayName))) {
+                    return true;
+                }
+            }
+            return false;
         });
         
+        // If no token exists for this owned artist, add one
+        if (!alreadyAdded) {
+            const ownedArtistData = config.artists[ownedArtistId];
+            if (ownedArtistData) {
+                // Place it at a random position if no specific angle provided
+                const randomAngle = Math.floor(Math.random() * 360);
+                tokensToShow.push({
+                    name: ownedArtistData.displayName || ownedArtistData.name,
+                    angle: randomAngle,
+                    index: tokensToShow.length
+                });
+                console.log(`Added fallback token for owned artist: ${ownedArtistId}`);
+            }
+        }
+    });
+    
+    // Now create and display all tokens that should be visible
+    tokensToShow.forEach((tokenInfo) => {
+        const tokenElement = document.createElement('div');
+        tokenElement.className = 'token';
+        tokenElement.textContent = tokenInfo.name;
+        tokenElement.setAttribute('data-angle', tokenInfo.angle);
+        
+        // Start invisible for the staggered reveal effect
+        tokenElement.style.opacity = '0';
+        
+        // Add clicking behavior for all tokens
+        tokenElement.addEventListener('click', function() {
+            console.log(`Token clicked: ${tokenInfo.name}`);
+            
+            // Handle clicks based on token name
+            // Find the artist this token represents based on various names
+            let targetArtistId = '';
+            
+            // Check for hardcoded well-known transitions
+            if (tokenInfo.name === 'IJA TEA' || tokenInfo.name === 'JAI TEA') {
+                targetArtistId = 'jaitea';
+            } else if (tokenInfo.name === 'SHEEGOHS' || tokenInfo.name === 'GOSHEESH') {
+                targetArtistId = 'gosheesh';
+            } else {
+                // Otherwise try to match by display name or regular name
+                for (const artistId in config.artists) {
+                    const artist = config.artists[artistId];
+                    if (tokenInfo.name === artist.name || 
+                        tokenInfo.name === artist.displayName ||
+                        tokenInfo.name.includes(artist.name) ||
+                        tokenInfo.name.includes(artist.displayName)) {
+                        targetArtistId = artistId;
+                        break;
+                    }
+                }
+            }
+            
+            // If we found a match, transition to that artist
+            if (targetArtistId && targetArtistId !== currentArtist) {
+                console.log(`Navigating to artist: ${targetArtistId}`);
+                transitionToArtist(targetArtistId);
+            }
+        });
+        
+        // Add to container
         orbitalContainer.appendChild(tokenElement);
+        
+        // Apply staggered reveal effect
+        setTimeout(() => {
+            tokenElement.style.opacity = '1';
+        }, 200 * tokenInfo.index);
     });
     
     // Position the tokens initially

@@ -518,27 +518,63 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
         }
     }
     
-    // Reveal orbital tokens for all artists that the user has assets for after a slight delay
+    // Always open wallet immediately after purchase
+    console.log("Opening wallet immediately after purchase");
+    
+    // Force wallet to open, whether it's already open or not
+    if (isWalletOpen) {
+        // If already open, close and reopen for effect
+        toggleWallet();
+        setTimeout(toggleWallet, 100);
+    } else {
+        // Open wallet immediately
+        toggleWallet();
+    }
+    
+    // First immediately setup the orbital tokens for just the current artist
+    // This gives immediate visual feedback right after purchase
+    try {
+        if (typeof window.setupOrbitalTokens === 'function') {
+            window.setupOrbitalTokens(artistId);
+        } else if (typeof setupOrbitalTokens === 'function') {
+            setupOrbitalTokens(artistId);
+        }
+    } catch (e) {
+        console.error("Error setting up orbital tokens for current artist:", e);
+    }
+    
+    // Then after a slight delay, update all artists' tokens to ensure cross-visibility
     setTimeout(() => {
         // Find all artists that the user has assets for
         Object.keys(userAssets).forEach(id => {
-            if (hasAnyArtistAssets(id)) {
-                // Try to access the function in different ways
-                if (typeof setupOrbitalTokens === 'function') {
-                    setupOrbitalTokens(id);
-                } else if (window.setupOrbitalTokens) {
-                    window.setupOrbitalTokens(id);
+            if (hasAnyArtistAssets(id) && id !== artistId) {
+                try {
+                    // Try to update tokens for other artists to ensure they appear in orbit
+                    if (typeof window.setupOrbitalTokens === 'function') {
+                        window.setupOrbitalTokens(id);
+                    } else if (typeof setupOrbitalTokens === 'function') {
+                        setupOrbitalTokens(id);
+                    }
+                } catch (e) {
+                    console.error(`Error setting up orbital tokens for ${id}:`, e);
                 }
             }
         });
-    }, 1500); // Delay token reveal for a better visual effect
-    
-    // Show wallet if not already open
-    if (!isWalletOpen) {
-        setTimeout(() => {
-            toggleWallet();
-        }, 1000); // Wait a second after purchase to show wallet
-    }
+        
+        // Finally, make sure we update the current artist's tokens again, as it may have changed
+        const currentArtistId = window.currentArtist || currentArtist;
+        if (currentArtistId && currentArtistId !== artistId) {
+            try {
+                if (typeof window.setupOrbitalTokens === 'function') {
+                    window.setupOrbitalTokens(currentArtistId);
+                } else if (typeof setupOrbitalTokens === 'function') {
+                    setupOrbitalTokens(currentArtistId);
+                }
+            } catch (e) {
+                console.error("Error setting up orbital tokens for current artist:", e);
+            }
+        }
+    }, 300);
 }
 
 /**
