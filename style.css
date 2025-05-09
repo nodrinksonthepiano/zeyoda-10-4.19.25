@@ -233,6 +233,7 @@ video {
     white-space: pre-line; /* Preserves line breaks */
     transform: translate(-50%, -50%); /* Center token on its position */
     user-select: none; /* Prevent text selection during drag */
+    transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
 
 .token:hover {
@@ -1984,3 +1985,53 @@ The theme is controlled by the class on the body tag:
         padding: 6px 10px;
     }
 } 
+
+/* Token reveal animation */
+@keyframes tokenReveal {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* Add animation to tokens when they're revealed after purchase */
+.token[style*="opacity: 0"] {
+    pointer-events: none;
+}
+
+.token:not([style*="opacity: 0"]) {
+    animation: tokenReveal 0.8s ease forwards;
+}
+
+/* Clickable artist elements in wallet */
+.clickable-artist, .clickable-asset {
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+    position: relative;
+}
+
+.clickable-artist:hover, .clickable-asset:hover {
+    color: var(--accent-color);
+    transform: translateX(3px);
+}
+
+.clickable-artist:after, .clickable-asset:after {
+    content: '→';
+    opacity: 0;
+    position: absolute;
+    transform: translateX(-10px);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.clickable-artist:hover:after, .clickable-asset:hover:after {
+    opacity: 1;
+    transform: translateX(5px);
+}

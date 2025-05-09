@@ -239,9 +239,32 @@ function updateWalletDisplay() {
         const artistSection = document.createElement('div');
         artistSection.className = 'wallet-artist-section';
         
-        // Create artist header
+        // Create artist header - make it clickable
         const artistHeader = document.createElement('h4');
         artistHeader.textContent = artistName;
+        artistHeader.className = 'clickable-artist';
+        artistHeader.style.cursor = 'pointer';
+        
+        // Add event listener to navigate to this artist's page
+        artistHeader.addEventListener('click', () => {
+            console.log(`Artist header clicked: ${artistId}`);
+            
+            // Close the wallet
+            toggleWallet();
+            
+            // Navigate to the artist's page after a slight delay
+            setTimeout(() => {
+                // Use the global transitionToArtist function if available
+                if (typeof window.transitionToArtist === 'function') {
+                    window.transitionToArtist(artistId);
+                } else if (typeof transitionToArtist === 'function') {
+                    transitionToArtist(artistId);
+                } else {
+                    console.error('transitionToArtist function not available');
+                }
+            }, 300);
+        });
+        
         artistSection.appendChild(artistHeader);
         
         // Create list of assets
@@ -252,11 +275,44 @@ function updateWalletDisplay() {
         if (artistAssets.tokens && artistAssets.tokens > 0) {
             const tokensItem = document.createElement('li');
             tokensItem.className = 'wallet-asset-item tokens';
-            tokensItem.innerHTML = `
-                <span class="asset-icon">⚡</span>
-                <span class="asset-amount">${new Intl.NumberFormat().format(artistAssets.tokens)}</span>
-                <span class="asset-name">${artistName} Artistocks</span>
-            `;
+            
+            // Create elements individually to add click handler to artist name
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'asset-icon';
+            iconSpan.textContent = '⚡';
+            
+            const amountSpan = document.createElement('span');
+            amountSpan.className = 'asset-amount';
+            amountSpan.textContent = new Intl.NumberFormat().format(artistAssets.tokens);
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'asset-name clickable-asset';
+            nameSpan.textContent = `${artistName} Artistocks`;
+            nameSpan.style.cursor = 'pointer';
+            
+            // Add click handler to the name
+            nameSpan.addEventListener('click', () => {
+                console.log(`Asset name clicked: ${artistId}`);
+                // Close the wallet
+                toggleWallet();
+                
+                // Navigate to the artist's page after a slight delay
+                setTimeout(() => {
+                    if (typeof window.transitionToArtist === 'function') {
+                        window.transitionToArtist(artistId);
+                    } else if (typeof transitionToArtist === 'function') {
+                        transitionToArtist(artistId);
+                    } else {
+                        console.error('transitionToArtist function not available');
+                    }
+                }, 300);
+            });
+            
+            // Append all elements to the list item
+            tokensItem.appendChild(iconSpan);
+            tokensItem.appendChild(amountSpan);
+            tokensItem.appendChild(nameSpan);
+            
             assetsList.appendChild(tokensItem);
         }
         
@@ -265,11 +321,50 @@ function updateWalletDisplay() {
             artistAssets.downloads.forEach(download => {
                 const downloadItem = document.createElement('li');
                 downloadItem.className = 'wallet-asset-item download';
-                downloadItem.innerHTML = `
-                    <span class="asset-icon">🎵</span>
-                    <span class="asset-title">${download.title || 'Digital Download'}</span>
-                    <a href="#" class="asset-download-link" data-ipfs="${download.ipfsHash}" onclick="handleAssetDownload('${download.ipfsHash}'); return false;">Download</a>
-                `;
+                
+                // Create elements individually to add click handler to title
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'asset-icon';
+                iconSpan.textContent = '🎵';
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'asset-title clickable-asset';
+                titleSpan.textContent = download.title || 'Digital Download';
+                titleSpan.style.cursor = 'pointer';
+                
+                // Add click handler to the title
+                titleSpan.addEventListener('click', () => {
+                    console.log(`Download title clicked: ${artistId}`);
+                    // Close the wallet
+                    toggleWallet();
+                    
+                    // Navigate to the artist's page after a slight delay
+                    setTimeout(() => {
+                        if (typeof window.transitionToArtist === 'function') {
+                            window.transitionToArtist(artistId);
+                        } else if (typeof transitionToArtist === 'function') {
+                            transitionToArtist(artistId);
+                        } else {
+                            console.error('transitionToArtist function not available');
+                        }
+                    }, 300);
+                });
+                
+                const downloadLink = document.createElement('a');
+                downloadLink.href = '#';
+                downloadLink.className = 'asset-download-link';
+                downloadLink.dataset.ipfs = download.ipfsHash;
+                downloadLink.textContent = 'Download';
+                downloadLink.onclick = function() {
+                    handleAssetDownload(download.ipfsHash);
+                    return false;
+                };
+                
+                // Append all elements to the list item
+                downloadItem.appendChild(iconSpan);
+                downloadItem.appendChild(titleSpan);
+                downloadItem.appendChild(downloadLink);
+                
                 assetsList.appendChild(downloadItem);
             });
         }
@@ -423,12 +518,50 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
         }
     }
     
+    // Reveal orbital tokens for all artists that the user has assets for after a slight delay
+    setTimeout(() => {
+        // Find all artists that the user has assets for
+        Object.keys(userAssets).forEach(id => {
+            if (hasAnyArtistAssets(id)) {
+                // Try to access the function in different ways
+                if (typeof setupOrbitalTokens === 'function') {
+                    setupOrbitalTokens(id);
+                } else if (window.setupOrbitalTokens) {
+                    window.setupOrbitalTokens(id);
+                }
+            }
+        });
+    }, 1500); // Delay token reveal for a better visual effect
+    
     // Show wallet if not already open
     if (!isWalletOpen) {
         setTimeout(() => {
             toggleWallet();
         }, 1000); // Wait a second after purchase to show wallet
     }
+}
+
+/**
+ * Check if user has tokens for a specific artist
+ * @param {String} artistId Artist ID
+ * @returns {Boolean} True if user has tokens for the artist
+ */
+function hasArtistTokens(artistId) {
+    return userAssets[artistId] && 
+           userAssets[artistId].tokens && 
+           userAssets[artistId].tokens > 0;
+}
+
+/**
+ * Check if user has any assets (tokens or downloads) for a specific artist
+ * @param {String} artistId Artist ID
+ * @returns {Boolean} True if user has any assets for the artist
+ */
+function hasAnyArtistAssets(artistId) {
+    return userAssets[artistId] && (
+        (userAssets[artistId].tokens && userAssets[artistId].tokens > 0) ||
+        (userAssets[artistId].downloads && userAssets[artistId].downloads.length > 0)
+    );
 }
 
 // Export wallet functions for use in main script
@@ -443,6 +576,8 @@ if (typeof window !== 'undefined') {
         clear: clearAssets,
         onPurchaseComplete: onPurchaseComplete,
         loadAssets: loadUserAssets,
-        hasAssets: hasAssets
+        hasAssets: hasAssets,
+        hasArtistTokens: hasArtistTokens,
+        hasAnyArtistAssets: hasAnyArtistAssets
     };
 } 

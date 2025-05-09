@@ -285,7 +285,12 @@ function initializeApp() {
     // Create cosmic particles
     createCosmicParticles();
     
-    // Set up orbital tokens
+    // Initialize wallet if available first, so we can check for assets
+    if (window.wallet && typeof window.wallet.init === 'function') {
+        window.wallet.init();
+    }
+    
+    // Set up orbital tokens - they will only be visible for artists the user has assets for
     setupOrbitalTokens(currentArtist);
     
     // Set up token drag controls for mobile/desktop interaction
@@ -696,10 +701,61 @@ function setupOrbitalTokens(artist) {
     
     const tokens = artistData.orbitalTokens;
     
+    // Check if user owns any assets for this artist (tokens or downloads)
+    const hasAssetsForCurrentArtist = window.wallet && window.wallet.hasAnyArtistAssets ? 
+                      window.wallet.hasAnyArtistAssets(artist) : false;
+    
+    console.log(`Setting up orbital tokens for ${artist}, user has assets: ${hasAssetsForCurrentArtist}`);
+    
     // Create tokens
-    tokens.forEach(token => {
+    tokens.forEach((token, index) => {
         const tokenElement = document.createElement('div');
         tokenElement.className = 'token';
+        
+        // Get the artist ID this token represents (needed to check if user has assets for it)
+        let representedArtistId = null;
+        
+        // Check if this token represents another artist in our config
+        // STRICT MATCHING: Only recognize specific known artists
+        // Only these mappings will be shown - other tokens are considered placeholders
+        if (currentArtist === 'gosheesh' && token.name === 'IJA TEA') {
+            representedArtistId = 'jaitea';
+        } else if (currentArtist === 'jaitea' && token.name === 'SHEEGOHS') {
+            representedArtistId = 'gosheesh';
+        }
+        
+        // Default visibility - hidden unless proven visible
+        let shouldShowToken = false;
+        
+        // Only show tokens for artists the user has purchased from
+        if (hasAssetsForCurrentArtist && representedArtistId) {
+            // Check if user has assets for the artist this token represents
+            const hasAssetsForToken = window.wallet && window.wallet.hasAnyArtistAssets && 
+                            window.wallet.hasAnyArtistAssets(representedArtistId);
+            shouldShowToken = hasAssetsForToken;
+            
+            console.log(`Token "${token.name}" represents artist "${representedArtistId}", user has assets: ${hasAssetsForToken}`);
+        } else {
+            // This is either a placeholder token or the user doesn't have assets for the current artist
+            shouldShowToken = false;
+            console.log(`Token "${token.name}" is a placeholder or user has no assets for current artist`);
+        }
+        
+        // Set visibility based on whether user has assets
+        if (!shouldShowToken) {
+            tokenElement.style.opacity = '0';
+            tokenElement.style.pointerEvents = 'none';
+            console.log(`Hiding token: ${token.name}`);
+        } else {
+            console.log(`Showing token: ${token.name}`);
+            // If user has assets, add staggered reveal effect
+            tokenElement.style.opacity = '0';
+            // Delay each token slightly for staggered effect
+            setTimeout(() => {
+                tokenElement.style.opacity = '1';
+            }, 200 * index);
+        }
+        
         tokenElement.textContent = token.name;
         tokenElement.setAttribute('data-angle', token.angle);
         
@@ -739,6 +795,11 @@ function setupOrbitalTokens(artist) {
     
     // Position the tokens initially
     setTimeout(positionOrbitalTokens, 100); // Small delay to ensure elements are rendered
+}
+
+// Make setupOrbitalTokens available to wallet.js
+if (typeof window !== 'undefined') {
+    window.setupOrbitalTokens = setupOrbitalTokens;
 }
 
 // Animate the orbital tokens
@@ -1517,7 +1578,7 @@ function transitionToArtist(artistId) {
         }
     }
     
-    // Update orbital tokens
+    // Update orbital tokens - they will only be visible for artists the user has assets for
     setupOrbitalTokens(currentArtist);
     
     // Update the explore button
@@ -2948,4 +3009,10 @@ function setupTokenDragControls() {
         isMouseDown = false;
         isDragging = false;
     });
-} 
+}
+
+// Make getCurrentArtistData available to wallet.js
+if (typeof window !== 'undefined') {
+    window.getCurrentArtistData = getCurrentArtistData;
+    window.transitionToArtist = transitionToArtist;
+}
