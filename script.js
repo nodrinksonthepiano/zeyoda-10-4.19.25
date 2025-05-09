@@ -730,7 +730,8 @@ function setupOrbitalTokens(artist) {
         tokensToShow.push({
             name: artistData.displayName || artistData.name,
             angle: 180, // Using 180 degrees for 6 o'clock position as starting position
-            index: 0 // Will be shown first
+            index: 0, // Will be shown first
+            artistId: artist // Store the artist ID this token represents
         });
     }
     
@@ -767,7 +768,8 @@ function setupOrbitalTokens(artist) {
             tokensToShow.push({
                 name: token.name,
                 angle: token.angle,
-                index: index + 1 // Display after the self token
+                index: index + 1, // Display after the self token
+                artistId: representedArtistId // Store the artist ID this token represents
             });
             console.log(`Will show token "${token.name}" for artist "${representedArtistId}"`);
         } else if (representedArtistId) {
@@ -808,7 +810,8 @@ function setupOrbitalTokens(artist) {
                 tokensToShow.push({
                     name: ownedArtistData.displayName || ownedArtistData.name,
                     angle: randomAngle,
-                    index: tokensToShow.length
+                    index: tokensToShow.length,
+                    artistId: ownedArtistId // Store the artist ID this token represents
                 });
                 console.log(`Added fallback token for owned artist: ${ownedArtistId}`);
             }
@@ -821,41 +824,40 @@ function setupOrbitalTokens(artist) {
         tokenElement.className = 'token';
         tokenElement.textContent = tokenInfo.name;
         tokenElement.setAttribute('data-angle', tokenInfo.angle);
+        tokenElement.setAttribute('data-artist-id', tokenInfo.artistId); // Store the artist ID
         
         // Start invisible for the staggered reveal effect
         tokenElement.style.opacity = '0';
+        
+        // Apply artist-specific styling to the token
+        if (tokenInfo.artistId === 'gosheesh') {
+            // GOSHEESH-specific styling
+            tokenElement.style.background = 'rgba(41, 77, 181, 0.8)';
+            tokenElement.style.border = '3px solid rgba(64, 115, 255, 1)';
+            tokenElement.style.boxShadow = '0 0 20px 5px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4)';
+            tokenElement.style.textShadow = '0 0 5px rgba(255, 255, 255, 0.7)';
+            
+            // Add hover effect via a custom class
+            tokenElement.classList.add('gosheesh-token');
+        } else if (tokenInfo.artistId === 'jaitea') {
+            // JAI TEA-specific styling
+            tokenElement.style.background = 'rgba(24, 128, 68, 0.8)';
+            tokenElement.style.border = '3px solid rgba(78, 223, 177, 1)';
+            tokenElement.style.boxShadow = '0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4)';
+            tokenElement.style.textShadow = '0 0 5px rgba(255, 255, 255, 0.7)';
+            
+            // Add hover effect via a custom class
+            tokenElement.classList.add('jaitea-token');
+        }
         
         // Add clicking behavior for all tokens
         tokenElement.addEventListener('click', function() {
             console.log(`Token clicked: ${tokenInfo.name}`);
             
-            // Handle clicks based on token name
-            // Find the artist this token represents based on various names
-            let targetArtistId = '';
-            
-            // Check for hardcoded well-known transitions
-            if (tokenInfo.name === 'IJA TEA' || tokenInfo.name === 'JAI TEA') {
-                targetArtistId = 'jaitea';
-            } else if (tokenInfo.name === 'SHEEGOHS' || tokenInfo.name === 'GOSHEESH') {
-                targetArtistId = 'gosheesh';
-            } else {
-                // Otherwise try to match by display name or regular name
-                for (const artistId in config.artists) {
-                    const artist = config.artists[artistId];
-                    if (tokenInfo.name === artist.name || 
-                        tokenInfo.name === artist.displayName ||
-                        tokenInfo.name.includes(artist.name) ||
-                        tokenInfo.name.includes(artist.displayName)) {
-                        targetArtistId = artistId;
-                        break;
-                    }
-                }
-            }
-            
-            // If we found a match, transition to that artist
-            if (targetArtistId && targetArtistId !== currentArtist) {
-                console.log(`Navigating to artist: ${targetArtistId}`);
-                transitionToArtist(targetArtistId);
+            // Navigate to the artist this token represents
+            if (tokenInfo.artistId && tokenInfo.artistId !== currentArtist) {
+                console.log(`Navigating to artist: ${tokenInfo.artistId}`);
+                transitionToArtist(tokenInfo.artistId);
             }
         });
         

@@ -521,15 +521,18 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
     // Always open wallet immediately after purchase
     console.log("Opening wallet immediately after purchase");
     
-    // Force wallet to open, whether it's already open or not
+    // Ensure wallet is always opened, regardless of current state
+    // First close the wallet if it's open
     if (isWalletOpen) {
-        // If already open, close and reopen for effect
-        toggleWallet();
-        setTimeout(toggleWallet, 100);
-    } else {
-        // Open wallet immediately
         toggleWallet();
     }
+    
+    // Then open it after a small delay to ensure UI updates properly
+    setTimeout(() => {
+        if (!isWalletOpen) {
+            toggleWallet();
+        }
+    }, 100);
     
     // First immediately setup the orbital tokens for just the current artist
     // This gives immediate visual feedback right after purchase

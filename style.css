@@ -255,7 +255,7 @@ video {
 }
 
 .gosheesh-theme .token:hover {
-    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
 }
 
 .jaitea-theme .token {
@@ -266,7 +266,28 @@ video {
 }
 
 .jaitea-theme .token:hover {
-    box-shadow: 0 0 25px 8px rgba(78, 223, 177, 1), inset 0 0 15px rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 25px 8px rgba(78, 223, 177, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Artist-specific token styling that overrides theme-based styling */
+.gosheesh-token {
+    background: rgba(41, 77, 181, 0.8) !important;
+    border: 3px solid rgba(64, 115, 255, 1) !important;
+    box-shadow: 0 0 20px 5px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4) !important;
+}
+
+.gosheesh-token:hover {
+    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
+}
+
+.jaitea-token {
+    background: rgba(24, 128, 68, 0.8) !important;
+    border: 3px solid rgba(78, 223, 177, 1) !important;
+    box-shadow: 0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4) !important;
+}
+
+.jaitea-token:hover {
+    box-shadow: 0 0 25px 8px rgba(78, 223, 177, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
 }
 
 /* Content section */
