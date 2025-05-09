@@ -940,7 +940,7 @@ function positionOrbitalTokens() {
     
     // Calculate radius - use video width for consistent circular orbit
     const horizontalRadius = videoWidth * 0.85; // Slightly wider horizontally
-    const verticalRadius = videoHeight * 0.75; // Increased vertical height (was 0.625)
+    const verticalRadius = videoHeight * 0.825; // Increased by 10% (was 0.75)
     
     // 3D effect parameters - more dramatic scaling
     const minScale = 0.6; // Smaller at the top (was 0.7)
