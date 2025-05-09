@@ -374,6 +374,24 @@ function initializeApp() {
             advancedOptions.style.maxHeight = '300px';
         }
     }
+    
+    // Hide the wallet display and assets section by default
+    const walletDisplay = document.getElementById('walletDisplay');
+    const yourAssetsSection = document.querySelector('.your-assets');
+    
+    if (walletDisplay) {
+        walletDisplay.style.display = 'none';
+    }
+    
+    if (yourAssetsSection) {
+        yourAssetsSection.style.display = 'none';
+    }
+    
+    // Hide individual asset items by default
+    const assetItems = document.querySelectorAll('.asset-item');
+    assetItems.forEach(item => {
+        item.style.display = 'none';
+    });
 
     // Update UI based on authentication state
     updateUIForAuthState();
@@ -422,22 +440,16 @@ function getCurrentArtistData() {
 
 // Apply theme based on artist configuration
 function applyArtistTheme(artistId) {
-    document.body.className = `${artistId}-theme`;
+    // Clear all theme classes first
+    document.body.classList.remove('gosheesh-theme', 'jaitea-theme');
     
-    // Apply CSS custom properties from config
-    if (config && config.artists && config.artists[artistId]) {
-        const theme = config.artists[artistId].theme;
-        const root = document.documentElement;
-        
-        // Set CSS custom properties
-        root.style.setProperty('--primary-color', theme.primaryColor);
-        root.style.setProperty('--accent-color', theme.accentColor);
-        root.style.setProperty('--gradient-start', theme.gradientStart);
-        root.style.setProperty('--gradient-middle', theme.gradientMiddle);
-        root.style.setProperty('--gradient-end', theme.gradientEnd);
-        root.style.setProperty('--artist-font', theme.fontFamily);
-        
-        // Convert hex to RGB for rgba() usage
+    // Apply the appropriate theme class
+    document.body.classList.add(`${artistId}-theme`);
+    
+    // Get theme colors from config
+    const artistData = config.artists[artistId];
+    if (artistData && artistData.theme) {
+        // Convert hex accent color to RGB for use in rgba() 
         const hexToRgb = (hex) => {
             // Remove # if present
             hex = hex.replace('#', '');
@@ -447,11 +459,25 @@ function applyArtistTheme(artistId) {
             const g = parseInt(hex.substring(2, 4), 16);
             const b = parseInt(hex.substring(4, 6), 16);
             
+            // Return as CSS RGB string
             return `${r}, ${g}, ${b}`;
         };
         
-        // Set RGB versions of colors for rgba usage
-        root.style.setProperty('--accent-color-rgb', hexToRgb(theme.accentColor));
+        // For backward compatibility, if there's no gosheesh-theme class, create a default style
+        if (!document.body.classList.contains('gosheesh-theme') && !document.body.classList.contains('jaitea-theme')) {
+            const accentRgb = hexToRgb(artistData.theme.accentColor || '#4073ff');
+            
+            // Create and apply inline CSS variables as a fallback
+            document.documentElement.style.setProperty('--primary-color', artistData.theme.primaryColor || '#0a1a3b');
+            document.documentElement.style.setProperty('--accent-color', artistData.theme.accentColor || '#4073ff');
+            document.documentElement.style.setProperty('--accent-color-rgb', accentRgb);
+            document.documentElement.style.setProperty('--gradient-start', artistData.theme.gradientStart || '#d4af37');
+            document.documentElement.style.setProperty('--gradient-middle', artistData.theme.gradientMiddle || '#f9f295');
+            document.documentElement.style.setProperty('--gradient-end', artistData.theme.gradientEnd || '#d4af37');
+            document.documentElement.style.setProperty('--artist-font', artistData.theme.fontFamily || 'Bungee, cursive');
+            
+            console.log(`Applied inline theme variables for ${artistId}`);
+        }
     }
 }
 
@@ -1351,17 +1377,26 @@ function handlePayment(method) {
             console.log("Completing payment process for download only...");
         }
         
-        // Direct approach to showing success
+        // Check if wallet is defined
+        if (typeof window.wallet === 'undefined') {
+            console.error("Wallet module not loaded!");
+            alert("Error: Wallet module not loaded. Please refresh the page.");
+            return;
+        }
+        
+        // First, update wallet with the purchase
+        try {
+            console.log("Calling wallet.onPurchaseComplete...");
+            window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount, includesDownload);
+            console.log("Wallet onPurchaseComplete called successfully");
+        } catch (error) {
+            console.error("Error calling wallet.onPurchaseComplete:", error);
+            // Continue anyway to show success UI
+        }
+        
+        // Then show success section
         showSuccessSection(includesArtistocks);
         
-        // Wait a moment for the success section to complete its work
-        // before updating the wallet, to ensure contentUnlocked is saved
-        setTimeout(() => {
-            // Update wallet with the purchase, including whether download was purchased
-            if (window.wallet) {
-                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount, includesDownload);
-            }
-        }, 200);
     }, 800);
 }
 
@@ -1377,6 +1412,12 @@ function showSuccessSection(includesArtistocks = false) {
     if (!artistData) {
         console.error("Could not get artist data in showSuccessSection");
         return;
+    }
+    
+    // Make sure we hide the purchase section
+    const purchaseSection = document.getElementById('purchaseSection');
+    if (purchaseSection) {
+        purchaseSection.style.display = 'none';
     }
     
     // Create or update the success section
@@ -1480,7 +1521,9 @@ function showSuccessSection(includesArtistocks = false) {
     
     // Hide all sections except success
     document.querySelectorAll('.content-section > div').forEach(section => {
-        section.style.display = 'none';
+        if (section !== successSection) {
+            section.style.display = 'none';
+        }
     });
     
     // Show success section
@@ -2559,169 +2602,103 @@ function updateBuyButton() {
     }
 }
 
-// Update UI elements based on authentication state
+/**
+ * Update UI based on authentication state
+ */
 function updateUIForAuthState() {
-    // Always check authentication from localStorage
-    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    isLoggedIn = isAuthenticated;
+    console.log('Updating UI for auth state:', isAuthenticated);
     
-    // Check safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Retrieve wallet address and email if they're in localStorage
-    if (isAuthenticated) {
-        userWalletAddress = localStorage.getItem('userWalletAddress') || userWalletAddress;
-        userEmail = localStorage.getItem('userEmail') || userEmail;
-    }
-    
-    console.log("updateUIForAuthState:", { 
-        isAuthenticated, 
-        safewordUsed, 
-        currentArtist,
-        userEmail: userEmail ? userEmail.substring(0, 3) + '...' : null,
-        walletAddress: userWalletAddress ? userWalletAddress.substring(0, 6) + '...' : null
-    });
-    
-    // Handle UI visibility based on authentication
+    // Get login and purchase sections
     const loginSection = document.getElementById('loginSection');
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    const advancedOptions = document.getElementById('advancedPurchaseOptions');
     const purchaseSection = document.getElementById('purchaseSection');
+    const tokenPreviewSection = document.getElementById('tokenPreviewSection');
     const successSection = document.getElementById('successSection');
-    const loginFeedback = document.getElementById('loginFeedback');
     
-    // Reset login feedback message
-    if (loginFeedback) {
-        loginFeedback.style.display = 'none';
-        loginFeedback.textContent = '';
-        loginFeedback.classList.remove('error');
+    // Get wallet display
+    const walletDisplay = document.getElementById('walletDisplay');
+    
+    // Hide all sections first
+    if (loginSection) loginSection.style.display = 'none';
+    if (purchaseSection) purchaseSection.style.display = 'none';
+    if (successSection) successSection.style.display = 'none';
+    
+    // Default: show token preview section (buy button)
+    if (tokenPreviewSection) {
+        tokenPreviewSection.style.display = 'block';
+        tokenPreviewSection.style.opacity = '1';
+        tokenPreviewSection.style.transform = 'translateY(0)';
     }
     
-    // MOST IMPORTANT: Always ensure token preview section is visible, 
-    // regardless of authentication (so the download button is always available)
-    if (tokenSection) {
-        console.log("Making token section visible");
-        tokenSection.style.display = 'block';
-        tokenSection.style.opacity = '1';
-        tokenSection.style.transform = 'translateY(0)';
+    // Show login section if not authenticated
+    if (!isAuthenticated && loginSection) {
+        loginSection.style.display = 'flex';
+        loginSection.style.opacity = '1';
     }
     
-    // Clear purchase and success sections when updating UI
-    if (purchaseSection) {
-        purchaseSection.style.display = 'none';
-    }
-    
-    if (successSection) {
-        successSection.style.display = 'none';
-    }
-    
-    // Always update buy button text based on current safeword state
-    updateBuyButton();
-    
-    // Ensure content unlock toggle is checked by default for the $1 download
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    if (contentUnlockToggle) {
-        contentUnlockToggle.checked = true;
+    // Show logout button if logged in
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.style.display = isAuthenticated ? 'block' : 'none';
     }
     
     // Handle wallet display
-    const existingWalletDisplay = document.getElementById('walletDisplay');
-    
-    if (isAuthenticated && userWalletAddress) {
-        // Create or update wallet display
-        let walletDisplay = existingWalletDisplay;
+    if (walletDisplay) {
+        // Check if user has any purchased assets
+        let hasUserAssets = false;
         
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
-            walletDisplay.id = 'walletDisplay';
-            walletDisplay.className = 'wallet-display';
+        // Use the wallet module to check for assets
+        if (window.wallet && typeof window.wallet.hasAssets === 'function') {
+            try {
+                hasUserAssets = window.wallet.hasAssets();
+                console.log('User has assets (from wallet module):', hasUserAssets);
+            } catch (error) {
+                console.error('Error checking wallet assets:', error);
+            }
+        }
+        
+        // Update wallet visibility
+        if (isAuthenticated && hasUserAssets) {
+            walletDisplay.style.display = 'block';
             
-            // Insert wallet display after artist name
-            const artistName = document.getElementById('artistName');
-            if (artistName && artistName.parentNode) {
-                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
+            // Force wallet to be visible with correct styles
+            walletDisplay.style.position = 'fixed';
+            walletDisplay.style.top = '1rem';
+            walletDisplay.style.left = '1rem';
+            walletDisplay.style.zIndex = '1000';
+            
+            // Get user wallet address
+            const userWalletAddress = localStorage.getItem('userWalletAddress') || '0x0000000000000000000000000000000000000000';
+            
+            // Find or create account display span
+            let accountDisplay = document.getElementById('accountDisplay');
+            if (!accountDisplay) {
+                accountDisplay = document.createElement('span');
+                accountDisplay.id = 'accountDisplay';
+                walletDisplay.appendChild(accountDisplay);
             }
+            
+            // Show shortened wallet address
+            const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
+            accountDisplay.textContent = shortAddress;
+            
+            console.log('Wallet display should be visible:', walletDisplay.style.display);
+        } else {
+            walletDisplay.style.display = 'none';
+            console.log('Wallet display should be hidden (no assets or not authenticated)');
         }
-        
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
-    } else if (existingWalletDisplay) {
-        // Remove wallet display if user is not authenticated
-        existingWalletDisplay.remove();
     }
     
-    if (isAuthenticated) {
-        console.log("User is authenticated - hiding login section");
-        // Hide login for authenticated users
-        if (loginSection) {
-            loginSection.style.display = 'none';
-            loginSection.style.opacity = '0';
-        }
-        
-        // Show advanced options if safeword has been used
-        if (advancedOptions) {
-            if (safewordUsed) {
-                console.log("Showing advanced options (safeword used)");
-                advancedOptions.style.display = 'block';
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-            } else {
-                console.log("Hiding advanced options (safeword not used)");
-                advancedOptions.style.display = 'none';
-                advancedOptions.classList.remove('show');
-                advancedOptions.style.opacity = '0';
-                advancedOptions.style.maxHeight = '0';
-            }
-        }
-        
-        // Update chat input placeholder
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.placeholder = safewordUsed ? 
-                "Type something" : 
-                "Type something";
-        }
-        
-        // Ensure the buy button has its event handler
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            // Remove existing event listeners by cloning and replacing
-            const newBuyButton = buyButton.cloneNode(true);
-            buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-            newBuyButton.addEventListener('click', handleBuyClick);
-        }
-    } else {
-        console.log("User is not authenticated - showing login section");
-        // Show login for non-authenticated users
-        if (loginSection) {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
-        }
-        
-        // Always hide advanced options for non-authenticated users
-        if (advancedOptions) {
-            advancedOptions.style.display = 'none';
-            advancedOptions.classList.remove('show');
-            advancedOptions.style.opacity = '0';
-            advancedOptions.style.maxHeight = '0';
-        }
-        
-        // Reset email input for non-authenticated users
-        if (document.getElementById('emailInput')) {
-            document.getElementById('emailInput').value = '';
-        }
-        
-        // Update chat input placeholder
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.placeholder = "Type something";
-        }
+    // Ensure the buy button has its event handler
+    const buyButton = document.getElementById('buyButton');
+    if (buyButton) {
+        // Remove existing event listeners by cloning and replacing
+        const newBuyButton = buyButton.cloneNode(true);
+        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
+        newBuyButton.addEventListener('click', handleBuyClick);
     }
+    
+    // Setup orbital tokens for the current artist
+    setupOrbitalTokens(currentArtist);
 }
 
 // Helper function to set up payment buttons

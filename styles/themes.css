@@ -1,0 +1,137 @@
+/* 
+ * ZEYODA Theme Styles
+ * ------------------
+ * This file contains theme-specific styles for different artists
+ */
+
+/* Theme variables */
+.gosheesh-theme {
+    --primary-color: #0a1a3b;
+    --accent-color: #4073ff;
+    --accent-color-rgb: 64, 115, 255;
+    --gradient-start: #d4af37;
+    --gradient-middle: #f9f295;
+    --gradient-end: #d4af37;
+    --artist-font: 'Bungee', cursive;
+}
+
+.jaitea-theme {
+    --primary-color: #0a3b1a;
+    --accent-color: #4edfb1;
+    --accent-color-rgb: 78, 223, 177;
+    --gradient-start: #4edfb1;
+    --gradient-middle: #13e7e7;
+    --gradient-end: #4edfb1;
+    --artist-font: 'Times New Roman', serif;
+}
+
+/* Artist-specific typography */
+.gosheesh-theme .artist-name {
+    font-family: var(--artist-font, 'Bungee', cursive);
+    font-size: 2.5rem;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(var(--accent-color-rgb, 64, 115, 255), 0.5);
+    background: linear-gradient(to right, var(--gradient-start, #d4af37), var(--gradient-middle, #f9f295), var(--gradient-end, #d4af37));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 1rem;
+}
+
+.jaitea-theme .artist-name {
+    font-family: var(--artist-font, 'Times New Roman', serif);
+    font-size: 2.8rem;
+    font-style: italic;
+    font-weight: 400;
+    text-shadow: 0 0 20px rgba(var(--accent-color-rgb, 78, 223, 177), 0.5);
+    background: linear-gradient(to right, var(--gradient-start, #4edfb1), var(--gradient-middle, #13e7e7), var(--gradient-end, #4edfb1));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 1rem;
+}
+
+/* Theme-specific Video Fallback */
+.gosheesh-theme .video-fallback {
+    background: rgba(10, 26, 59, 0.8);
+    border: 2px solid rgba(64, 115, 255, 0.5);
+}
+
+.jaitea-theme .video-fallback {
+    background: rgba(10, 59, 26, 0.8);
+    border: 2px solid rgba(78, 223, 177, 0.5);
+}
+
+/* Theme-specific Orbit Glow */
+.gosheesh-theme .orbit-glow {
+    box-shadow: 0 0 100px 20px rgba(64, 115, 255, 0.5), 
+                inset 0 0 60px 10px rgba(64, 115, 255, 0.3);
+    border: 1px solid rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .orbit-glow {
+    box-shadow: 0 0 100px 20px rgba(78, 223, 177, 0.5),
+                inset 0 0 60px 10px rgba(78, 223, 177, 0.3);
+    border: 1px solid rgba(78, 223, 177, 0.3);
+}
+
+/* Theme-specific Token Styles */
+.gosheesh-theme .token {
+    background: rgba(10, 26, 59, 0.6);
+    border: 2px solid rgba(64, 115, 255, 0.4);
+    box-shadow: 0 0 8px rgba(64, 115, 255, 0.4);
+}
+
+.gosheesh-theme .token:hover {
+    box-shadow: 0 0 15px rgba(64, 115, 255, 0.7);
+    border: 2px solid rgba(64, 115, 255, 0.8);
+}
+
+.jaitea-theme .token {
+    background: rgba(10, 59, 26, 0.6);
+    border: 2px solid rgba(78, 223, 177, 0.4);
+    box-shadow: 0 0 8px rgba(78, 223, 177, 0.4);
+}
+
+.jaitea-theme .token:hover {
+    box-shadow: 0 0 15px rgba(78, 223, 177, 0.7);
+    border: 2px solid rgba(78, 223, 177, 0.8);
+}
+
+/* Theme-specific login input styling */
+.gosheesh-theme .email-input {
+    border-color: rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .email-input {
+    border-color: rgba(78, 223, 177, 0.3);
+}
+
+.gosheesh-theme .email-input:focus {
+    border-color: rgba(64, 115, 255, 0.8);
+    box-shadow: 0 0 10px rgba(64, 115, 255, 0.3);
+}
+
+.jaitea-theme .email-input:focus {
+    border-color: rgba(78, 223, 177, 0.8);
+    box-shadow: 0 0 10px rgba(78, 223, 177, 0.3);
+}
+
+/* Theme-specific buttons */
+.gosheesh-theme .buy-button {
+    background: linear-gradient(135deg, #4073ff, #0a1a3b);
+    border: 1px solid #4073ff;
+}
+
+.jaitea-theme .buy-button {
+    background: linear-gradient(135deg, #4edfb1, #0a3b1a);
+    border: 1px solid #4edfb1;
+}
+
+.gosheesh-theme .buy-button:hover {
+    box-shadow: 0 5px 15px rgba(64, 115, 255, 0.4);
+}
+
+.jaitea-theme .buy-button:hover {
+    box-shadow: 0 5px 15px rgba(78, 223, 177, 0.4);
+} 

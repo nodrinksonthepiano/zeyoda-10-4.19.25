@@ -1,30 +1,157 @@
-/* Base styles and resets */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/*
+ * ZEYODA CSS Architecture
+ * -----------------------
+ * This file contains specific styling for components and themes.
+ * 
+ * Base styles have been moved to styles/base.css including:
+ * - Resets and normalize
+ * - Body/html setup
+ * - Typography basics
+ * - Default button styling
+ * - Layout containers (main, header, footer, etc.)
+ * 
+ * Future modularization:
+ * - styles/wallet.css - for wallet specific components
+ * - styles/animations.css - for animations and transitions
+ * - styles/themes.css - for different artist themes
+ * - styles/forms.css - for input and form styling
+ * - styles/components.css - for reusable components
+ */
 
-:root {
-    /* Default theme values (will be overridden by JS) */
-    --primary-color: #0a1a3b;
-    --accent-color: #4073ff;
-    --gradient-start: #d4af37;
-    --gradient-middle: #f9f295;
-    --gradient-end: #d4af37;
-    --artist-font: 'Bungee', cursive;
-}
-
-body {
-    font-family: 'Inter', sans-serif;
-    min-height: 100vh;
+/* Toast notifications for feedback */
+.toast-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
-    position: relative;
-    overflow-x: hidden;
-    transition: background-color 1s ease;
-    background-color: var(--primary-color);
+    gap: 10px;
+}
+
+.toast-message {
+    background-color: rgba(0, 0, 0, 0.8);
     color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    max-width: 350px;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast-message.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast-message.info {
+    border-left: 4px solid #4edfb1;
+}
+
+.toast-message.error {
+    border-left: 4px solid #ff5252;
+}
+
+.toast-icon {
+    font-size: 1.5rem;
+    margin-right: 12px;
+}
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.toast-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* Logout/Reset button styling */
+.logout-button {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 100;
+}
+
+.logout-button:hover {
+    background: rgba(255, 0, 0, 0.3);
+    transform: scale(1.05);
+}
+
+/* Wallet display styling */
+.wallet-display {
+    position: fixed !important;
+    top: 1rem !important;
+    left: 1rem !important;
+    background: none; /* Remove background color */
+    color: white;
+    padding: 0; /* Remove padding */
+    font-size: 26px; /* Larger emoji size */
+    z-index: 1000;
+    cursor: pointer;
+    border: none; /* Remove border */
+    box-shadow: none; /* Remove box shadow */
+    transition: transform 0.2s ease;
+    display: none; /* Hidden by default, shown when user has assets */
+    width: 40px; /* Larger width */
+    height: 40px; /* Larger height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); /* Add shadow to emoji for better visibility */
+}
+
+.wallet-display:hover {
+    transform: scale(1.05) !important;
+    background-color: rgba(160, 82, 45, 0.85) !important; /* Slightly lighter brown on hover */
+}
+
+/* Buy button styling */
+.buy-button {
+    background: linear-gradient(to bottom, #4f74e3, #3b5fe0);
+    color: white;
+    border: none;
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    width: 100%;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 10px rgba(59, 95, 224, 0.3);
+    transition: all 0.3s ease;
+}
+
+.buy-button:hover {
+    background: linear-gradient(to bottom, #5a7ee6, #4369e2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(59, 95, 224, 0.4);
+}
+
+.buy-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(59, 95, 224, 0.3);
 }
 
 /* Theme styling */
@@ -55,14 +182,6 @@ body {
     height: 100%;
     z-index: -1;
     pointer-events: none;
-}
-
-/* Header styling */
-header {
-    padding: 2rem 1rem;
-    text-align: center;
-    position: relative;
-    z-index: 15; /* Added higher z-index to keep header elements in front of tokens */
 }
 
 .artist-name {
@@ -97,16 +216,6 @@ header {
     background-clip: text;
     color: transparent;
     text-shadow: 0 0 15px rgba(78, 223, 177, 0.7);
-}
-
-/* Main content */
-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 0 1rem 2rem;
-    padding-bottom: 5rem;
 }
 
 /* Video container */
@@ -249,1812 +358,80 @@ video {
     transform: translate(-50%, -50%) scale(0.95);
 }
 
-.gosheesh-theme .token {
-    background: rgba(41, 77, 181, 0.8); /* More opaque */
-    border: 3px solid rgba(64, 115, 255, 1); /* Thicker, more visible border */
-    box-shadow: 0 0 20px 5px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
-}
-
-.gosheesh-theme .token:hover {
-    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
-}
-
-.jaitea-theme .token {
-    background: rgba(24, 128, 68, 0.8); /* More opaque */
-    border: 3px solid rgba(78, 223, 177, 1); /* Thicker, more visible border */
-    box-shadow: 0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
-}
-
-.jaitea-theme .token:hover {
-    box-shadow: 0 0 25px 8px rgba(78, 223, 177, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
-}
-
-/* Artist-specific token styling that overrides theme-based styling */
-.gosheesh-token {
-    background: rgba(41, 77, 181, 0.8) !important;
-    border: 3px solid rgba(64, 115, 255, 1) !important;
-    box-shadow: 0 0 20px 5px rgba(64, 115, 255, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4) !important;
-}
-
-.gosheesh-token:hover {
-    box-shadow: 0 0 25px 8px rgba(64, 115, 255, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
-}
-
-.jaitea-token {
-    background: rgba(24, 128, 68, 0.8) !important;
-    border: 3px solid rgba(78, 223, 177, 1) !important;
-    box-shadow: 0 0 20px 5px rgba(78, 223, 177, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4) !important;
-}
-
-.jaitea-token:hover {
-    box-shadow: 0 0 25px 8px rgba(78, 223, 177, 1), inset 0 0 15px rgba(255, 255, 255, 0.7) !important;
-}
-
-/* Content section */
-.content-section {
-    text-align: center;
-    width: 100%;
-    max-width: 640px;
-    position: relative;
-    z-index: 10; /* Ensure content is above orbital tokens */
-    padding-top: 1rem;
-}
-
-h2 {
-    margin-bottom: 1.5rem;
-    font-size: 1.5rem;
-}
-
-/* Payment section */
-.payment-section {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    width: 100%;
-    max-width: 560px;
-    margin: 0 auto;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-@media (min-width: 768px) {
-    .payment-section {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.payment-btn {
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: rgba(255, 255, 255, 0.95);
-    color: #333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.payment-btn::before {
-    content: '';
-    display: inline-block;
-    width: 24px;
-    height: 24px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
-
-.payment-btn.venmo::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%230074DE' d='M444.17 32H70.28C49.85 32 32 46.7 32 66.89V441.6c0 20.31 17.85 38.4 38.28 38.4h373.78c20.54 0 35.94-18.2 35.94-38.39V66.89C480.12 46.7 464.6 32 444.17 32zM278 387H174.32l-41.57-248.56 90.75-8.62 22 176.87c20.53-33.45 45.88-86 45.88-121.87 0-19.62-3.36-33-8.61-44l82.63-16.72c9.56 15.78 13.86 32 13.86 52.57-.01 65.5-55.92 150.59-101.26 210.33z'/%3E%3C/svg%3E");
-}
-
-.payment-btn.paypal::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%230070BA' d='M111.4 295.9c-3.5 19.2-17.4 108.7-21.5 134-.3 1.8-1 2.5-3 2.5H12.3c-7.6 0-13.1-6.6-12.1-13.9L58.8 46.6c1.5-9.6 10.1-16.9 20-16.9 152.3 0 165.1-3.7 204 11.4 60.1 23.3 65.6 79.5 44 140.3-21.5 62.6-72.5 89.5-140.1 90.3-43.4.7-69.5-7-75.3 24.2zM357.1 152c-1.8-1.3-2.5-1.8-3 1.3-2 11.4-5.1 22.5-8.8 33.6-39.9 113.8-150.5 103.9-204.5 103.9-6.1 0-10.1 3.3-10.9 9.4-22.6 140.4-27.1 169.7-27.1 169.7-1 7.1 3.5 12.9 10.6 12.9h63.5c8.6 0 15.7-6.3 17.4-14.9.7-5.4-1.1 6.1 14.4-91.3 4.6-22 14.3-19.7 29.3-19.7 71 0 126.4-28.8 142.9-112.3 6.5-34.8 4.6-71.4-23.8-92.6z'/%3E%3C/svg%3E");
-}
-
-.payment-btn.credit::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 576 512'%3E%3Cpath fill='%23333333' d='M0 432c0 26.5 21.5 48 48 48h480c26.5 0 48-21.5 48-48V256H0v176zm192-68c0-6.6 5.4-12 12-12h136c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H204c-6.6 0-12-5.4-12-12v-40zm-128 0c0-6.6 5.4-12 12-12h72c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H76c-6.6 0-12-5.4-12-12v-40zM576 80v48H0V80c0-26.5 21.5-48 48-48h480c26.5 0 48 21.5 48 48z'/%3E%3C/svg%3E");
-}
-
-.payment-btn.crypto::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23F7931A' d='M504 256c0 136.967-111.033 248-248 248S8 392.967 8 256 119.033 8 256 8s248 111.033 248 248zm-141.651-35.33c4.937-32.999-20.191-50.739-54.55-62.573l11.146-44.702-27.213-6.781-10.851 43.524c-7.154-1.783-14.502-3.464-21.803-5.13l10.929-43.81-27.213-6.781-11.153 44.686c-5.922-1.349-11.735-2.682-17.377-4.084l.031-.14-37.53-9.37-7.239 29.062s20.191 4.627 19.765 4.913c11.022 2.751 13.014 10.044 12.68 15.825l-12.696 50.925c.76.194 1.744.473 2.829.907-.907-.225-1.876-.473-2.876-.713l-17.796 71.338c-1.349 3.348-4.767 8.37-12.471 6.464.271.395-19.78-4.937-19.78-4.937l-13.51 31.147 35.414 8.827c6.588 1.651 13.045 3.379 19.4 5.006l-11.262 45.213 27.182 6.781 11.153-44.733a1038.209 1038.209 0 0 0 21.687 5.627l-11.115 44.523 27.213 6.781 11.262-45.128c46.404 8.781 81.299 5.239 95.986-36.727 11.836-33.79-.589-53.281-25.004-65.991 17.78-4.098 31.174-15.792 34.747-39.949zm-62.177 87.179c-8.41 33.79-65.308 15.523-83.755 10.943l14.944-59.899c18.446 4.603 77.6 13.717 68.811 48.956zm8.417-87.667c-7.673 30.736-55.031 15.12-70.393 11.292l13.548-54.327c15.363 3.828 64.836 10.973 56.845 43.035z'/%3E%3C/svg%3E");
-}
-
-.gosheesh-theme .payment-btn {
-    border: 1px solid rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .payment-btn {
-    border: 1px solid rgba(78, 223, 177, 0.5);
-}
-
-.payment-btn:hover {
-    transform: translateY(-2px);
-}
-
-.gosheesh-theme .payment-btn:hover {
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 5px 15px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .payment-btn:hover {
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 5px 15px rgba(78, 223, 177, 0.3);
-}
-
-/* Login section */
-.login-section {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-    animation: fadeIn 0.8s ease-out;
-    max-width: 560px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Sign in heading within login section */
-.login-section h3 {
-    margin-bottom: 1.5rem;
-    font-size: 1.3rem;
-    text-align: center;
-    color: white;
-    font-weight: 600;
-}
-
-.email-login-container {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.email-input {
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-    border-radius: 6px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-    width: 100%;
-    transition: all 0.3s ease;
-}
-
-.gosheesh-theme .email-input {
-    border-color: rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .email-input {
-    border-color: rgba(78, 223, 177, 0.3);
-}
-
-.email-input:focus {
-    outline: none;
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.gosheesh-theme .email-input:focus {
-    border-color: rgba(64, 115, 255, 0.8);
-    box-shadow: 0 0 10px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .email-input:focus {
-    border-color: rgba(78, 223, 177, 0.8);
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.3);
-}
-
-.login-separator {
-    width: 100%;
-    text-align: center;
-    position: relative;
-    margin: 1rem 0;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.login-separator::before,
-.login-separator::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    width: 30%;
-    height: 1px;
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-.login-separator::before {
-    left: 0;
-}
-
-.login-separator::after {
-    right: 0;
-}
-
-.social-login-container {
-    width: 100%;
-}
-
-.social-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    justify-content: center;
-}
-
-.social-buttons .login-btn {
-    flex: 1 1 calc(50% - 0.75rem);
-    min-width: 120px;
-}
-
-/* Purchase section styles (updated) */
-.purchase-section {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    animation: fadeIn 0.8s ease-out;
-    margin-bottom: 2rem;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-}
-
-.purchase-section h3 {
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: white;
-}
-
-.gosheesh-theme .purchase-section h3 {
-    font-family: 'Bungee', cursive;
-    font-size: 1.2rem;
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme .purchase-section h3 {
-    font-family: 'Times New Roman', serif;
-    font-size: 1.3rem;
-}
-
-.token-price-info {
-    text-align: center;
-    margin: 1rem 0;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.gosheesh-theme .token-price-info {
-    font-family: 'Bungee', cursive;
-    font-size: 0.85rem; /* Slightly smaller since Bungee is naturally larger */
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme .token-price-info {
-    font-family: 'Times New Roman', serif;
-    font-size: 0.9rem;
-}
-
-.slider-container {
-    width: 100%;
-    margin-bottom: 2rem;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.token-slider {
-    width: 100%;
-    height: 8px;
-    -webkit-appearance: none;
-    appearance: none;
-    border-radius: 4px;
-    outline: none;
-    margin-bottom: 1rem;
-    cursor: pointer;
-}
-
-.gosheesh-theme .token-slider {
-    background: linear-gradient(to right, rgba(64, 115, 255, 0.3), rgba(212, 175, 55, 0.8));
-}
-
-.jaitea-theme .token-slider {
-    background: linear-gradient(to right, rgba(78, 223, 177, 0.3), rgba(78, 223, 177, 0.8));
-}
-
-.token-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.8);
-}
-
-.gosheesh-theme .token-slider::-webkit-slider-thumb {
-    background: #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-}
-
-.jaitea-theme .token-slider::-webkit-slider-thumb {
-    background: #4edfb1;
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.7);
-}
-
-.token-slider::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-}
-
-.gosheesh-theme .token-slider::-moz-range-thumb {
-    background: #d4af37;
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-}
-
-.jaitea-theme .token-slider::-moz-range-thumb {
-    background: #4edfb1;
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.7);
-}
-
-/* Input fields for tokens and total */
-.slider-value-container {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-    max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.token-input-group, .total-input-group {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 180px;
-    max-width: 220px;
-}
-
-.token-input-group label, .total-input-group label {
-    white-space: nowrap;
-    margin-right: 0.5rem;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.gosheesh-theme .token-input-group label,
-.gosheesh-theme .total-input-group label {
-    font-family: 'Bungee', cursive;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme .token-input-group label,
-.jaitea-theme .total-input-group label {
-    font-family: 'Times New Roman', serif;
-    font-size: 0.9rem;
-}
-
-.token-input, .total-input {
-    flex: 1;
-    padding: 0.5rem;
-    border-radius: 4px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 0.9rem;
-    font-weight: 500;
-    text-align: right;
-    transition: all 0.3s ease;
-    width: 100%;
-    max-width: 150px;
-}
-
-.gosheesh-theme .token-input, .gosheesh-theme .total-input {
-    border-color: rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .token-input, .jaitea-theme .total-input {
-    border-color: rgba(78, 223, 177, 0.3);
-}
-
-.token-input:focus, .total-input:focus {
-    outline: none;
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.gosheesh-theme .token-input:focus, .gosheesh-theme .total-input:focus {
-    border-color: rgba(64, 115, 255, 0.8);
-    box-shadow: 0 0 10px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .token-input:focus, .jaitea-theme .total-input:focus {
-    border-color: rgba(78, 223, 177, 0.8);
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.3);
-}
-
 /* Success section */
 .success-section {
-    padding: 2rem;
-    border-radius: 12px;
-    margin-top: 1rem;
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 600px;
-    transition: all 0.5s ease;
-    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-}
-
-.gosheesh-theme .success-section {
-    background: rgba(64, 115, 255, 0.1);
-    border: 1px solid rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .success-section {
-    background: rgba(78, 223, 177, 0.1);
-    border: 1px solid rgba(78, 223, 177, 0.3);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
 }
 
 .success-check {
-    font-size: 3rem;
+    font-size: 2rem;
     margin-bottom: 1rem;
+    color: var(--accent-color, #4073ff);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .success-section h3 {
-    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    text-align: center;
 }
 
 .success-section p {
     margin-bottom: 1.5rem;
-    opacity: 0.8;
-}
-
-.explore-btn {
-    padding: 12px 24px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 1rem;
-    margin-left: auto;
-    margin-right: auto;
-    align-self: center;
-    display: block;
-    width: auto;
-    min-width: 180px;
     text-align: center;
-}
-
-.gosheesh-theme .explore-btn {
-    background: linear-gradient(135deg, #3967c4, #5e89e4);
-    color: white;
-    box-shadow: 0 5px 15px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .explore-btn {
-    background: linear-gradient(135deg, #30a86d, #4edfb1);
-    color: white;
-    box-shadow: 0 5px 15px rgba(78, 223, 177, 0.3);
-}
-
-.explore-btn:hover {
-    transform: translateY(-3px);
-}
-
-.gosheesh-theme .explore-btn:hover {
-    box-shadow: 0 8px 20px rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .explore-btn:hover {
-    box-shadow: 0 8px 20px rgba(78, 223, 177, 0.5);
-}
-
-/* Footer styling */
-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 1rem;
-    z-index: 100;
-}
-
-/* Chat input styling */
-.chat-input-container {
-    width: 100%;
-    max-width: 640px;
-    margin: 0 auto;
-    position: relative;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 24px;
-    padding: 0.5rem;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.gosheesh-theme .chat-input-container {
-    border: 1px solid rgba(64, 115, 255, 0.4);
-}
-
-.jaitea-theme .chat-input-container {
-    border: 1px solid rgba(78, 223, 177, 0.4);
-}
-
-.chat-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 20px;
-    border: none;
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s ease;
-}
-
-.gosheesh-theme .chat-input {
-    box-shadow: 0 0 5px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .chat-input {
-    box-shadow: 0 0 5px rgba(78, 223, 177, 0.3);
-}
-
-.chat-input:focus {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.gosheesh-theme .chat-input:focus {
-    box-shadow: 0 0 10px rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .chat-input:focus {
-    box-shadow: 0 0 10px rgba(78, 223, 177, 0.5);
-}
-
-/* Responsive design */
-@media (min-width: 768px) {
-    .artist-name {
-        font-size: 4rem;
-    }
-    
-    .payment-section {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    h2 {
-        font-size: 2rem;
-    }
-    
-    .token {
-        width: 100px;
-        height: 100px;
-        font-size: 0.78rem;
-    }
-    
-    .social-buttons {
-        justify-content: center;
-    }
-    
-    .email-login-container {
-        max-width: 480px;
-    }
-    
-    .slider-container {
-        max-width: 480px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-}
-
-/* Media query adjustments for responsive layout */
-@media (max-width: 480px) {
-    .slider-value-container {
-        flex-direction: column;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
-    .token-input-group, .total-input-group {
-        width: 100%;
-        max-width: 280px;
-    }
-}
-
-/* Animation for page transitions */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.content-section {
-    animation: fadeIn 0.8s ease forwards;
-}
-
-/* Particles animation */
-.particle {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0;
-    animation: float 15s ease-in-out infinite;
-}
-
-.gosheesh-theme .particle {
-    background: radial-gradient(circle at center, rgba(64, 115, 255, 0.8), transparent);
-    width: 8px;
-    height: 8px;
-}
-
-.jaitea-theme .particle {
-    background: radial-gradient(circle at center, rgba(78, 223, 177, 0.8), transparent);
-    width: 8px;
-    height: 8px;
-}
-
-@keyframes float {
-    0% {
-        opacity: 0;
-        transform: translateY(0) translateX(0) scale(0.2);
-    }
-    20% {
-        opacity: 0.7;
-    }
-    80% {
-        opacity: 0.7;
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(-100px) translateX(20px) scale(1);
-    }
-}
-
-/* Transitions for sections */
-.login-section, .purchase-section, .success-section {
-    transition: opacity 0.5s ease;
-}
-
-.purchase-section {
-    opacity: 0;
-}
-
-/* Animation for validation shake */
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-5px); }
-    40%, 80% { transform: translateX(5px); }
-}
-
-/* Login button styles */
-.login-btn {
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.login-btn::before {
-    content: '';
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-}
-
-.login-btn.twitter::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='white' d='M389.2 48h70.6L305.6 224.2 487 464H345L233.7 318.6 106.5 464H35.8L200.7 275.5 26.8 48H172.4L272.9 180.9 389.2 48zM364.4 421.8h39.1L151.1 88h-42L364.4 421.8z'/%3E%3C/svg%3E");
-}
-
-.login-btn.phone::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='white' d='M164.9 24.6c-7.7-18.6-28-28.5-47.4-23.2l-88 24C12.1 30.2 0 46 0 64C0 311.4 200.6 512 448 512c18 0 33.8-12.1 38.6-29.5l24-88c5.3-19.4-4.6-39.7-23.2-47.4l-96-40c-16.3-6.8-35.2-2.1-46.3 11.6L304.7 368C234.3 334.7 177.3 277.7 144 207.3L193.3 167c13.7-11.2 18.4-30 11.6-46.3l-40-96z'/%3E%3C/svg%3E");
-}
-
-.login-btn.email::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='white' d='M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z'/%3E%3C/svg%3E");
-}
-
-.login-btn.facebook::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='white' d='M504 256C504 119 393 8 256 8S8 119 8 256c0 123.78 90.69 226.38 209.25 245V327.69h-63V256h63v-54.64c0-62.15 37-96.48 93.67-96.48 27.14 0 55.52 4.84 55.52 4.84v61h-31.28c-30.8 0-40.41 19.12-40.41 38.73V256h68.78l-11 71.69h-57.78V501C413.31 482.38 504 379.78 504 256z'/%3E%3C/svg%3E");
-}
-
-.login-btn.gmail::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 488 512'%3E%3Cpath fill='white' d='M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z'/%3E%3C/svg%3E");
-}
-
-.login-btn.twitter {
-    background-color: #000000; /* X (Twitter) uses black */
-}
-
-.login-btn.phone {
-    background-color: #4285F4; /* Google blue for phone */
-}
-
-.login-btn.email {
-    background-color: #EA4335; /* Gmail red */
-}
-
-.login-btn.facebook {
-    background-color: #1877F2; /* Facebook blue */
-}
-
-.login-btn.gmail {
-    background-color: #DB4437; /* Gmail red */
-}
-
-.gosheesh-theme .login-btn {
-    border: 1px solid rgba(64, 115, 255, 0.5);
-}
-
-.jaitea-theme .login-btn {
-    border: 1px solid rgba(78, 223, 177, 0.5);
-}
-
-.login-btn:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.1);
-}
-
-.gosheesh-theme .login-btn:hover {
-    box-shadow: 0 5px 15px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .login-btn:hover {
-    box-shadow: 0 5px 15px rgba(78, 223, 177, 0.3);
-}
-
-/* Video controls */
-.video-controls {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    display: flex;
-    gap: 8px;
-    z-index: 10;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 8px;
-    border-radius: 20px;
-    backdrop-filter: blur(5px);
-}
-
-.video-control-btn {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.video-control-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
-}
-
-/* Artwork info */
-.artwork-info {
-    position: absolute;
-    bottom: 10px;
-    left: 20px;
-    width: auto;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 8px 12px;
-    border-radius: 6px;
-    backdrop-filter: blur(5px);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    max-width: calc(100% - 140px); /* Leave space for video controls */
-}
-
-.artwork-title {
-    font-family: 'Bungee', cursive;
-    font-size: 1rem;
-    color: white;
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.artwork-description {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0;
-    white-space: nowrap;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .artwork-title {
-        font-size: 0.9rem;
-    }
-    
-    .artwork-description {
-        font-size: 0.7rem;
-    }
-    
-    .artwork-info {
-        padding: 6px 10px;
-        left: 15px;
-        max-width: calc(100% - 120px); /* Slightly less space on mobile */
-    }
-}
-
-/* Token preview section on the first page */
-.token-preview-section {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    width: 100%;
-    max-width: 560px;
-    margin-left: auto;
-    margin-right: auto;
-    backdrop-filter: blur(5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-    text-align: center;
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.gosheesh-theme .token-preview-section {
-    border: 1px solid rgba(64, 115, 255, 0.3);
-    box-shadow: 0 5px 15px rgba(64, 115, 255, 0.1);
-}
-
-.jaitea-theme .token-preview-section {
-    border: 1px solid rgba(78, 223, 177, 0.3);
-    box-shadow: 0 5px 15px rgba(78, 223, 177, 0.1);
-}
-
-.token-preview-section:hover {
-    transform: translateY(-2px);
-}
-
-.gosheesh-theme .token-preview-section:hover {
-    box-shadow: 0 8px 20px rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .token-preview-section:hover {
-    box-shadow: 0 8px 20px rgba(78, 223, 177, 0.2);
-}
-
-/* Slider container */
-.slider-container {
-    width: 100%;
-    margin-bottom: 1.5rem;
-    margin-left: auto;
-    margin-right: auto;
-    transition: all 0.3s ease;
-}
-
-#advancedPurchaseOptions {
-    opacity: 0;
-    max-height: 0;
-    overflow: hidden;
-    transition: opacity 0.5s ease, max-height 0.5s ease;
-}
-
-#advancedPurchaseOptions.show {
-    opacity: 1;
-    max-height: 300px;
-    animation: fadeIn 0.5s forwards;
-}
-
-/* Buy button */
-.buy-button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: white;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.gosheesh-theme .buy-button {
-    font-family: 'Bungee', cursive;
-    font-size: 0.95rem;
-    background: linear-gradient(135deg, #3967c4, #5e89e4);
-    box-shadow: 0 4px 15px rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .buy-button {
-    font-family: 'Times New Roman', serif;
-    font-size: 1rem;
-    background: linear-gradient(135deg, #30a86d, #4edfb1);
-    box-shadow: 0 4px 15px rgba(78, 223, 177, 0.3);
-}
-
-.buy-button:hover {
-    transform: translateY(-2px);
-}
-
-.gosheesh-theme .buy-button:hover {
-    background: linear-gradient(135deg, #4778d5, #6f9af5);
-    box-shadow: 0 6px 20px rgba(64, 115, 255, 0.4);
-}
-
-.jaitea-theme .buy-button:hover {
-    background: linear-gradient(135deg, #41b97e, #5ff0c2);
-    box-shadow: 0 6px 20px rgba(78, 223, 177, 0.4);
-}
-
-.buy-button:active {
-    transform: translateY(0);
-}
-
-/* Content unlock toggle */
-.content-unlock-toggle {
-    margin: 1rem 0;
-    padding: 1rem;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    width: 100%;
-    max-width: 400px;
-    margin-left: auto;
-    margin-right: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.unlock-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-    cursor: pointer;
-    position: relative;
-    width: 100%;
-}
-
-.unlock-label input[type="checkbox"] {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    appearance: none;
-    -webkit-appearance: none;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(64, 115, 255, 0.5);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.unlock-label input[type="checkbox"]:checked {
-    background: #4CAF50;
-    border-color: #4CAF50;
-}
-
-.unlock-label input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-.price-highlight {
-    background: linear-gradient(to right, #d4af37, #f9f295, #d4af37);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    font-weight: 800;
-    font-size: 3rem;
-    text-shadow: 0 0 15px rgba(212, 175, 55, 0.7);
-    line-height: 1;
-    margin: 0;
-    padding: 0;
-}
-
-.secondary-text {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
-    text-align: center;
-    margin: 0;
-}
-
-@media (max-width: 480px) {
-    .content-unlock-toggle {
-        padding: 0.8rem;
-        max-width: 320px;
-    }
-    
-    .price-highlight {
-        font-size: 2.5rem;
-    }
-    
-    .secondary-text {
-        font-size: 0.75rem;
-    }
-}
-
-/* Download link in success message */
-.download-link {
-    color: inherit;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    display: inline-block;
-    margin-top: 0.5rem;
-    transition: all 0.3s ease;
-}
-
-.gosheesh-theme .download-link {
-    border: 1px solid rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .download-link {
-    border: 1px solid rgba(78, 223, 177, 0.3);
-}
-
-.download-link:hover {
-    background: rgba(255, 255, 255, 0.15);
-    transform: translateY(-1px);
-}
-
-.gosheesh-theme .download-link:hover {
-    box-shadow: 0 2px 8px rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .download-link:hover {
-    box-shadow: 0 2px 8px rgba(78, 223, 177, 0.2);
-}
-
-/* Access headline in login section */
-#accessHeadline {
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: white;
-    font-weight: 600;
-}
-
-.gosheesh-theme #accessHeadline {
-    font-family: 'Bungee', cursive;
-    font-size: 1.2rem;
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme #accessHeadline {
-    font-family: 'Times New Roman', serif;
-    font-size: 1.3rem;
-}
-
-/* Purchase headline */
-#purchaseHeadline {
-    margin-bottom: 1.5rem;
-    text-align: center;
-    color: white;
-}
-
-.gosheesh-theme #purchaseHeadline {
-    font-family: 'Bungee', cursive;
-    font-size: 1.2rem;
-    letter-spacing: 0.5px;
-}
-
-.jaitea-theme #purchaseHeadline {
-    font-family: 'Times New Roman', serif;
-    font-size: 1.3rem;
-}
-
-/* Price highlight in the purchase headline */
-.price-highlight-small {
-    background: linear-gradient(to right, #d4af37, #f9f295, #d4af37);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    font-weight: 700;
-    font-size: 1.2rem;
-    text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-}
-
-/* Wallet display styles */
-.wallet-display {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 30px;
-    font-size: 0.8rem;
-    margin-top: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: monospace;
-    letter-spacing: 0.5px;
-}
-
-.wallet-display:hover {
-    background-color: rgba(0, 0, 0, 0.3);
-}
-
-.wallet-display::before {
-    content: "⚡";
-    margin-right: 6px;
-    font-size: 0.9rem;
-}
-
-.gosheesh-theme .wallet-display {
-    background-color: rgba(64, 115, 255, 0.2);
-    border: 1px solid rgba(64, 115, 255, 0.3);
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.gosheesh-theme .wallet-display:hover {
-    background-color: rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .wallet-display {
-    background-color: rgba(78, 223, 177, 0.2);
-    border: 1px solid rgba(78, 223, 177, 0.3);
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.jaitea-theme .wallet-display:hover {
-    background-color: rgba(78, 223, 177, 0.3);
-}
-
-/* Toast notifications */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    max-width: 320px;
-}
-
-.toast-message {
-    display: flex;
-    align-items: center;
-    background-color: rgba(30, 30, 30, 0.9);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    transform: translateX(120%);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.toast-message.show {
-    transform: translateX(0);
-    opacity: 1;
-}
-
-.toast-message.success {
-    border-left: 4px solid #4CAF50;
-}
-
-.toast-message.error {
-    border-left: 4px solid #F44336;
-}
-
-.toast-message.info {
-    border-left: 4px solid #2196F3;
-}
-
-.toast-icon {
-    font-size: 20px;
-    margin-right: 12px;
-}
-
-.toast-message.success .toast-icon {
-    color: #4CAF50;
-}
-
-.toast-message.error .toast-icon {
-    color: #F44336;
-}
-
-.toast-message.info .toast-icon {
-    color: #2196F3;
-}
-
-.toast-content {
-    flex: 1;
-}
-
-.toast-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.toast-subtitle {
-    font-size: 14px;
-    opacity: 0.8;
-}
-
-/* Login processing message */
-.login-processing-msg {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    text-align: center;
-    font-size: 14px;
-    color: white;
-    animation: pulse 1.5s infinite alternate;
-}
-
-.gosheesh-theme .login-processing-msg {
-    background-color: rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .login-processing-msg {
-    background-color: rgba(78, 223, 177, 0.2);
-}
-
-@keyframes pulse {
-    0% {
-        opacity: 0.6;
-    }
-    100% {
-        opacity: 1;
-    }
-}
-
-/* Logout button */
-.logout-button {
-    position: absolute;
-    right: 20px;
-    top: 20px;
-    background-color: rgba(0, 0, 0, 0.2);
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.gosheesh-theme .logout-button {
-    background-color: rgba(64, 115, 255, 0.1);
-    border: 1px solid rgba(64, 115, 255, 0.3);
     color: rgba(255, 255, 255, 0.8);
 }
 
-.jaitea-theme .logout-button {
-    background-color: rgba(78, 223, 177, 0.1);
-    border: 1px solid rgba(78, 223, 177, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.logout-button:hover {
-    background-color: rgba(0, 0, 0, 0.3);
-    color: white;
-}
-
-.gosheesh-theme .logout-button:hover {
-    background-color: rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .logout-button:hover {
-    background-color: rgba(78, 223, 177, 0.2);
-}
-
-/* When purchase section is shown, ensure payment section is visible too */
-.purchase-section[style*="display: block"] .payment-section {
-    display: grid !important;
-}
-
-/* Provide visual indication for draggable interface on mobile */
-@media (max-width: 768px) {
-    .orbital-tokens::before {
-        content: '';
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 25px;
-        height: 25px;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='rgba(255,255,255,0.7)' d='M256 96c33.08 0 60.71-25.78 64-58.39v-.13c0-11.62-9.41-21.48-21.03-21.48-11.72 0-21.6 9.74-21.6 21.48v.13c-1.3 13.14-11.22 23.39-24.38 23.39s-23.08-10.25-24.38-23.39v-.13c0-11.75-9.88-21.48-21.6-21.48-11.62 0-21.03 9.86-21.03 21.48v.13c3.29 32.61 30.92 58.39 64.02 58.39zm-.64 32c-70.69 0-128 57.31-128 128v.13c0 16.41 13.19 32.48 32.47 32.48h4.92v96c0 35.29 28.71 64 64 64h53.22c35.29 0 64-28.71 64-64v-96h4.92c19.28 0 32.47-16.07 32.47-32.48v-.13c0-70.69-57.31-128-128-128z'/%3E%3C/svg%3E");
-        background-size: contain;
-        background-repeat: no-repeat;
-        opacity: 0.5;
-        pointer-events: none;
-        z-index: 10;
-        animation: pulse 2s infinite;
-    }
-    
-    @keyframes pulse {
-        0% { opacity: 0.5; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.1); }
-        100% { opacity: 0.5; transform: scale(1); }
-    }
-    
-    /* Touch-friendly token size for mobile */
-    .token {
-        width: 80px; /* Slightly smaller on mobile for faster performance */
-        height: 80px;
-    }
-
-    .logout-button {
-        position: relative;
-        top: auto;
-        right: auto;
-        margin-top: 1rem;
-    }
-}
-
-/* Artist-specific Typography
-----------------------------------------
-This section controls all font styling that changes based on the artist theme.
-The theme is controlled by the class on the body tag:
-- class="gosheesh-theme" for GOSHEESH
-- class="jaitea-theme" for JAI TEA
----------------------------------------- */
-
-/* GOSHEESH Theme Typography */
-.gosheesh-theme .artist-name {
-    font-family: 'Bungee', cursive;
-    font-size: 3rem;
-    letter-spacing: 2px;
-}
-
-.gosheesh-theme #accessHeadline,
-.gosheesh-theme #purchaseHeadline,
-.gosheesh-theme .purchase-section h3,
-.gosheesh-theme .success-section h3 {
-    font-family: 'Bungee', cursive;
-    font-size: 1.2rem;
-    letter-spacing: 0.5px;
-}
-
-.gosheesh-theme .buy-button {
-    font-family: 'Bungee', cursive;
-    font-size: 0.95rem;
-    letter-spacing: 0.5px;
-}
-
-.gosheesh-theme .token-price-info,
-.gosheesh-theme .token-input-group label,
-.gosheesh-theme .total-input-group label,
-.gosheesh-theme .unlock-label span {
-    font-family: 'Bungee', cursive;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-}
-
-/* JAI TEA Theme Typography */
-.jaitea-theme .artist-name {
-    font-family: 'Times New Roman', serif;
-    font-size: 3rem;
-}
-
-.jaitea-theme #accessHeadline,
-.jaitea-theme #purchaseHeadline,
-.jaitea-theme .purchase-section h3,
-.jaitea-theme .success-section h3 {
-    font-family: 'Times New Roman', serif;
-    font-size: 1.3rem;
-}
-
-.jaitea-theme .buy-button {
-    font-family: 'Times New Roman', serif;
-    font-size: 1rem;
-}
-
-.jaitea-theme .token-price-info,
-.jaitea-theme .token-input-group label,
-.jaitea-theme .total-input-group label,
-.jaitea-theme .unlock-label span {
-    font-family: 'Times New Roman', serif;
-    font-size: 0.9rem;
-}
-
-/* Login error states */
-.login-processing-msg.error {
-    background-color: rgba(255, 0, 0, 0.2) !important;
-    border-left: 3px solid rgba(255, 0, 0, 0.6);
-}
-
-.gosheesh-theme .login-processing-msg.error {
-    background-color: rgba(255, 0, 0, 0.2) !important;
-}
-
-.jaitea-theme .login-processing-msg.error {
-    background-color: rgba(255, 0, 0, 0.2) !important;
-}
-
-.email-input.error {
-    border-color: rgba(255, 0, 0, 0.6) !important;
-    background-color: rgba(255, 0, 0, 0.05);
-}
-
-/* Loading spinner */
-.loading-spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-right: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Improve login button states */
-.login-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none !important;
-}
-
-.login-btn.loading {
-    position: relative;
-}
-
-.login-btn.loading::before {
-    display: inline-block;
-    content: "";
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
-}
-
-/* Make login section more prominent */
-.login-section {
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    padding: 1.5rem;
+.download-link-container {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.gosheesh-theme .login-section {
-    border-color: rgba(64, 115, 255, 0.2);
+.music-icon {
+    margin-right: 0.75rem;
+    font-size: 1.25rem;
 }
 
-.jaitea-theme .login-section {
-    border-color: rgba(78, 223, 177, 0.2);
-}
-
-/* Wallet Styles */
-.wallet-button {
-    position: absolute;
-    left: 20px;
-    top: 20px;
-    background-color: rgba(0, 0, 0, 0.2);
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    z-index: 100;
-}
-
-.gosheesh-theme .wallet-button {
-    background-color: rgba(64, 115, 255, 0.1);
-    border: 1px solid rgba(64, 115, 255, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.jaitea-theme .wallet-button {
-    background-color: rgba(78, 223, 177, 0.1);
-    border: 1px solid rgba(78, 223, 177, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.wallet-button:hover {
-    background-color: rgba(0, 0, 0, 0.3);
-    color: white;
-}
-
-.gosheesh-theme .wallet-button:hover {
-    background-color: rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .wallet-button:hover {
-    background-color: rgba(78, 223, 177, 0.2);
-}
-
-.wallet-container {
-    position: fixed;
-    top: 70px;
-    left: 20px;
-    width: 280px;
-    max-height: 80vh;
-    background-color: rgba(20, 20, 20, 0.9);
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
-    transform: translateY(-10px);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.gosheesh-theme .wallet-container {
-    background-color: rgba(10, 26, 59, 0.95);
-    border: 1px solid rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .wallet-container {
-    background-color: rgba(10, 59, 26, 0.95);
-    border: 1px solid rgba(78, 223, 177, 0.3);
-}
-
-.wallet-container.open {
-    transform: translateY(0);
-    opacity: 1;
-    visibility: visible;
-}
-
-.wallet-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.wallet-header h3 {
-    margin: 0;
-    font-size: 1rem;
-    color: white;
-}
-
-.wallet-close-button {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s ease;
-}
-
-.wallet-close-button:hover {
-    color: white;
-}
-
-.wallet-content {
-    padding: 0;
-    overflow-y: auto;
-    flex: 1;
-    max-height: calc(80vh - 50px);
-}
-
-.wallet-empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 30px 20px;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.empty-icon {
-    font-size: 2rem;
-    margin-bottom: 10px;
-}
-
-.empty-hint {
-    font-size: 0.8rem;
-    opacity: 0.6;
-    margin-top: 5px;
-}
-
-.wallet-artist-section {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.wallet-artist-section h4 {
-    margin: 0 0 10px 0;
-    font-size: 0.9rem;
-    color: white;
-}
-
-.gosheesh-theme .wallet-artist-section h4 {
-    color: rgba(64, 115, 255, 1);
-}
-
-.jaitea-theme .wallet-artist-section h4 {
-    color: rgba(78, 223, 177, 1);
-}
-
-.wallet-assets-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.wallet-asset-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 0;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.85rem;
-}
-
-.wallet-asset-item:not(:last-child) {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.asset-icon {
-    margin-right: 10px;
-    font-size: 1rem;
-}
-
-.asset-amount {
-    font-weight: bold;
-    margin-right: 6px;
-}
-
-.asset-name {
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.asset-title {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.asset-download-link {
-    margin-left: 10px;
-    color: #4073ff;
+.download-link {
+    color: var(--accent-color, #4073ff);
     text-decoration: none;
-    font-size: 0.75rem;
-    padding: 3px 6px;
-    border-radius: 3px;
-    background-color: rgba(64, 115, 255, 0.1);
+}
+
+.download-link:hover {
+    text-decoration: underline;
+    color: white;
+}
+
+.explore-btn {
+    background: linear-gradient(to right, var(--gradient-start, #d4af37), var(--gradient-end, #d4af37));
+    border: none;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: bold;
     transition: all 0.2s ease;
 }
 
-.gosheesh-theme .asset-download-link {
-    color: #4073ff;
-    background-color: rgba(64, 115, 255, 0.1);
+.explore-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
-.jaitea-theme .asset-download-link {
-    color: #4edfb1;
-    background-color: rgba(78, 223, 177, 0.1);
-}
-
-.asset-download-link:hover {
-    background-color: rgba(64, 115, 255, 0.2);
-}
-
-.gosheesh-theme .asset-download-link:hover {
-    background-color: rgba(64, 115, 255, 0.2);
-}
-
-.jaitea-theme .asset-download-link:hover {
-    background-color: rgba(78, 223, 177, 0.2);
-}
-
-/* Mobile responsiveness for wallet */
-@media (max-width: 768px) {
-    .wallet-container {
-        width: calc(100% - 40px);
-        left: 20px;
-        right: 20px;
-    }
-    
-    .wallet-button {
-        font-size: 0.8rem;
-        padding: 6px 10px;
-    }
-} 
-
-/* Token reveal animation */
-@keyframes tokenReveal {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.5);
-    }
-    70% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.2);
-    }
-    100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-/* Add animation to tokens when they're revealed after purchase */
-.token[style*="opacity: 0"] {
-    pointer-events: none;
-}
-
-.token:not([style*="opacity: 0"]) {
-    animation: tokenReveal 0.8s ease forwards;
-}
-
-/* Clickable artist elements in wallet */
-.clickable-artist, .clickable-asset {
-    cursor: pointer;
-    transition: color 0.2s, transform 0.2s;
-    position: relative;
-}
-
-.clickable-artist:hover, .clickable-asset:hover {
-    color: var(--accent-color);
-    transform: translateX(3px);
-}
-
-.clickable-artist:after, .clickable-asset:after {
-    content: '→';
-    opacity: 0;
-    position: absolute;
-    transform: translateX(-10px);
-    transition: opacity 0.2s, transform 0.2s;
-}
-
-.clickable-artist:hover:after, .clickable-asset:hover:after {
-    opacity: 1;
-    transform: translateX(5px);
-}
+/* Add the rest of your specific component styles here */

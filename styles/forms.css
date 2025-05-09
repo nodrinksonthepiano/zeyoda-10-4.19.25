@@ -1,0 +1,539 @@
+/* 
+ * ZEYODA Form Styles
+ * -----------------
+ * This file contains styles for forms, inputs and interactive controls
+ */
+
+/* Login section */
+.login-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    animation: fadeIn 0.8s ease-out;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.login-section h3 {
+    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    text-align: center;
+    color: white;
+    font-weight: 600;
+}
+
+/* Email input container */
+.email-login-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Email input styling */
+.email-input {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.email-input:focus {
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.email-input.error {
+    border-color: rgba(255, 86, 86, 0.8);
+    background-color: rgba(255, 86, 86, 0.1);
+}
+
+/* Login feedback message */
+.login-processing-msg {
+    padding: 0.75rem;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.login-processing-msg.error {
+    background-color: rgba(255, 86, 86, 0.1);
+    border-color: rgba(255, 86, 86, 0.5);
+    color: rgb(255, 211, 211);
+}
+
+/* Login separator */
+.login-separator {
+    width: 100%;
+    text-align: center;
+    position: relative;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.login-separator::before,
+.login-separator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.login-separator::before {
+    left: 0;
+}
+
+.login-separator::after {
+    right: 0;
+}
+
+/* Social login */
+.social-login-container {
+    width: 100%;
+}
+
+.social-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+.social-buttons .login-btn {
+    flex: 1 1 calc(50% - 0.75rem);
+    min-width: 120px;
+}
+
+/* Login buttons */
+.login-btn {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+/* Login button variations */
+.login-btn.email {
+    background: linear-gradient(135deg, #ff4d4d, #f9634e);
+    color: white;
+}
+
+.login-btn.twitter {
+    background: black;
+    color: white;
+}
+
+.login-btn.gmail {
+    background: #ea4335;
+    color: white;
+}
+
+.login-btn.phone {
+    background: #4285f4;
+    color: white;
+}
+
+.login-btn.facebook {
+    background: #3b5998;
+    color: white;
+}
+
+.login-btn::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.login-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Loading spinner */
+.loading-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top: 2px solid #333;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Buy button */
+.buy-button {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1.5rem;
+    width: 100%;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #4073ff, #0a1a3b);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.buy-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: all 0.5s ease;
+}
+
+.buy-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.buy-button:hover::before {
+    left: 100%;
+}
+
+.buy-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.gosheesh-theme .buy-button {
+    background: linear-gradient(135deg, #4073ff, #0a1a3b);
+}
+
+.jaitea-theme .buy-button {
+    background: linear-gradient(135deg, #4edfb1, #0a3b1a);
+}
+
+/* Token slider */
+.slider-container {
+    width: 100%;
+    margin: 1.5rem 0;
+    padding: 1rem 0;
+    display: none;
+}
+
+.token-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    margin-bottom: 1rem;
+}
+
+.token-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.token-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Slider value display */
+.slider-value-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.token-input-group, .total-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+}
+
+.token-input-group label, .total-input-group label {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.token-input, .total-input {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    width: 100%;
+    text-align: right;
+    outline: none;
+}
+
+.token-input:focus, .total-input:focus {
+    outline: none;
+}
+
+/* Content unlock toggle */
+.content-unlock-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1.5rem 0;
+    width: 100%;
+    position: relative;
+}
+
+.unlock-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    width: 100%;
+    position: relative;
+}
+
+.unlock-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+}
+
+.price-highlight {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.25rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.secondary-text {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Media query for smaller screens */
+@media (max-width: 480px) {
+    .content-unlock-toggle {
+        padding: 0.75rem;
+    }
+    
+    .price-highlight {
+        font-size: 1.75rem;
+    }
+    
+    .secondary-text {
+        font-size: 0.8rem;
+    }
+    
+    .slider-value-container {
+        flex-direction: column;
+    }
+    
+    .token-input-group, .total-input-group {
+        width: 100%;
+    }
+}
+
+/* Payment buttons section */
+.payment-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    margin-top: 1.5rem;
+}
+
+/* Payment buttons with branded styling */
+.payment-btn {
+    padding: 1rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 1rem;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.payment-btn::before {
+    content: '';
+    width: 24px;
+    height: 24px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.payment-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.payment-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Credit Card styling */
+.payment-btn.credit {
+    background: linear-gradient(135deg, #5a7bef, #3755c6);
+    box-shadow: 0 4px 10px rgba(58, 86, 198, 0.3);
+}
+
+.payment-btn.credit::before {
+    content: '💳';
+}
+
+/* PayPal styling */
+.payment-btn.paypal {
+    background: linear-gradient(135deg, #27346a, #253b80);
+    box-shadow: 0 4px 10px rgba(37, 59, 128, 0.3);
+}
+
+.payment-btn.paypal::before {
+    content: 'P';
+    font-weight: 800;
+    color: #169bd7;
+    background: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Venmo styling */
+.payment-btn.venmo {
+    background: linear-gradient(135deg, #3396cd, #008cff);
+    box-shadow: 0 4px 10px rgba(0, 140, 255, 0.3);
+}
+
+.payment-btn.venmo::before {
+    content: 'V';
+    font-weight: 800;
+}
+
+/* Crypto styling */
+.payment-btn.crypto {
+    background: linear-gradient(135deg, #f7931a, #e09200);
+    box-shadow: 0 4px 10px rgba(247, 147, 26, 0.3);
+}
+
+.payment-btn.crypto::before {
+    content: '₿';
+}
+
+/* Chat input at the bottom of the screen */
+.chat-input-container {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+.chat-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 24px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.chat-input:focus {
+    border-color: var(--accent-color, #4073ff);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb, 64, 115, 255), 0.3);
+}
+
+.unlock-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    width: 100%;
+    position: relative;
+}
+
+.unlock-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+}
+
+.unlock-label input[type="checkbox"]:checked {
+    position: absolute;
+} 

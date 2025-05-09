@@ -8,41 +8,364 @@ let userAssets = loadUserAssets();
 let isWalletOpen = false;
 let walletInitialized = false;
 
+// Initialize immediately to make functions available
+if (typeof window !== 'undefined') {
+    // Attach to window for global access
+    window.wallet = {
+        init: initWallet,
+        update: updateWalletDisplay,
+        addTokens: addArtistTokens,
+        addDownload: addArtistDownload,
+        clear: clearAssets,
+        onPurchaseComplete: onPurchaseComplete,
+        loadAssets: loadUserAssets,
+        hasAssets: hasAssets,
+        hasArtistTokens: hasArtistTokens,
+        hasAnyArtistAssets: hasAnyArtistAssets,
+        // Add generateIPFSHash reference for download functionality
+        generateIPFSHash: function() {
+            return generateIPFSHash();
+        },
+        toggleWallet: toggleWallet
+    };
+    
+    // Initialize wallet on page load
+    window.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded: initializing wallet');
+        setTimeout(function() {
+            initWallet();
+            updateWalletDisplay();
+        }, 500);
+    });
+}
+
 /**
  * Initialize the wallet module
  * Should be called after user authentication
  */
 function initWallet() {
-    if (walletInitialized) return;
+    if (walletInitialized) {
+        console.log('Wallet already initialized, updating display');
+        updateWalletDisplay();
+        return;
+    }
     
     console.log('Initializing wallet module');
     
     // Check if user is logged in with Magic
     const isLoggedIn = localStorage.getItem('isAuthenticated') === 'true';
+    console.log('User login status:', isLoggedIn);
     
-    if (!isLoggedIn) {
-        console.log('User not logged in, skipping wallet initialization');
-        return;
-    }
-    
-    // Create wallet display if it doesn't exist
-    createWalletUI();
-    
-    // Mark as initialized
+    // Always initialize the wallet, even if not logged in yet
+    // This ensures it's ready when the user logs in
     walletInitialized = true;
+    
+    // For testing - add some test assets if none exist
+    if (isLoggedIn && !hasAssets()) {
+        console.log('Adding test assets for debugging');
+        // Uncomment for testing
+        addArtistTokens('gosheesh', 100);
+    }
     
     // Update the wallet display based on current assets
     updateWalletDisplay();
+    
+    // Set up click handler to toggle display
+    const walletDisplay = document.getElementById('walletDisplay');
+    if (walletDisplay) {
+        walletDisplay.addEventListener('click', function() {
+            console.log('Wallet clicked');
+            toggleWallet();
+        });
+    } else {
+        console.error('Wallet display element not found during initialization');
+    }
+}
+
+/**
+ * Toggle wallet asset panel visibility
+ */
+function toggleWallet() {
+    // Get or create the wallet panel
+    let walletPanel = document.getElementById('walletPanel');
+    
+    if (!walletPanel) {
+        // Create wallet panel if it doesn't exist
+        createWalletPanel();
+        walletPanel = document.getElementById('walletPanel');
+    }
+    
+    // Toggle visibility
+    isWalletOpen = !isWalletOpen;
+    
+    if (isWalletOpen) {
+        // No need for body class with popup design
+        walletPanel.style.display = 'block';
+        // Add transition after display is set
+        setTimeout(() => {
+            walletPanel.style.opacity = '1';
+            walletPanel.style.transform = 'translateY(0)';
+        }, 10);
+    } else {
+        // No need for body class with popup design
+        walletPanel.style.opacity = '0';
+        walletPanel.style.transform = 'translateY(-10px)';
+        // Hide after transition
+        setTimeout(() => {
+            walletPanel.style.display = 'none';
+        }, 300);
+    }
+}
+
+/**
+ * Create wallet panel with assets
+ */
+function createWalletPanel() {
+    // Remove any existing wallet panel
+    let existingPanel = document.getElementById('walletPanel');
+    if (existingPanel) {
+        existingPanel.remove();
+    }
+    
+    // Create wallet panel
+    const walletPanel = document.createElement('div');
+    walletPanel.id = 'walletPanel';
+    walletPanel.className = 'wallet-panel';
+    walletPanel.style.opacity = '0';
+    walletPanel.style.transform = 'translateY(-10px)';
+    
+    // Add close button
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close-btn';
+    closeBtn.innerHTML = '×';
+    closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleWallet();
+    });
+    
+    // Add title
+    const title = document.createElement('h2');
+    title.textContent = 'Your Assets';
+    
+    // Add assets list
+    const assetList = document.createElement('div');
+    assetList.className = 'asset-list';
+    
+    // Check if user has any assets
+    let hasAnyAssets = false;
+    
+    // Populate with assets
+    for (const artistId in userAssets) {
+        const artistAssets = userAssets[artistId];
+        
+        // Skip if no assets for this artist
+        if (!hasAnyArtistAssets(artistId)) continue;
+        
+        hasAnyAssets = true;
+        
+        // Format artist ID for display (only first character capitalized)
+        let displayArtistId = artistId.toUpperCase();
+        
+        // Get artist data
+        const artistData = getArtistDataById(artistId) || {
+            name: displayArtistId,
+            tokenName: displayArtistId,
+            artworkTitle: "Content"
+        };
+        
+        // Create artist section
+        const artistSection = document.createElement('div');
+        artistSection.className = 'artist-section';
+        
+        // Add artist name as clickable
+        const artistName = document.createElement('h3');
+        artistName.className = 'artist-name';
+        artistName.textContent = artistData.name;
+        artistName.style.cursor = 'pointer';
+        artistName.addEventListener('click', function(e) {
+            e.stopPropagation();
+            switchToArtist(artistId);
+        });
+        artistSection.appendChild(artistName);
+        
+        // Add tokens if any
+        if (artistAssets.tokens && artistAssets.tokens > 0) {
+            const tokenItem = document.createElement('div');
+            tokenItem.className = 'token-item';
+            
+            const tokenIcon = document.createElement('span');
+            tokenIcon.className = 'token-icon';
+            tokenIcon.innerHTML = '⚡';
+            
+            const tokenAmount = document.createElement('span');
+            tokenAmount.className = 'token-amount';
+            tokenAmount.textContent = new Intl.NumberFormat().format(artistAssets.tokens);
+            
+            const tokenName = document.createElement('span');
+            tokenName.className = 'token-name';
+            tokenName.textContent = ` ${artistData.tokenName} Artistocks`;
+            
+            tokenItem.appendChild(tokenIcon);
+            tokenItem.appendChild(tokenAmount);
+            tokenItem.appendChild(tokenName);
+            artistSection.appendChild(tokenItem);
+        }
+        
+        // Add downloads if any
+        if (artistAssets.downloads && artistAssets.downloads.length > 0) {
+            artistAssets.downloads.forEach(download => {
+                const downloadItem = document.createElement('div');
+                downloadItem.className = 'download-item';
+                downloadItem.style.cursor = 'pointer';
+                
+                const musicIcon = document.createElement('span');
+                musicIcon.className = 'music-icon';
+                musicIcon.innerHTML = '🎵';
+                
+                const downloadTitle = document.createElement('span');
+                downloadTitle.className = 'download-title';
+                downloadTitle.textContent = download.title || artistData.artworkTitle;
+                
+                downloadItem.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    switchToArtist(artistId, download.id || 0);
+                });
+                
+                const downloadLink = document.createElement('a');
+                downloadLink.className = 'download-link';
+                downloadLink.href = '#';
+                downloadLink.textContent = 'Download';
+                downloadLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const ipfsHash = download.ipfsHash || generateIPFSHash();
+                    alert(`Downloading content (IPFS: ${ipfsHash})...`);
+                });
+                
+                downloadItem.appendChild(musicIcon);
+                downloadItem.appendChild(downloadTitle);
+                downloadItem.appendChild(downloadLink);
+                artistSection.appendChild(downloadItem);
+            });
+        }
+        
+        assetList.appendChild(artistSection);
+    }
+    
+    // If no assets found, show an empty state
+    if (!hasAnyAssets) {
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.textContent = 'No assets found. Purchase content to see it here!';
+        assetList.appendChild(emptyState);
+    }
+    
+    // Add elements to panel
+    walletPanel.appendChild(closeBtn);
+    walletPanel.appendChild(title);
+    walletPanel.appendChild(assetList);
+    
+    // Add to body
+    document.body.appendChild(walletPanel);
+    
+    // Show panel
+    isWalletOpen = true;
+    walletPanel.style.display = 'block';
+    
+    // Add transition after display is set
+    setTimeout(() => {
+        walletPanel.style.opacity = '1';
+        walletPanel.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+/**
+ * Switch to a different artist's page
+ */
+function switchToArtist(artistId, contentId = null) {
+    console.log(`Switching to artist: ${artistId}, content: ${contentId}`);
+    
+    // If we're already on this artist's page, just change the content if needed
+    if (window.currentArtist === artistId) {
+        if (contentId !== null) {
+            // Switch to specific content
+            console.log(`Loading content ID: ${contentId} for current artist`);
+            
+            // If there's a function to switch content, call it
+            if (window.loadArtistContent) {
+                window.loadArtistContent(contentId);
+            }
+        }
+        return;
+    }
+    
+    // Otherwise, navigate to the artist's page
+    // This could be reloading the current page with a query parameter
+    // or navigating to a different page entirely
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('artist', artistId);
+    
+    if (contentId !== null) {
+        currentUrl.searchParams.set('content', contentId);
+    }
+    
+    window.location.href = currentUrl.toString();
+}
+
+/**
+ * Get artist data by ID
+ */
+function getArtistDataById(artistId) {
+    // Try to use getCurrentArtistData if available
+    if (window.getCurrentArtistData) {
+        const currentArtist = window.getCurrentArtistData();
+        if (currentArtist && window.currentArtist === artistId) {
+            return currentArtist;
+        }
+    }
+    
+    // Try to get from config
+    if (window.config && window.config.artists && window.config.artists[artistId]) {
+        return window.config.artists[artistId];
+    }
+    
+    // Fallback with basic info
+    const fallbackData = {
+        'gosheesh': {
+            name: 'GOSHEESH',
+            tokenName: 'SHEEGOHS',
+            artworkTitle: 'NLi10 #1'
+        },
+        'jai_tea': {
+            name: 'JAI TEA',
+            tokenName: 'JAI TEA',
+            artworkTitle: 'Earth #2'
+        },
+        'lumilitanide': {
+            name: 'LUMILITANIDE',
+            tokenName: 'LUMILITANIDE',
+            artworkTitle: 'nSTRIPS'
+        },
+        'i_spir': {
+            name: 'i_SPiR',
+            tokenName: 'i_SPiR',
+            artworkTitle: 'Dream #3'
+        }
+    };
+    
+    return fallbackData[artistId] || { name: artistId.toUpperCase(), tokenName: artistId.toUpperCase(), artworkTitle: 'Untitled' };
 }
 
 /**
  * Load user assets from localStorage
- * @returns {Object} User assets by artist
+ * @returns {Object} User assets object
  */
 function loadUserAssets() {
     try {
         const storedAssets = localStorage.getItem('userAssets');
-        return storedAssets ? JSON.parse(storedAssets) : {};
+        const parsedAssets = storedAssets ? JSON.parse(storedAssets) : {};
+        console.log('Loaded user assets:', parsedAssets);
+        return parsedAssets;
     } catch (error) {
         console.error('Error loading user assets:', error);
         return {};
@@ -55,6 +378,7 @@ function loadUserAssets() {
 function saveUserAssets() {
     try {
         localStorage.setItem('userAssets', JSON.stringify(userAssets));
+        console.log('Saved user assets:', userAssets);
     } catch (error) {
         console.error('Error saving user assets:', error);
     }
@@ -62,325 +386,91 @@ function saveUserAssets() {
 
 /**
  * Check if user has any assets
- * @returns {Boolean} True if user has assets
+ * @returns {Boolean} True if user has any assets
  */
 function hasAssets() {
-    // Check if userAssets has any artist entries with assets
-    return Object.values(userAssets).some(artistAssets => {
-        return (
-            (artistAssets.tokens && artistAssets.tokens > 0) || 
-            (artistAssets.downloads && artistAssets.downloads.length > 0)
-        );
-    });
+    const hasAnyAssets = Object.values(userAssets).some(artistAssets => 
+        (artistAssets.tokens && artistAssets.tokens > 0) || 
+        (artistAssets.downloads && artistAssets.downloads.length > 0)
+    );
+    console.log('User has assets check:', hasAnyAssets);
+    return hasAnyAssets;
 }
 
 /**
- * Create wallet UI elements
+ * Check if user has any assets for a specific artist
+ * @param {String} artistId Artist ID
+ * @returns {Boolean} True if user has any assets for the artist
  */
-function createWalletUI() {
-    console.log('Creating wallet UI');
-    
-    // Create wallet button in header (similar to logout button, but on left side)
-    const header = document.querySelector('header');
-    if (!header) {
-        console.error('Header not found!');
-        return;
-    }
-    
-    // Create wallet button
-    let walletButton = document.getElementById('walletButton');
-    if (!walletButton) {
-        walletButton = document.createElement('button');
-        walletButton.id = 'walletButton';
-        walletButton.className = 'wallet-button';
-        walletButton.innerHTML = '💼';
-        walletButton.title = 'View your wallet';
-        
-        // Add click handler to toggle wallet display
-        walletButton.addEventListener('click', toggleWallet);
-        
-        // Insert at the beginning of header
-        header.prepend(walletButton);
-    }
-    
-    // Create wallet container (initially hidden)
-    let walletContainer = document.getElementById('walletContainer');
-    if (!walletContainer) {
-        walletContainer = document.createElement('div');
-        walletContainer.id = 'walletContainer';
-        walletContainer.className = 'wallet-container';
-        
-        // Create wallet header
-        const walletHeader = document.createElement('div');
-        walletHeader.className = 'wallet-header';
-        
-        const walletTitle = document.createElement('h3');
-        walletTitle.textContent = 'Your Assets';
-        walletHeader.appendChild(walletTitle);
-        
-        const closeButton = document.createElement('button');
-        closeButton.className = 'wallet-close-button';
-        closeButton.innerHTML = '&times;';
-        closeButton.addEventListener('click', toggleWallet);
-        walletHeader.appendChild(closeButton);
-        
-        walletContainer.appendChild(walletHeader);
-        
-        // Create wallet content area
-        const walletContent = document.createElement('div');
-        walletContent.id = 'walletContent';
-        walletContent.className = 'wallet-content';
-        walletContainer.appendChild(walletContent);
-        
-        // Create empty state message
-        const emptyState = document.createElement('div');
-        emptyState.id = 'walletEmptyState';
-        emptyState.className = 'wallet-empty-state';
-        emptyState.innerHTML = `
-            <div class="empty-icon">💫</div>
-            <p>No assets yet.</p>
-            <p class="empty-hint">Purchase downloads or Artistocks to get started.</p>
-        `;
-        walletContent.appendChild(emptyState);
-        
-        // Add to document body
-        document.body.appendChild(walletContainer);
-    }
+function hasAnyArtistAssets(artistId) {
+    const artistAssets = userAssets[artistId];
+    return artistAssets && (
+        (artistAssets.tokens && artistAssets.tokens > 0) || 
+        (artistAssets.downloads && artistAssets.downloads.length > 0)
+    );
 }
 
 /**
- * Toggle wallet open/closed state
+ * Check if user has tokens for a specific artist
+ * @param {String} artistId Artist ID
+ * @returns {Boolean} True if user has tokens for the artist
  */
-function toggleWallet() {
-    // Get wallet container
-    const walletContainer = document.getElementById('walletContainer');
-    if (!walletContainer) return;
-    
-    // Update state
-    isWalletOpen = !isWalletOpen;
-    
-    // Toggle wallet visibility
-    if (isWalletOpen) {
-        walletContainer.classList.add('open');
-        // Update wallet content when opening
-        updateWalletDisplay();
-    } else {
-        walletContainer.classList.remove('open');
-    }
+function hasArtistTokens(artistId) {
+    return userAssets[artistId] && userAssets[artistId].tokens > 0;
 }
 
 /**
- * Update wallet display with current assets
+ * Update wallet display based on current assets
  */
 function updateWalletDisplay() {
-    console.log('Updating wallet display');
-    
-    // Don't update if not initialized
-    if (!walletInitialized) return;
-    
-    // Get wallet button and container
-    const walletButton = document.getElementById('walletButton');
-    const walletContainer = document.getElementById('walletContainer');
-    
-    if (!walletButton || !walletContainer) {
-        console.error('Wallet UI elements not found!');
-        return;
-    }
-    
-    // Check if user has any assets
+    const walletDisplay = document.getElementById('walletDisplay');
     const hasUserAssets = hasAssets();
     
-    // Show/hide wallet button based on whether user has assets
-    walletButton.style.display = hasUserAssets ? 'block' : 'none';
-    
-    // Get wallet content and empty state message
-    const walletContent = document.getElementById('walletContent');
-    const emptyState = document.getElementById('walletEmptyState');
-    
-    if (!walletContent || !emptyState) {
-        console.error('Wallet content elements not found!');
+    if (!walletDisplay) {
+        console.error('Wallet display element not found during update');
         return;
     }
     
-    // Show/hide empty state message based on whether user has assets
-    emptyState.style.display = hasUserAssets ? 'none' : 'block';
+    console.log('Updating wallet display, assets exist:', hasUserAssets);
     
-    // Clear existing artist sections
-    const artistSections = walletContent.querySelectorAll('.wallet-artist-section');
-    artistSections.forEach(section => {
-        if (section !== emptyState) {
-            section.remove();
+    if (hasUserAssets) {
+        // Count total assets
+        let totalTokens = 0;
+        let totalDownloads = 0;
+        
+        for (const artistId in userAssets) {
+            const artistAssets = userAssets[artistId];
+            if (artistAssets.tokens) totalTokens += artistAssets.tokens;
+            if (artistAssets.downloads) totalDownloads += artistAssets.downloads.length;
         }
-    });
+        
+        // Create a more descriptive wallet display
+        let displayText = '💼 ';
+        if (totalTokens > 0) {
+            displayText += new Intl.NumberFormat().format(totalTokens) + ' tokens';
+        }
+        if (totalTokens > 0 && totalDownloads > 0) {
+            displayText += ' | ';
+        }
+        if (totalDownloads > 0) {
+            displayText += totalDownloads + ' downloads';
+        }
+        
+        walletDisplay.innerHTML = displayText;
+        walletDisplay.style.display = 'flex';
+        walletDisplay.style.opacity = '1';
+    } else {
+        walletDisplay.style.opacity = '0';
+        // Hide after fade out
+        setTimeout(() => {
+            walletDisplay.style.display = 'none';
+        }, 300);
+    }
     
-    // Skip if no assets
-    if (!hasUserAssets) return;
-    
-    // Create a section for each artist with assets
-    Object.entries(userAssets).forEach(([artistId, artistAssets]) => {
-        // Skip if no assets for this artist
-        if (!((artistAssets.tokens && artistAssets.tokens > 0) || 
-              (artistAssets.downloads && artistAssets.downloads.length > 0))) {
-            return;
-        }
-        
-        // Get artist display name from config if available, or use ID
-        let artistName = artistId.toUpperCase();
-        try {
-            const artistConfig = config.artists[artistId];
-            if (artistConfig && artistConfig.name) {
-                artistName = artistConfig.name;
-            }
-        } catch (error) {
-            console.warn(`Could not get display name for artist ${artistId}`, error);
-        }
-        
-        // Create artist section
-        const artistSection = document.createElement('div');
-        artistSection.className = 'wallet-artist-section';
-        
-        // Create artist header - make it clickable
-        const artistHeader = document.createElement('h4');
-        artistHeader.textContent = artistName;
-        artistHeader.className = 'clickable-artist';
-        artistHeader.style.cursor = 'pointer';
-        
-        // Add event listener to navigate to this artist's page
-        artistHeader.addEventListener('click', () => {
-            console.log(`Artist header clicked: ${artistId}`);
-            
-            // Close the wallet
-            toggleWallet();
-            
-            // Navigate to the artist's page after a slight delay
-            setTimeout(() => {
-                // Use the global transitionToArtist function if available
-                if (typeof window.transitionToArtist === 'function') {
-                    window.transitionToArtist(artistId);
-                } else if (typeof transitionToArtist === 'function') {
-                    transitionToArtist(artistId);
-                } else {
-                    console.error('transitionToArtist function not available');
-                }
-            }, 300);
-        });
-        
-        artistSection.appendChild(artistHeader);
-        
-        // Create list of assets
-        const assetsList = document.createElement('ul');
-        assetsList.className = 'wallet-assets-list';
-        
-        // Add tokens if any
-        if (artistAssets.tokens && artistAssets.tokens > 0) {
-            const tokensItem = document.createElement('li');
-            tokensItem.className = 'wallet-asset-item tokens';
-            
-            // Create elements individually to add click handler to artist name
-            const iconSpan = document.createElement('span');
-            iconSpan.className = 'asset-icon';
-            iconSpan.textContent = '⚡';
-            
-            const amountSpan = document.createElement('span');
-            amountSpan.className = 'asset-amount';
-            amountSpan.textContent = new Intl.NumberFormat().format(artistAssets.tokens);
-            
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'asset-name clickable-asset';
-            nameSpan.textContent = `${artistName} Artistocks`;
-            nameSpan.style.cursor = 'pointer';
-            
-            // Add click handler to the name
-            nameSpan.addEventListener('click', () => {
-                console.log(`Asset name clicked: ${artistId}`);
-                // Close the wallet
-                toggleWallet();
-                
-                // Navigate to the artist's page after a slight delay
-                setTimeout(() => {
-                    if (typeof window.transitionToArtist === 'function') {
-                        window.transitionToArtist(artistId);
-                    } else if (typeof transitionToArtist === 'function') {
-                        transitionToArtist(artistId);
-                    } else {
-                        console.error('transitionToArtist function not available');
-                    }
-                }, 300);
-            });
-            
-            // Append all elements to the list item
-            tokensItem.appendChild(iconSpan);
-            tokensItem.appendChild(amountSpan);
-            tokensItem.appendChild(nameSpan);
-            
-            assetsList.appendChild(tokensItem);
-        }
-        
-        // Add downloads if any
-        if (artistAssets.downloads && artistAssets.downloads.length > 0) {
-            artistAssets.downloads.forEach(download => {
-                const downloadItem = document.createElement('li');
-                downloadItem.className = 'wallet-asset-item download';
-                
-                // Create elements individually to add click handler to title
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'asset-icon';
-                iconSpan.textContent = '🎵';
-                
-                const titleSpan = document.createElement('span');
-                titleSpan.className = 'asset-title clickable-asset';
-                titleSpan.textContent = download.title || 'Digital Download';
-                titleSpan.style.cursor = 'pointer';
-                
-                // Add click handler to the title
-                titleSpan.addEventListener('click', () => {
-                    console.log(`Download title clicked: ${artistId}`);
-                    // Close the wallet
-                    toggleWallet();
-                    
-                    // Navigate to the artist's page after a slight delay
-                    setTimeout(() => {
-                        if (typeof window.transitionToArtist === 'function') {
-                            window.transitionToArtist(artistId);
-                        } else if (typeof transitionToArtist === 'function') {
-                            transitionToArtist(artistId);
-                        } else {
-                            console.error('transitionToArtist function not available');
-                        }
-                    }, 300);
-                });
-                
-                const downloadLink = document.createElement('a');
-                downloadLink.href = '#';
-                downloadLink.className = 'asset-download-link';
-                downloadLink.dataset.ipfs = download.ipfsHash;
-                downloadLink.textContent = 'Download';
-                downloadLink.onclick = function() {
-                    handleAssetDownload(download.ipfsHash);
-                    return false;
-                };
-                
-                // Append all elements to the list item
-                downloadItem.appendChild(iconSpan);
-                downloadItem.appendChild(titleSpan);
-                downloadItem.appendChild(downloadLink);
-                
-                assetsList.appendChild(downloadItem);
-            });
-        }
-        
-        artistSection.appendChild(assetsList);
-        walletContent.appendChild(artistSection);
-    });
-}
-
-/**
- * Handle click on asset download link
- * @param {String} ipfsHash IPFS hash of the download
- */
-function handleAssetDownload(ipfsHash) {
-    alert(`Starting download... IPFS: ${ipfsHash}`);
-    // This would be replaced with actual IPFS download logic
+    // Update wallet panel if open
+    if (isWalletOpen) {
+        createWalletPanel();
+    }
 }
 
 /**
@@ -412,7 +502,7 @@ function addArtistTokens(artistId, amount) {
 /**
  * Add artist download to user assets
  * @param {String} artistId Artist ID
- * @param {Object} download Download details
+ * @param {Object} download Download info
  */
 function addArtistDownload(artistId, download) {
     console.log(`Adding download for artist ${artistId}:`, download);
@@ -430,8 +520,8 @@ function addArtistDownload(artistId, download) {
         userAssets[artistId].downloads = [];
     }
     
-    // Add download (avoid duplicates)
-    const exists = userAssets[artistId].downloads.some(d => d.ipfsHash === download.ipfsHash);
+    // Add download if not already in list
+    const exists = userAssets[artistId].downloads.some(d => d.id === download.id);
     if (!exists) {
         userAssets[artistId].downloads.push(download);
     }
@@ -444,179 +534,136 @@ function addArtistDownload(artistId, download) {
 }
 
 /**
- * Clear all user assets (called on logout)
+ * Clear user assets
  */
 function clearAssets() {
     console.log('Clearing all user assets');
     
-    // Reset assets
+    // Clear assets
     userAssets = {};
     
-    // Save empty assets
+    // Save to localStorage
     saveUserAssets();
     
     // Update display
     updateWalletDisplay();
     
-    // Reset wallet state
-    isWalletOpen = false;
-    walletInitialized = false;
-    
-    // Close wallet if open
-    const walletContainer = document.getElementById('walletContainer');
-    if (walletContainer) {
-        walletContainer.classList.remove('open');
-    }
-}
-
-/**
- * Hook wallet module into payment completion
- * @param {String} artistId Artist ID
- * @param {Boolean} includesArtistocks Whether purchase includes artistocks
- * @param {Number} tokenAmount Amount of tokens purchased
- * @param {Boolean} includesDownload Whether purchase includes the download (added parameter)
- */
-function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesDownload = false) {
-    console.log(`Purchase complete for ${artistId}: tokens=${includesArtistocks ? tokenAmount : 0}, download=${includesDownload}`);
-    
-    // Initialize wallet if not already initialized
-    if (!walletInitialized) {
-        initWallet();
-    }
-    
-    // If purchase includes artistocks, add tokens
-    if (includesArtistocks && tokenAmount > 0) {
-        addArtistTokens(artistId, tokenAmount);
-    }
-    
-    // Add download ONLY if specifically purchased (when includesDownload is true)
-    // This fixes the bug where downloads appear even when only tokens were purchased
-    if (includesDownload) {
-        // Check if we already have this download
-        const artistAssets = userAssets[artistId] || { tokens: 0, downloads: [] };
-        const artistData = getCurrentArtistData();
-        
-        if (!artistData) {
-            console.error("Could not get artist data for download");
-            return;
-        }
-        
-        const title = artistData.artworkTitle || 'Digital Download';
-        const hasDownload = artistAssets.downloads && artistAssets.downloads.some(d => d.title === title);
-        
-        // Only add if we don't already have this download
-        if (!hasDownload) {
-            // Generate IPFS hash for download
-            const ipfsHash = generateIPFSHash ? generateIPFSHash() : `Qm${Math.random().toString(36).substring(2, 15)}`;
-            
-            // Add download
-            addArtistDownload(artistId, {
-                title: title,
-                ipfsHash,
-                date: new Date().toISOString()
-            });
-        }
-    }
-    
-    // Always open wallet immediately after purchase
-    console.log("Opening wallet immediately after purchase");
-    
-    // Ensure wallet is always opened, regardless of current state
-    // First close the wallet if it's open
+    // Close wallet panel if open
     if (isWalletOpen) {
         toggleWallet();
     }
+}
+
+/**
+ * Handle purchase completion
+ * Called after successful purchase logic
+ */
+function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesDownload = false) {
+    console.log(`Purchase complete for ${artistId}:`, {
+        includesArtistocks,
+        tokenAmount,
+        includesDownload
+    });
     
-    // Then open it after a small delay to ensure UI updates properly
-    setTimeout(() => {
-        if (!isWalletOpen) {
-            toggleWallet();
-        }
-    }, 100);
+    let updatedAssets = false;
     
-    // First immediately setup the orbital tokens for just the current artist
-    // This gives immediate visual feedback right after purchase
-    try {
-        if (typeof window.setupOrbitalTokens === 'function') {
-            window.setupOrbitalTokens(artistId);
-        } else if (typeof setupOrbitalTokens === 'function') {
-            setupOrbitalTokens(artistId);
-        }
-    } catch (e) {
-        console.error("Error setting up orbital tokens for current artist:", e);
+    // Add tokens if the purchase includes artistocks
+    if (includesArtistocks && tokenAmount > 0) {
+        addArtistTokens(artistId, tokenAmount);
+        updatedAssets = true;
     }
     
-    // Then after a slight delay, update all artists' tokens to ensure cross-visibility
-    setTimeout(() => {
-        // Find all artists that the user has assets for
-        Object.keys(userAssets).forEach(id => {
-            if (hasAnyArtistAssets(id) && id !== artistId) {
-                try {
-                    // Try to update tokens for other artists to ensure they appear in orbit
-                    if (typeof window.setupOrbitalTokens === 'function') {
-                        window.setupOrbitalTokens(id);
-                    } else if (typeof setupOrbitalTokens === 'function') {
-                        setupOrbitalTokens(id);
-                    }
-                } catch (e) {
-                    console.error(`Error setting up orbital tokens for ${id}:`, e);
-                }
-            }
-        });
+    // Add download if the purchase includes a download
+    if (includesDownload) {
+        const artistData = getArtistDataById(artistId);
+        const download = {
+            id: Date.now(),
+            title: artistData ? artistData.artworkTitle : 'Content',
+            purchaseDate: new Date().toISOString(),
+            ipfsHash: generateIPFSHash()
+        };
         
-        // Finally, make sure we update the current artist's tokens again, as it may have changed
-        const currentArtistId = window.currentArtist || currentArtist;
-        if (currentArtistId && currentArtistId !== artistId) {
-            try {
-                if (typeof window.setupOrbitalTokens === 'function') {
-                    window.setupOrbitalTokens(currentArtistId);
-                } else if (typeof setupOrbitalTokens === 'function') {
-                    setupOrbitalTokens(currentArtistId);
-                }
-            } catch (e) {
-                console.error("Error setting up orbital tokens for current artist:", e);
+        addArtistDownload(artistId, download);
+        updatedAssets = true;
+    }
+    
+    if (updatedAssets) {
+        // Show wallet if there are now assets
+        if (hasAssets()) {
+            const walletDisplay = document.getElementById('walletDisplay');
+            if (walletDisplay) {
+                walletDisplay.style.display = 'flex';
+                setTimeout(() => {
+                    walletDisplay.style.opacity = '1';
+                    
+                    // Add pulsing effect to highlight new assets
+                    walletDisplay.classList.add('new-assets');
+                    setTimeout(() => {
+                        walletDisplay.classList.remove('new-assets');
+                    }, 3000);
+                }, 10);
+                
+                // IMPORTANT: Always open wallet automatically after purchase
+                // with a slightly longer delay to ensure animations complete
+                setTimeout(() => {
+                    console.log('Auto-opening wallet after purchase');
+                    if (!isWalletOpen) {
+                        createWalletPanel();
+                        isWalletOpen = true;
+                    }
+                }, 800);
             }
         }
-    }, 300);
+        
+        // Show purchase success UI
+        showPurchaseSuccess(artistId, tokenAmount, includesDownload);
+    }
+    
+    return updatedAssets;
 }
 
 /**
- * Check if user has tokens for a specific artist
+ * Show purchase success UI
  * @param {String} artistId Artist ID
- * @returns {Boolean} True if user has tokens for the artist
+ * @param {Number} tokenAmount Token amount
+ * @param {Boolean} includesDownload Whether purchase includes download
  */
-function hasArtistTokens(artistId) {
-    return userAssets[artistId] && 
-           userAssets[artistId].tokens && 
-           userAssets[artistId].tokens > 0;
+function showPurchaseSuccess(artistId, tokenAmount, includesDownload) {
+    console.log('Showing purchase success UI');
+    
+    // This is now handled in script.js
+    if (window.showSuccessSection) {
+        window.showSuccessSection(tokenAmount > 0, includesDownload);
+    } else {
+        console.error('showSuccessSection function not found in global scope');
+    }
 }
 
 /**
- * Check if user has any assets (tokens or downloads) for a specific artist
- * @param {String} artistId Artist ID
- * @returns {Boolean} True if user has any assets for the artist
+ * Get current artist data
+ * @returns {Object} Artist data object
  */
-function hasAnyArtistAssets(artistId) {
-    return userAssets[artistId] && (
-        (userAssets[artistId].tokens && userAssets[artistId].tokens > 0) ||
-        (userAssets[artistId].downloads && userAssets[artistId].downloads.length > 0)
-    );
+function getCurrentArtistData() {
+    if (window.getCurrentArtistData) {
+        return window.getCurrentArtistData();
+    } else {
+        console.warn('getCurrentArtistData function not found in global scope');
+        return null;
+    }
 }
 
-// Export wallet functions for use in main script
-if (typeof window !== 'undefined') {
-    // Attach to window for global access
-    window.wallet = {
-        init: initWallet,
-        toggle: toggleWallet,
-        update: updateWalletDisplay,
-        addTokens: addArtistTokens,
-        addDownload: addArtistDownload,
-        clear: clearAssets,
-        onPurchaseComplete: onPurchaseComplete,
-        loadAssets: loadUserAssets,
-        hasAssets: hasAssets,
-        hasArtistTokens: hasArtistTokens,
-        hasAnyArtistAssets: hasAnyArtistAssets
-    };
+/**
+ * Generate a mock IPFS hash
+ * This is a placeholder for actual IPFS functionality
+ * @returns {String} IPFS hash
+ */
+function generateIPFSHash() {
+    const chars = '0123456789abcdef';
+    let hash = 'Qm';
+    
+    for (let i = 0; i < 44; i++) {
+        hash += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    return hash;
 } 
