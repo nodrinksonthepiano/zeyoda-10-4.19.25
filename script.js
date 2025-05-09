@@ -939,7 +939,12 @@ function positionOrbitalTokens() {
     const centerY = containerRect.height / 2;
     
     // Calculate radius - use video width for consistent circular orbit
-    const orbitRadius = videoWidth * 0.75;
+    const horizontalRadius = videoWidth * 0.85; // Slightly wider horizontally
+    const verticalRadius = videoHeight * 0.75; // Increased vertical height (was 0.625)
+    
+    // 3D effect parameters - more dramatic scaling
+    const minScale = 0.6; // Smaller at the top (was 0.7)
+    const maxScale = 1.5; // Larger at the bottom (was 1.3)
     
     tokens.forEach(token => {
         // Get base angle from the token
@@ -951,22 +956,36 @@ function positionOrbitalTokens() {
         // Convert to radians
         const angleRad = currentAngle * (Math.PI / 180);
         
-        // Calculate position
-        const x = Math.cos(angleRad) * orbitRadius;
-        const y = Math.sin(angleRad) * orbitRadius;
+        // Calculate position using elliptical coordinates
+        const x = Math.cos(angleRad) * horizontalRadius;
+        const y = Math.sin(angleRad) * verticalRadius;
         
-        // Position from center of container
-        token.style.transform = `translate(-50%, -50%)`;
+        // Calculate scale factor based on y position
+        // We use sin of the angle to determine position in the orbit
+        // sin(0) = 0 (horizontal right), sin(90) = 1 (top), sin(180) = 0 (horizontal left), sin(270) = -1 (bottom)
+        const sinValue = Math.sin(angleRad);
+        
+        // Map the sin value (-1 to 1) to a scale factor (maxScale to minScale)
+        // When sinValue is -1 (bottom), we want maxScale
+        // When sinValue is 1 (top), we want minScale
+        const scaleFactor = maxScale - ((sinValue + 1) / 2) * (maxScale - minScale);
+        
+        // Position from center of container with scale factor
+        token.style.transform = `translate(-50%, -50%) scale(${scaleFactor})`;
         token.style.left = `${centerX + x}px`;
         token.style.top = `${centerY + y}px`;
         
         // Adjust z-index based on y position
         if (y < 0) {
-            // Token is in the top half of the orbit (in front)
-            token.style.zIndex = "4";
-        } else {
-            // Token is in the bottom half (behind)
+            // Token is in the top half of the orbit (behind)
             token.style.zIndex = "1";
+            // Add opacity effect to enhance depth
+            token.style.opacity = "0.85";
+        } else {
+            // Token is in the bottom half (in front)
+            token.style.zIndex = "4";
+            // Full opacity for foreground tokens
+            token.style.opacity = "1";
         }
     });
 }
