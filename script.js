@@ -702,12 +702,14 @@ function setupOrbitalTokens(artist) {
         tokenElement.className = 'token';
         tokenElement.textContent = token.name;
         tokenElement.setAttribute('data-angle', token.angle);
-        
+        // Add data-artist-id if available
+        if (token.artistId) {
+            tokenElement.setAttribute('data-artist-id', token.artistId);
+        }
         // Enhanced token clicking logic with hardcoded fallbacks
         tokenElement.addEventListener('click', function() {
             console.log(`Token clicked: ${token.name}`);
             const tokenName = this.textContent;
-            
             // Hardcoded navigation for known tokens to ensure it works
             if (currentArtist === 'gosheesh' && tokenName === 'IJA TEA') {
                 console.log('Navigating to JAI TEA');
@@ -718,13 +720,9 @@ function setupOrbitalTokens(artist) {
                 transitionToArtist('gosheesh');
                 return;
             }
-            
             // Fallback to general search for other tokens
             for (const artistId in config.artists) {
-                // Skip current artist
                 if (artistId === currentArtist) continue;
-                
-                // Check if token name matches any artist name or displayName
                 const artist = config.artists[artistId];
                 if (tokenName === artist.name || tokenName === artist.displayName) {
                     console.log(`Navigating to artist: ${artistId}`);
@@ -732,11 +730,14 @@ function setupOrbitalTokens(artist) {
                     break;
                 }
             }
+            // Wallet sync: open wallet and highlight artist if artistId is present
+            const artistId = this.getAttribute('data-artist-id');
+            if (artistId) {
+                if (typeof toggleWallet === 'function') toggleWallet(true, artistId);
+            }
         });
-        
         orbitalContainer.appendChild(tokenElement);
     });
-    
     // Position the tokens initially
     setTimeout(positionOrbitalTokens, 100); // Small delay to ensure elements are rendered
 }
