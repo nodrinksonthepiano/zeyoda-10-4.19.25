@@ -1375,51 +1375,6 @@ footer {
     text-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
 }
 
-/* Wallet display styles */
-.wallet-display {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    background-color: rgba(0, 0, 0, 0.2);
-    border-radius: 30px;
-    font-size: 0.8rem;
-    margin-top: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: monospace;
-    letter-spacing: 0.5px;
-}
-
-.wallet-display:hover {
-    background-color: rgba(0, 0, 0, 0.3);
-}
-
-.wallet-display::before {
-    content: "⚡";
-    margin-right: 6px;
-    font-size: 0.9rem;
-}
-
-.gosheesh-theme .wallet-display {
-    background-color: rgba(64, 115, 255, 0.2);
-    border: 1px solid rgba(64, 115, 255, 0.3);
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.gosheesh-theme .wallet-display:hover {
-    background-color: rgba(64, 115, 255, 0.3);
-}
-
-.jaitea-theme .wallet-display {
-    background-color: rgba(78, 223, 177, 0.2);
-    border: 1px solid rgba(78, 223, 177, 0.3);
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.jaitea-theme .wallet-display:hover {
-    background-color: rgba(78, 223, 177, 0.3);
-}
-
 /* Toast notifications */
 .toast-container {
     position: fixed;
