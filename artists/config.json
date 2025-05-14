@@ -1,53 +1,53 @@
 {
-  "artists": {
-    "gosheesh": {
-      "name": "GOSHEESH",
-      "displayName": "SHEEGOHS",
-      "tokenName": "SHEEGOHS",
-      "artworkTitle": "NLi10 #1",
-      "artworkYear": "2025",
-      "tokenPrice": 0.0005,
-      "videoSrc": "assets/gosheesh-video.mp4",
-      "theme": {
-        "primaryColor": "#0a1a3b", 
-        "accentColor": "#4073ff",
-        "gradientStart": "#d4af37",
-        "gradientMiddle": "#f9f295",
-        "gradientEnd": "#d4af37",
-        "fontFamily": "Bungee, cursive"
-      },
-      "orbitalTokens": [
-        { "name": "LONIARI", "angle": 0 },
-        { "name": "ANBRI SPPIR", "angle": 72 },
-        { "name": "IJA TEA", "angle": 144 },
-        { "name": "NYTO SAREGL", "angle": 216 },
-        { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
-      ]
+  "0xabc123def456789abcdef0123456789abcdef01": {
+    "artistId": "gosheesh",
+    "artistName": "GOSHEESH",
+    "displayName": "SHEEGOHS",
+    "tokenName": "SHEEGOHS",
+    "artworkTitle": "NLi10 #1",
+    "artworkYear": "2025",
+    "tokenPrice": 0.0005,
+    "videoSrc": "assets/gosheesh-video.mp4",
+    "variables": {
+      "--primary-color": "#0a1a3b", 
+      "--accent-color": "#4073ff",
+      "--gradient-start": "#d4af37",
+      "--gradient-middle": "#f9f295",
+      "--gradient-end": "#d4af37",
+      "--artist-font": "'Bungee', cursive"
     },
-    "jaitea": {
-      "name": "JAI TEA",
-      "displayName": "IJA TEA",
-      "tokenName": "IJA TEA",
-      "artworkTitle": "Earth #2",
-      "artworkYear": "2025",
-      "tokenPrice": 0.0004,
-      "videoSrc": "assets/jaitea-video.mp4",
-      "theme": {
-        "primaryColor": "#0a3b1a",
-        "accentColor": "#4edfb1",
-        "gradientStart": "#4edfb1",
-        "gradientMiddle": "#13e7e7",
-        "gradientEnd": "#4edfb1",
-        "fontFamily": "Times New Roman, serif"
-      },
-      "orbitalTokens": [
-        { "name": "LONIARI", "angle": 0 },
-        { "name": "ANBRI SPPIR", "angle": 72 },
-        { "name": "SHEEGOHS", "angle": 144 },
-        { "name": "NYTO SAREGL", "angle": 216 },
-        { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
-      ]
-    }
+    "orbitalTokens": [
+      { "name": "LONIARI", "angle": 0 },
+      { "name": "ANBRI SPPIR", "angle": 72 },
+      { "name": "IJA TEA", "angle": 144, "artistId": "jaitea" },
+      { "name": "NYTO SAREGL", "angle": 216 },
+      { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
+    ]
+  },
+  "0xdef456abc789012def3456789abcdef01234567": {
+    "artistId": "jaitea",
+    "artistName": "JAI TEA",
+    "displayName": "IJA TEA",
+    "tokenName": "IJA TEA",
+    "artworkTitle": "Earth #2",
+    "artworkYear": "2025",
+    "tokenPrice": 0.0004,
+    "videoSrc": "assets/jaitea-video.mp4",
+    "variables": {
+      "--primary-color": "#0a3b1a",
+      "--accent-color": "#4edfb1",
+      "--gradient-start": "#4edfb1",
+      "--gradient-middle": "#13e7e7",
+      "--gradient-end": "#4edfb1",
+      "--artist-font": "'Times New Roman', serif"
+    },
+    "orbitalTokens": [
+      { "name": "LONIARI", "angle": 0 },
+      { "name": "ANBRI SPPIR", "angle": 72 },
+      { "name": "SHEEGOHS", "angle": 144, "artistId": "gosheesh" },
+      { "name": "NYTO SAREGL", "angle": 216 },
+      { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
+    ]
   },
   "defaults": {
     "minimumPurchase": 1,

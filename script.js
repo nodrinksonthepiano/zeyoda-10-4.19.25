@@ -320,6 +320,48 @@ function getCurrentArtistData() {
 
 // Apply theme based on artist configuration
 function applyArtistTheme(artistId) {
+    // First try to find if this artist has a wallet mapping
+    let walletAddress = null;
+    let walletBasedThemeApplied = false;
+    
+    // Use new dynamic theming if available
+    if (typeof window.getWalletByArtistId === 'function') {
+        walletAddress = window.getWalletByArtistId(artistId);
+    } else if (config && config.wallets) {
+        // Manual search for wallet by artist ID
+        for (const [address, data] of Object.entries(config.wallets)) {
+            if (data.artistId === artistId) {
+                walletAddress = address;
+                break;
+            }
+        }
+    }
+    
+    // If we found a wallet address, attempt to apply wallet-based theme
+    if (walletAddress && typeof window.applyWalletTheme === 'function') {
+        try {
+            walletBasedThemeApplied = window.applyWalletTheme(walletAddress);
+            if (walletBasedThemeApplied) {
+                console.log(`Applied wallet-based theme for ${artistId} (${walletAddress})`);
+                // We still add the artist-theme class for backward compatibility
+                // with any legacy CSS that might depend on it
+                document.body.className = document.body.className
+                    .split(' ')
+                    .filter(cls => !cls.endsWith('-theme'))
+                    .join(' ');
+                document.body.classList.add(`${artistId}-theme`);
+                return; // Successful wallet-based theme application
+            }
+        } catch (error) {
+            console.error("Error applying wallet theme:", error);
+            // Continue to fallback method
+        }
+    }
+    
+    // Fallback to traditional theme application
+    console.log(`Using legacy theme approach for ${artistId}`);
+    
+    // Set the body class for backward compatibility
     document.body.className = `${artistId}-theme`;
     
     // Apply CSS custom properties from config

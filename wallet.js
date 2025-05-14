@@ -9,6 +9,54 @@ let isWalletOpen = false;
 let walletInitialized = false;
 
 /**
+ * Get the connected wallet address
+ * @returns {Promise<string>} The wallet address or a fallback address
+ */
+async function getWalletAddress() {
+    // Try to get address from localStorage first
+    const storedAddress = localStorage.getItem('userWalletAddress');
+    
+    if (storedAddress) {
+        console.log(`Retrieved wallet address from storage: ${storedAddress.substring(0, 8)}...`);
+        return storedAddress;
+    }
+    
+    // If we're authenticated but don't have an address, create a temporary one
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (isAuthenticated) {
+        // Generate deterministic address based on email if available
+        const email = localStorage.getItem('userEmail');
+        if (email) {
+            // Simple hash function to generate a deterministic hex string from email
+            let emailHash = 0;
+            for (let i = 0; i < email.length; i++) {
+                emailHash = (emailHash << 5) - emailHash + email.charCodeAt(i);
+                emailHash = emailHash & emailHash; // Convert to 32bit integer
+            }
+            
+            // Generate a valid-looking Ethereum address
+            const deterministicAddress = '0x' + Math.abs(emailHash).toString(16).padStart(40, '0');
+            console.log(`Generated wallet address from email: ${deterministicAddress.substring(0, 8)}...`);
+            
+            // Store it for future use
+            localStorage.setItem('userWalletAddress', deterministicAddress);
+            
+            return deterministicAddress;
+        }
+    }
+    
+    // Fallback to current artist's default address
+    const currentArtist = localStorage.getItem('currentArtist') || 'gosheesh';
+    const fallbackAddresses = {
+        'gosheesh': '0xabc123def456789abcdef0123456789abcdef01',
+        'jaitea': '0xdef456abc789012def3456789abcdef01234567'
+    };
+    
+    console.log(`Using fallback address for artist ${currentArtist}`);
+    return fallbackAddresses[currentArtist] || fallbackAddresses['gosheesh'];
+}
+
+/**
  * Initialize the wallet module
  * Should be called after user authentication
  */
@@ -453,6 +501,7 @@ if (typeof window !== 'undefined') {
         clear: clearAssets,
         onPurchaseComplete: onPurchaseComplete,
         loadAssets: loadUserAssets,
-        hasAssets: hasAssets
+        hasAssets: hasAssets,
+        getAddress: getWalletAddress
     };
 } 

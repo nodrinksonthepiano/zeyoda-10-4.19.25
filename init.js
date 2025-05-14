@@ -1,0 +1,239 @@
+/**
+ * ZEYODA Wallet-Based Dynamic Theming System
+ * This module handles theme initialization based on the connected wallet address
+ */
+
+// Regular expression to match wallet addresses (Ethereum-style)
+const WALLET_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
+
+/**
+ * Get the wallet address from the wallet module
+ * @returns {Promise<string>} The wallet address or null if not available
+ */
+async function getWalletAddress() {
+  try {
+    // Check if wallet module is available
+    if (window.wallet && typeof window.wallet.getAddress === 'function') {
+      return await window.wallet.getAddress();
+    }
+    
+    // Fallback: check localStorage for user wallet address
+    const storedAddress = localStorage.getItem('userWalletAddress');
+    if (storedAddress && WALLET_ADDRESS_REGEX.test(storedAddress)) {
+      return storedAddress;
+    }
+    
+    console.warn('No wallet address found');
+    return null;
+  } catch (error) {
+    console.error('Error getting wallet address:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetch artist configuration from JSON file
+ * @returns {Promise<Object>} The artist configuration
+ */
+async function fetchArtistConfig() {
+  try {
+    const response = await fetch('./artists/config.json', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load config (${response.status}): ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching artist config:', error);
+    throw error;
+  }
+}
+
+/**
+ * Apply CSS variables to the document root
+ * @param {Object} variables - CSS variables to apply
+ */
+function applyCSSVariables(variables) {
+  const root = document.documentElement;
+  
+  for (const [name, value] of Object.entries(variables)) {
+    root.style.setProperty(name, value);
+    
+    // If this is a color that might be used with transparency, also create RGB values
+    if (name.includes('color') && value.startsWith('#')) {
+      const rgbValue = hexToRgb(value);
+      if (rgbValue) {
+        // Create RGB version for rgba() usage (e.g. --primary-color-rgb)
+        const rgbName = `${name}-rgb`;
+        root.style.setProperty(rgbName, rgbValue);
+      }
+    }
+  }
+  
+  console.log('Applied CSS variables:', Object.keys(variables).join(', '));
+}
+
+/**
+ * Convert hex color to RGB format for rgba() usage
+ * @param {string} hex - Hex color code (e.g. "#ff0000")
+ * @returns {string} RGB values as "r, g, b" (e.g. "255, 0, 0")
+ */
+function hexToRgb(hex) {
+  // Remove # if present
+  hex = hex.replace('#', '');
+  
+  // Handle both 3-digit and 6-digit hex
+  if (hex.length === 3) {
+    hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  }
+  
+  if (hex.length !== 6) {
+    console.warn('Invalid hex color:', hex);
+    return null;
+  }
+  
+  // Parse the hex values
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    console.warn('Invalid hex color components:', hex);
+    return null;
+  }
+  
+  return `${r}, ${g}, ${b}`;
+}
+
+/**
+ * Update UI elements with artist information
+ * @param {Object} artistData - Artist data from config
+ */
+function updateArtistElements(artistData) {
+  // Update artist name elements
+  const artistNameElements = document.querySelectorAll('.artist-name');
+  artistNameElements.forEach(element => {
+    element.textContent = artistData.artistName;
+  });
+  
+  // Update additional artist elements if needed
+  const tokenNameElements = document.querySelectorAll('.artist-token-name');
+  tokenNameElements.forEach(element => {
+    element.textContent = artistData.artistName;
+  });
+  
+  // Additional artist-specific elements can be updated here
+  
+  console.log(`Updated UI elements for artist: ${artistData.artistName}`);
+}
+
+/**
+ * Apply theme based on wallet address
+ * @param {string} walletAddress - The wallet address to look up in config
+ * @returns {boolean} Whether the theme was successfully applied
+ */
+function applyWalletTheme(walletAddress) {
+  if (!walletAddress) return false;
+  
+  // Normalize address to lowercase
+  const normalizedAddress = walletAddress.toLowerCase();
+  
+  // Try to get artist data from global config
+  const artistData = window.config && 
+                    window.config.wallets && 
+                    window.config.wallets[normalizedAddress];
+  
+  if (!artistData || !artistData.variables) {
+    console.warn(`No theme data found for wallet: ${normalizedAddress}`);
+    return false;
+  }
+  
+  // Apply CSS variables
+  applyCSSVariables(artistData.variables);
+  
+  // Update UI elements
+  updateArtistElements(artistData);
+  
+  console.log(`Applied theme for wallet: ${normalizedAddress}`);
+  return true;
+}
+
+/**
+ * Initialize the theme based on wallet
+ */
+async function initializeWalletTheme() {
+  try {
+    // Get wallet address
+    const walletAddress = await getWalletAddress();
+    
+    if (!walletAddress) {
+      console.warn('No wallet address available, using default theme');
+      return false;
+    }
+    
+    // Apply theme based on wallet
+    return applyWalletTheme(walletAddress);
+  } catch (error) {
+    console.error('Error initializing wallet theme:', error);
+    return false;
+  }
+}
+
+/**
+ * Get wallet address by artist ID from config
+ * @param {string} artistId - Artist ID to look up
+ * @returns {string|null} Wallet address or null if not found
+ */
+function getWalletByArtistId(artistId) {
+  if (!artistId) return null;
+  
+  // Check if we have the config loaded
+  if (!window.config || !window.config.wallets) {
+    console.warn('Config not loaded, cannot get wallet by artist ID');
+    return null;
+  }
+  
+  // Search through wallet entries
+  for (const [address, data] of Object.entries(window.config.wallets)) {
+    if (data.artistId === artistId) {
+      return address;
+    }
+  }
+  
+  console.warn(`No wallet found for artist ID: ${artistId}`);
+  return null;
+}
+
+// Initialize theme when the DOM is loaded
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('Initializing wallet-based theming system');
+  await initializeWalletTheme();
+});
+
+// Expose functions to the global window object for non-module scripts
+if (typeof window !== 'undefined') {
+  window.getWalletAddress = getWalletAddress;
+  window.applyWalletTheme = applyWalletTheme;
+  window.initializeWalletTheme = initializeWalletTheme;
+  window.getWalletByArtistId = getWalletByArtistId;
+  
+  console.log('Wallet-based theming API exposed to window');
+}
+
+// Export functions for use in other modules
+export {
+  getWalletAddress,
+  initializeWalletTheme,
+  applyCSSVariables,
+  updateArtistElements,
+  applyWalletTheme,
+  getWalletByArtistId
+}; 
