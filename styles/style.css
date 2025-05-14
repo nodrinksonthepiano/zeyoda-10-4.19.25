@@ -23,4 +23,7 @@
 /* Chat-specific styles */
 @import url('./_chat.css');
 
+/* Orbit animation styles */
+@import url('./_orbit.css');
+
 /* Any additional modules would be imported here */ 

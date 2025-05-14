@@ -3,6 +3,9 @@
  * This module handles theme initialization based on the connected wallet address
  */
 
+// Import orbit setup
+import { setupOrbit } from './orbit.js';
+
 // Regular expression to match wallet addresses (Ethereum-style)
 const WALLET_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -162,6 +165,9 @@ function applyWalletTheme(walletAddress) {
   // Update UI elements
   updateArtistElements(artistData);
   
+  // Initialize orbital tokens
+  setupOrbit(artistData);
+  
   console.log(`Applied theme for wallet: ${normalizedAddress}`);
   return true;
 }
@@ -176,6 +182,27 @@ async function initializeWalletTheme() {
     
     if (!walletAddress) {
       console.warn('No wallet address available, using default theme');
+      
+      // Try to use default artist if available
+      if (window.config && window.config.defaults && window.config.defaults.defaultArtistId) {
+        const defaultArtistId = window.config.defaults.defaultArtistId;
+        const walletForDefaultArtist = getWalletByArtistId(defaultArtistId);
+        
+        if (walletForDefaultArtist) {
+          return applyWalletTheme(walletForDefaultArtist);
+        }
+      }
+      
+      // Use first artist as fallback if no default specified
+      if (window.config && window.config.wallets) {
+        const firstWalletAddress = Object.keys(window.config.wallets)[0];
+        if (firstWalletAddress) {
+          return applyWalletTheme(firstWalletAddress);
+        }
+      }
+      
+      // If all fallbacks fail, initialize orbit with default data
+      setupOrbit(null);
       return false;
     }
     
@@ -183,6 +210,8 @@ async function initializeWalletTheme() {
     return applyWalletTheme(walletAddress);
   } catch (error) {
     console.error('Error initializing wallet theme:', error);
+    // Even on error, make sure orbit is initialized
+    setupOrbit(null);
     return false;
   }
 }
@@ -224,6 +253,7 @@ if (typeof window !== 'undefined') {
   window.applyWalletTheme = applyWalletTheme;
   window.initializeWalletTheme = initializeWalletTheme;
   window.getWalletByArtistId = getWalletByArtistId;
+  window.setupOrbit = setupOrbit; // Expose setupOrbit directly
   
   console.log('Wallet-based theming API exposed to window');
 }
@@ -235,5 +265,6 @@ export {
   applyCSSVariables,
   updateArtistElements,
   applyWalletTheme,
-  getWalletByArtistId
+  getWalletByArtistId,
+  setupOrbit
 }; 
