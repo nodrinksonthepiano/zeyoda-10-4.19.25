@@ -403,20 +403,26 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
     if (includesDownload) {
         // Check if we already have this download
         const artistAssets = userAssets[artistId] || { tokens: 0, downloads: [] };
-        const artistData = getCurrentArtistData();
         
-        if (!artistData) {
-            console.error("Could not get artist data for download");
-            return;
+        // Get artist data - we can't use getCurrentArtistData() directly as it's in script.js,
+        // so we'll try to get it from the global config object
+        let title = 'Digital Download';
+        try {
+            if (window.config && window.config.artists && window.config.artists[artistId]) {
+                title = window.config.artists[artistId].artworkTitle || 'Digital Download';
+            }
+        } catch (error) {
+            console.error("Error accessing config for artwork title:", error);
         }
         
-        const title = artistData.artworkTitle || 'Digital Download';
         const hasDownload = artistAssets.downloads && artistAssets.downloads.some(d => d.title === title);
         
         // Only add if we don't already have this download
         if (!hasDownload) {
-            // Generate IPFS hash for download
-            const ipfsHash = generateIPFSHash ? generateIPFSHash() : `Qm${Math.random().toString(36).substring(2, 15)}`;
+            // Generate IPFS hash for download - use a simple random hash if the function isn't available
+            const ipfsHash = typeof generateIPFSHash === 'function' ? 
+                generateIPFSHash() : 
+                `Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
             
             // Add download
             addArtistDownload(artistId, {
