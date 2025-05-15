@@ -1,5 +1,6 @@
 // Configuration and state management
 import { config, loadConfigAndInit } from './config.js';
+import { initDownloadFlow } from './download.js';
 
 let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
@@ -188,23 +189,20 @@ function initializeApp() {
     // Set up video controls
     setupVideoControls();
     
-    // Set up content unlock toggle
-    setupContentUnlockToggle();
-    
     // Set up logout button
     setupLogoutButton();
     
     // Set up chat input listeners
     setupChatInput();
     
-    // Set up buy button listener
-    const buyButton = document.getElementById('buyButton');
-    if (buyButton) {
-        // Remove existing listeners by replacing the element
-        const newBuyButton = buyButton.cloneNode(true);
-        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-        newBuyButton.addEventListener('click', handleBuyClick);
-    }
+    // Initialize download flow using the new module
+    initDownloadFlow({
+        currentArtist,
+        isAuthenticated,
+        safewordUsed,
+        contentUnlocked,
+        currentTokenAmount
+    });
     
     // Set up explore button (important for switching between artists)
     updateExploreButton();
@@ -275,12 +273,6 @@ function initializeApp() {
     // Update artist name and related elements
     updateArtistElements();
     
-    // Initialize buy button with correct text
-    updateBuyButton();
-    
-    // Set up payment buttons with event handlers
-    setupPaymentButtons();
-    
     // Listen for window resize to reposition orbital tokens
     window.addEventListener('resize', function() {
         positionOrbitalTokens();
@@ -290,27 +282,6 @@ function initializeApp() {
     
     // Debug purchase flow
     debugPurchaseFlow();
-    
-    // Wait a bit to make sure everything is fully initialized
-    setTimeout(() => {
-        console.log("Running post-initialization checks...");
-        
-        // Ensure buy button has a click handler
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            // Make sure we have the latest event handler
-            const newBuyButton = buyButton.cloneNode(true);
-            buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-            newBuyButton.addEventListener('click', handleBuyClick);
-            console.log("Re-attached click handler to buy button after initialization");
-        }
-        
-        // Ensure payment buttons have event handlers
-        setupPaymentButtons();
-        
-        // Debug initial state
-        debugPurchaseFlow();
-    }, 500); // Wait half a second for everything to settle
 }
 
 // Helper function to get current artist data from config
@@ -1124,7 +1095,62 @@ function handlePayment(method) {
     // Don't allow payment if nothing is selected
     if (artistocksTotal === 0 && !includesDownload) {
         console.error("Nothing selected for purchase");
-        alert("Please select either artistocks or enable the download");
+        
+        // Apply shake animation instead of showing an alert
+        const paymentSection = document.querySelector('.payment-section');
+        const purchaseSection = document.getElementById('purchaseSection');
+        
+        // Create a shake animation function if it doesn't exist
+        if (typeof applyShakeAnimation !== 'function') {
+            window.applyShakeAnimation = function(element) {
+                if (!element) return;
+                element.style.animation = '';
+                void element.offsetWidth;
+                element.style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    element.style.animation = '';
+                }, 500);
+            };
+        }
+        
+        // Apply the animation
+        if (typeof applyShakeAnimation === 'function') {
+            applyShakeAnimation(paymentSection);
+            applyShakeAnimation(purchaseSection);
+        } else {
+            // Fallback if function not available
+            if (paymentSection) {
+                paymentSection.style.animation = 'shake 0.5s';
+                setTimeout(() => { paymentSection.style.animation = ''; }, 500);
+            }
+            if (purchaseSection) {
+                purchaseSection.style.animation = 'shake 0.5s';
+                setTimeout(() => { purchaseSection.style.animation = ''; }, 500);
+            }
+        }
+        
+        // Add visual error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'purchase-error-message';
+        errorMessage.textContent = 'Please select either artistocks or enable the download';
+        errorMessage.style.color = '#ff6b6b';
+        errorMessage.style.textAlign = 'center';
+        errorMessage.style.marginTop = '10px';
+        errorMessage.style.marginBottom = '10px';
+        errorMessage.style.fontWeight = 'bold';
+        
+        // Add to purchase section
+        if (purchaseSection && !purchaseSection.querySelector('.purchase-error-message')) {
+            purchaseSection.prepend(errorMessage);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (errorMessage.parentNode) {
+                    errorMessage.remove();
+                }
+            }, 3000);
+        }
+        
         return;
     }
     
@@ -1513,25 +1539,14 @@ function setupVideoControls() {
     const video = document.getElementById('artistVideo');
     const muteToggle = document.getElementById('muteToggle');
     const fullscreenToggle = document.getElementById('fullscreenToggle');
-    const downloadButton = document.getElementById('downloadVideo');
+    
+    if (!video || !muteToggle || !fullscreenToggle) return;
+    
+    // Set initial muted state based on video element
     const mutedIcon = document.querySelector('.muted-icon');
     const unmutedIcon = document.querySelector('.unmuted-icon');
     
-    if (!video || !muteToggle || !fullscreenToggle || !downloadButton) return;
-    
-    // Ensure initial UI state matches video state
-    if (video.muted) {
-        mutedIcon.style.display = '';
-        unmutedIcon.style.display = 'none';
-        muteToggle.setAttribute('aria-label', 'Unmute');
-    } else {
-        mutedIcon.style.display = 'none';
-        unmutedIcon.style.display = '';
-        muteToggle.setAttribute('aria-label', 'Mute');
-    }
-    
-    // Listen for browser-initiated mute events (e.g., autoplay policy)
-    video.addEventListener('volumechange', () => {
+    if (mutedIcon && unmutedIcon) {
         if (video.muted) {
             mutedIcon.style.display = '';
             unmutedIcon.style.display = 'none';
@@ -1541,14 +1556,13 @@ function setupVideoControls() {
             unmutedIcon.style.display = '';
             muteToggle.setAttribute('aria-label', 'Mute');
         }
-    });
+    }
     
     // Mute toggle functionality
     muteToggle.addEventListener('click', () => {
-        // Toggle muted state
         video.muted = !video.muted;
         
-        // Play video if it's not playing
+        // Try to play the video if it's unmuted and paused
         if (!video.muted && video.paused) {
             video.play().catch(err => console.error('Error playing video:', err));
         }
@@ -1563,17 +1577,6 @@ function setupVideoControls() {
             unmutedIcon.style.display = '';
             muteToggle.setAttribute('aria-label', 'Mute');
         }
-    });
-    
-    // Download button functionality
-    downloadButton.addEventListener('click', () => {
-        const videoUrl = video.querySelector('source').src;
-        const link = document.createElement('a');
-        link.href = videoUrl;
-        link.download = `${currentArtist}-artwork.mp4`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     });
     
     // Fullscreen toggle functionality
@@ -1649,6 +1652,35 @@ function handleBuyClick() {
         return; // Exit function - don't proceed with purchase
     }
     
+    // Check if content unlock toggle is checked
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+    
+    // Get safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
+    // If download isn't checked AND safeword hasn't been used, shake the button
+    if (!includesDownload && !safewordUsed) {
+        console.log("Download not selected and safeword not used, prompting user to check the box");
+        
+        // Shake the button to indicate download selection required
+        const buyButton = document.getElementById('buyButton');
+        buyButton.style.animation = 'shake 0.5s';
+        setTimeout(() => {
+            buyButton.style.animation = '';
+        }, 500);
+        
+        // Highlight the toggle to indicate it should be checked
+        if (contentUnlockToggle) {
+            contentUnlockToggle.parentElement.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
+            setTimeout(() => {
+                contentUnlockToggle.parentElement.style.boxShadow = '';
+            }, 3000);
+        }
+        
+        return; // Don't proceed with purchase
+    }
+    
     console.log("Authenticated, proceeding with purchase flow"); // Debugging
     
     // SIMPLIFIED DIRECT APPROACH - Don't rely on existing elements
@@ -1677,12 +1709,8 @@ function handleBuyClick() {
         return;
     }
     
-    // Get safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
     // Check if advanced purchase options are visible and have a value
     let artistocksTotal = 0;
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
     const unlockCost = contentUnlockToggle && contentUnlockToggle.checked ? 1 : 0;
     
     if (safewordUsed) {
@@ -1733,8 +1761,8 @@ function handleBuyClick() {
             // Just download
             purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
         } else {
-            // No purchase selected - add a message to select something
-            purchaseHeadline.innerHTML = `Please select either artistocks or enable the download`;
+            // No purchase selected - this should never happen with our early validation
+            purchaseHeadline.innerHTML = `Please select an option to continue`;
         }
     }
     
@@ -1870,8 +1898,68 @@ function setupContentUnlockToggle() {
         // If no artistocks are selected and download is unchecked, warn the user
         if (safewordUsed && currentTokenAmount === 0 && !toggle.checked) {
             console.warn("No purchase selected");
-            alert("Please select either artistocks or enable the download");
-            toggle.checked = true; // Force toggle back on
+            
+            // Replace alert with shake animation
+            // Create the shake animation function if it doesn't exist yet
+            if (typeof applyShakeAnimation !== 'function') {
+                window.applyShakeAnimation = function(element) {
+                    if (!element) return;
+                    element.style.animation = '';
+                    void element.offsetWidth;
+                    element.style.animation = 'shake 0.5s';
+                    setTimeout(() => {
+                        element.style.animation = '';
+                    }, 500);
+                };
+            }
+            
+            // Apply shake to relevant elements
+            const buyButton = document.getElementById('buyButton');
+            const tokenSection = document.getElementById('tokenPreviewSection');
+            
+            if (typeof applyShakeAnimation === 'function') {
+                applyShakeAnimation(buyButton);
+                applyShakeAnimation(tokenSection);
+            } else {
+                // Fallback
+                if (buyButton) {
+                    buyButton.style.animation = 'shake 0.5s';
+                    setTimeout(() => { buyButton.style.animation = ''; }, 500);
+                }
+                if (tokenSection) {
+                    tokenSection.style.animation = 'shake 0.5s';
+                    setTimeout(() => { tokenSection.style.animation = ''; }, 500);
+                }
+            }
+            
+            // Add visual error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'purchase-error-message';
+            errorMessage.textContent = 'Please select either artistocks or enable the download';
+            errorMessage.style.color = '#ff6b6b';
+            errorMessage.style.textAlign = 'center';
+            errorMessage.style.marginTop = '10px';
+            errorMessage.style.marginBottom = '10px';
+            errorMessage.style.fontWeight = 'bold';
+            
+            // Add to token section
+            if (tokenSection && !tokenSection.querySelector('.purchase-error-message')) {
+                if (buyButton && buyButton.parentNode) {
+                    buyButton.parentNode.insertBefore(errorMessage, buyButton.nextSibling);
+                } else {
+                    tokenSection.appendChild(errorMessage);
+                }
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    if (errorMessage.parentNode) {
+                        errorMessage.remove();
+                    }
+                }, 3000);
+            }
+            
+            // Force toggle back on
+            toggle.checked = true;
             updateTotalPrice(); // Update price again
             updateBuyButton(); // Update button again
         }
@@ -2409,15 +2497,6 @@ function updateUIForAuthState() {
         successSection.style.display = 'none';
     }
     
-    // Always update buy button text based on current safeword state
-    updateBuyButton();
-    
-    // Ensure content unlock toggle is checked by default for the $1 download
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    if (contentUnlockToggle) {
-        contentUnlockToggle.checked = true;
-    }
-    
     // Handle wallet display
     const existingWalletDisplay = document.getElementById('walletDisplay');
     
@@ -2480,40 +2559,12 @@ function updateUIForAuthState() {
                 "Type something" : 
                 "Type something";
         }
-        
-        // Ensure the buy button has its event handler
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            // Remove existing event listeners by cloning and replacing
-            const newBuyButton = buyButton.cloneNode(true);
-            buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-            newBuyButton.addEventListener('click', handleBuyClick);
-        }
     } else {
         console.log("User is not authenticated - showing login section");
         // Show login for non-authenticated users
         if (loginSection) {
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
-        }
-        
-        // Always hide advanced options for non-authenticated users
-        if (advancedOptions) {
-            advancedOptions.style.display = 'none';
-            advancedOptions.classList.remove('show');
-            advancedOptions.style.opacity = '0';
-            advancedOptions.style.maxHeight = '0';
-        }
-        
-        // Reset email input for non-authenticated users
-        if (document.getElementById('emailInput')) {
-            document.getElementById('emailInput').value = '';
-        }
-        
-        // Update chat input placeholder
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.placeholder = "Type something";
         }
     }
 }
