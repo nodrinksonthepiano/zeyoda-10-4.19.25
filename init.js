@@ -5,6 +5,8 @@
 
 // Import orbit setup
 import { setupOrbit } from './orbit.js';
+// Import purchase setup
+import { setupPurchaseFlow } from './purchase.js';
 
 // Regular expression to match wallet addresses (Ethereum-style)
 const WALLET_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -168,6 +170,9 @@ function applyWalletTheme(walletAddress) {
   // Initialize orbital tokens
   setupOrbit(artistData);
   
+  // Initialize purchase flow
+  setupPurchaseFlow(artistData);
+  
   console.log(`Applied theme for wallet: ${normalizedAddress}`);
   return true;
 }
@@ -203,6 +208,8 @@ async function initializeWalletTheme() {
       
       // If all fallbacks fail, initialize orbit with default data
       setupOrbit(null);
+      // Also initialize purchase flow with null to use defaults
+      setupPurchaseFlow(null);
       return false;
     }
     
@@ -210,8 +217,9 @@ async function initializeWalletTheme() {
     return applyWalletTheme(walletAddress);
   } catch (error) {
     console.error('Error initializing wallet theme:', error);
-    // Even on error, make sure orbit is initialized
+    // Even on error, make sure orbit and purchase are initialized
     setupOrbit(null);
+    setupPurchaseFlow(null);
     return false;
   }
 }
