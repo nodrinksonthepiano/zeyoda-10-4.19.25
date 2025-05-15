@@ -227,6 +227,13 @@ button {
     background: linear-gradient(to bottom, 
                 var(--email-btn-gradient-start, #ff5c5c), 
                 var(--email-btn-gradient-end, #cc2828));
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 48px;
+    font-size: 1.05rem;
+    margin-top: 8px;
 }
 
 .login-btn.email:hover {
@@ -647,6 +654,55 @@ button {
 .secondary-text {
     color: rgba(255, 255, 255, 0.9);
     font-size: 1rem;
+}
+
+/* Email input styling */
+.email-input {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 30px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2),
+                inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(5px);
+}
+
+.email-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1),
+                inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.email-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.email-input.error {
+    border-color: rgba(255, 102, 102, 0.7);
+    box-shadow: 0 0 0 2px rgba(255, 102, 102, 0.3);
+}
+
+/* Login processing message */
+.login-processing-msg {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.login-processing-msg.error {
+    background-color: rgba(255, 102, 102, 0.2);
+    color: rgba(255, 102, 102, 0.9);
 }
 
 /* ... rest of the file continues ... */ 
