@@ -95,22 +95,79 @@ function setupContentUnlockToggle() {
     // Always checked by default to ensure download is available
     contentUnlockToggle.checked = true;
     
+    // Helper function to display error messages
+    const showErrorMessage = (message) => {
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        const buyButton = document.getElementById('buyButton');
+        
+        // Remove any existing error message
+        const existingError = document.querySelector('.purchase-error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Create new error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'purchase-error-message';
+        errorMessage.textContent = message;
+        errorMessage.style.color = '#ff6b6b';
+        errorMessage.style.textAlign = 'center';
+        errorMessage.style.marginTop = '10px';
+        errorMessage.style.marginBottom = '10px';
+        errorMessage.style.fontWeight = 'bold';
+        
+        // Add to token section
+        if (tokenSection && buyButton && buyButton.parentNode) {
+            buyButton.parentNode.insertBefore(errorMessage, buyButton.nextSibling);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (errorMessage.parentNode) {
+                    errorMessage.remove();
+                }
+            }, 3000);
+        }
+    };
+    
     // Add event listener to update the total price when toggled
     contentUnlockToggle.addEventListener('change', () => {
+        // Get safeword status
+        safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+        
+        // Update the total price calculation
         updateTotalPrice();
         
-        // If no artistocks are selected and download is unchecked, warn the user
-        if (currentTokenAmount === 0 && !contentUnlockToggle.checked) {
-            // Replace alert with shake animation
-            const buyButton = document.getElementById('buyButton');
-            const tokenSection = document.getElementById('tokenPreviewSection');
+        // Update buy button text to reflect the change
+        updateBuyButton();
+        
+        // If safeword is used and no artistocks are selected and download is unchecked, warn the user
+        if (safewordUsed && currentTokenAmount === 0 && !contentUnlockToggle.checked) {
+            console.warn("No purchase selected");
             
-            // Shake the button and the token section
-            applyShakeAnimation(buyButton);
-            applyShakeAnimation(tokenSection);
+            // Show inline error message
+            showErrorMessage("Please select either artistocks or enable the download");
             
-            // Re-enable the toggle
+            // If no valid selection, force toggle back on
             contentUnlockToggle.checked = true;
+            
+            // Update pricing again after forcing the toggle
+            updateTotalPrice();
+            updateBuyButton();
+        }
+        
+        // If safeword is NOT used and download is unchecked, force it back on
+        if (!safewordUsed && !contentUnlockToggle.checked) {
+            console.warn("Download must be selected when safeword is not used");
+            
+            // Show inline error message
+            showErrorMessage("Download selection is required");
+            
+            // Force toggle back on
+            contentUnlockToggle.checked = true;
+            
+            // Update pricing again
+            updateTotalPrice();
+            updateBuyButton();
         }
     });
 }
@@ -122,8 +179,12 @@ function updateTotalPrice() {
     console.log("Updating total price");
     const tokenTotalInput = document.getElementById('tokenTotalInput');
     const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const buyButton = document.getElementById('buyButton');
     
     if (!tokenTotalInput || !contentUnlockToggle) return;
+    
+    // Get safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
     // Calculate Artistocks cost
     const artistData = getCurrentArtistData();
@@ -132,22 +193,40 @@ function updateTotalPrice() {
         return;
     }
     
+    // Get artistocks amount
     const artistocksTotal = currentTokenAmount * artistData.tokenPrice;
     
-    // Add $1 if content unlock is checked (for the blue button, but not the input field)
+    // Add $1 if content unlock is checked
     const unlockCost = contentUnlockToggle.checked ? 1 : 0;
     
-    // Calculate total for the button
+    // Calculate total price
     const total = artistocksTotal + unlockCost;
     
-    // Only show artistocks total in input if safeword is used
+    // Update total input with correct price
     if (safewordUsed) {
-        // Update total input with artistocks price only (not including the $1 download)
+        // When safeword is used, show artistocks price in the input field
         tokenTotalInput.value = artistocksTotal.toFixed(2);
-        console.log(`Artistocks total: $${artistocksTotal.toFixed(4)}, Button total with download: $${total.toFixed(2)}`);
     } else {
-        // When safeword is not used, only show download price if selected
+        // When safeword is not used, always show $1 if checked, otherwise $0
         tokenTotalInput.value = unlockCost.toFixed(2);
+    }
+    
+    console.log(`Total price calculation: Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost.toFixed(2)}, Total: $${total.toFixed(2)}`);
+    
+    // Check if we have a valid selection
+    const hasValidSelection = contentUnlockToggle.checked || (safewordUsed && currentTokenAmount > 0);
+    
+    // Disable buy button if no valid selection
+    if (buyButton) {
+        if (!hasValidSelection) {
+            buyButton.disabled = true;
+            buyButton.style.opacity = '0.5';
+            buyButton.style.cursor = 'not-allowed';
+        } else {
+            buyButton.disabled = false;
+            buyButton.style.opacity = '1';
+            buyButton.style.cursor = 'pointer';
+        }
     }
     
     // If purchase headline is visible, update it based on content unlock toggle
@@ -158,21 +237,21 @@ function updateTotalPrice() {
         window.getComputedStyle(purchaseSection).display !== 'none') {
         
         if (safewordUsed) {
-            // Only show artistocks info if safeword is used
+            // If safeword is used, show price according to selection
             if (contentUnlockToggle.checked) {
                 if (artistocksTotal > 0) {
-                    // Show both Artistocks and download
+                    // Both Artistocks and download
                     purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
                 } else {
                     // Just download
                     purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
                 }
             } else if (artistocksTotal > 0) {
-                // Show only Artistocks
+                // Just Artistocks
                 purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${artistocksTotal.toFixed(2)}</span>`;
             } else {
-                // No artistocks or download (shouldn't happen)
-                purchaseHeadline.innerHTML = `Complete your purchase`;
+                // No selection
+                purchaseHeadline.innerHTML = `Please select either download or artistocks to continue`;
             }
             
             // Make sure purchaseAmount and artistStockPurchaseName are updated
@@ -187,7 +266,7 @@ function updateTotalPrice() {
                 artistStockName.textContent = artistData.name;
             }
         } else {
-            // When safeword is not used, only show download price
+            // When safeword is not used, always show $1 for download
             purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
         }
     }
@@ -195,9 +274,9 @@ function updateTotalPrice() {
     // Update buy button text to reflect the total
     updateBuyButton();
     
-    // Update slider minimum if content is unlocked
+    // Update slider minimum if safeword is used
     const slider = document.getElementById('tokenSlider');
-    if (slider) {
+    if (slider && safewordUsed) {
         const price = artistData.tokenPrice;
         const minTokens = contentUnlockToggle.checked ? 0 : Math.ceil(1 / price);
         slider.min = minTokens;
@@ -217,6 +296,9 @@ function updateBuyButton() {
     const buyButton = document.getElementById('buyButton');
     if (!buyButton) return;
     
+    // Get safeword status
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
     // Get content unlock status
     const contentUnlockToggle = document.getElementById('contentUnlockToggle');
     const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
@@ -234,8 +316,24 @@ function updateBuyButton() {
         artistocksTotal = currentTokenAmount * artistData.tokenPrice;
     }
     
-    // Calculate total
+    // Calculate total price
     const total = artistocksTotal + (includesDownload ? 1 : 0);
+    
+    // Check if we have a valid selection
+    const hasValidSelection = includesDownload || (safewordUsed && artistocksTotal > 0);
+    
+    // Disable button if no valid selection is made
+    buyButton.disabled = !hasValidSelection;
+    
+    if (!hasValidSelection) {
+        buyButton.style.opacity = '0.5';
+        buyButton.style.cursor = 'not-allowed';
+        buyButton.textContent = 'Select Purchase Options';
+        return;
+    } else {
+        buyButton.style.opacity = '1';
+        buyButton.style.cursor = 'pointer';
+    }
     
     // Update button text based on purchase content and safeword status
     if (safewordUsed) {
@@ -251,14 +349,11 @@ function updateBuyButton() {
         } else if (includesDownload) {
             // Just download
             buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-        } else {
-            // No selection (rare case)
-            buyButton.textContent = `Select Purchase Options`;
         }
+        
         buyButton.classList.add('safeword-activated');
     } else {
         // Safeword has NOT been used, only show download option
-        // Always show simple download price regardless of artistocks amounts
         buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
         buyButton.classList.remove('safeword-activated');
     }
@@ -272,42 +367,83 @@ function handleBuyClick() {
     
     // Always check authentication from localStorage
     isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
     console.log("Authentication state:", isAuthenticated);
     
+    // Get purchase options selection state
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+    let artistocksTotal = 0;
+    
+    // Calculate artistocks amount if safeword is used
+    if (safewordUsed) {
+        const artistData = getCurrentArtistData();
+        if (artistData && currentTokenAmount > 0) {
+            artistocksTotal = currentTokenAmount * artistData.tokenPrice;
+        }
+    }
+    
+    // Check if either download or artistocks is selected
+    const hasValidSelection = includesDownload || (safewordUsed && artistocksTotal > 0);
+    
+    // Helper function to display inline error messages
+    const showInlineError = (message) => {
+        const tokenSection = document.getElementById('tokenPreviewSection');
+        const buyButton = document.getElementById('buyButton');
+        
+        // Remove any existing error message
+        const existingError = document.querySelector('.purchase-error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Create new error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'purchase-error-message';
+        errorMessage.textContent = message;
+        errorMessage.style.color = '#ff6b6b';
+        errorMessage.style.textAlign = 'center';
+        errorMessage.style.marginTop = '10px';
+        errorMessage.style.marginBottom = '10px';
+        errorMessage.style.fontWeight = 'bold';
+        
+        // Add to token section
+        if (tokenSection && buyButton && buyButton.parentNode) {
+            buyButton.parentNode.insertBefore(errorMessage, buyButton.nextSibling);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (errorMessage.parentNode) {
+                    errorMessage.remove();
+                }
+            }, 3000);
+        }
+    };
+    
+    // Check authentication first
     if (!isAuthenticated) {
-        // Shake the login section to indicate authentication required
+        console.log("Not authenticated, showing login");
+        
+        // Make sure login section is visible first
         const loginSection = document.getElementById('loginSection');
         if (loginSection) {
-            console.log("Not authenticated, showing login");
-            // Make sure login section is visible first
             loginSection.style.display = 'flex';
             loginSection.style.opacity = '1';
-            
-            // Apply shake animation to the entire login section
-            applyShakeAnimation(loginSection);
             
             // Scroll to login section
             loginSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
-        return; // Exit function - don't proceed with purchase
+        // Show inline error message instead of shaking
+        showInlineError("Please sign in to continue with your purchase");
+        return;
     }
     
-    // Check if content unlock toggle is checked
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
-    
-    // Get safeword status from localStorage
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // If download isn't checked AND safeword hasn't been used, shake the button
-    if (!includesDownload && !safewordUsed) {
-        console.log("Download not selected and safeword not used, prompting user to check the box");
-        
-        // Shake the button to indicate download selection required
-        const buyButton = document.getElementById('buyButton');
-        applyShakeAnimation(buyButton);
+    // If no valid selection (neither download nor artistocks), show error and return
+    if (!hasValidSelection) {
+        console.log("No valid purchase selection");
+        showInlineError("Please select either download or artistocks to continue");
         
         // Highlight the toggle to indicate it should be checked
         if (contentUnlockToggle) {
@@ -317,10 +453,10 @@ function handleBuyClick() {
             }, 3000);
         }
         
-        return; // Don't proceed with purchase
+        return;
     }
     
-    console.log("Authenticated and download selected, proceeding with purchase flow");
+    console.log("Authenticated, proceeding with purchase flow");
     
     // Force-create the purchase section if it doesn't exist
     ensurePurchaseSectionExists();
@@ -350,10 +486,28 @@ function handleBuyClick() {
         return;
     }
     
-    // Always show simple download price for non-safeword users
+    // Calculate total price (artistocks + $1 download)
+    const unlockCost = contentUnlockToggle && contentUnlockToggle.checked ? 1 : 0;
+    const totalPrice = artistocksTotal + unlockCost;
+    
+    // Explicitly update purchase headline
     const purchaseHeadline = document.getElementById('purchaseHeadline');
     if (purchaseHeadline) {
-        purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+        if (safewordUsed && artistocksTotal > 0) {
+            if (unlockCost > 0) {
+                // Both artistocks and download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
+            } else {
+                // Just artistocks, no download
+                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
+            }
+        } else if (unlockCost > 0) {
+            // Just download
+            purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
+        } else {
+            // No purchase selected - this should never happen with our early validation
+            purchaseHeadline.innerHTML = `Please select an option to continue`;
+        }
     }
     
     // Now force display the purchase section
@@ -494,6 +648,9 @@ function handlePayment(method) {
     isAuthenticated = true;
     localStorage.setItem('isAuthenticated', 'true');
     
+    // Get safeword status and check if this includes artistocks
+    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+    
     // Determine the transaction type based on artistock amount
     const artistData = getCurrentArtistData();
     if (!artistData) {
@@ -518,17 +675,37 @@ function handlePayment(method) {
     // Log the purchase details
     console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
     
-    // Don't allow payment if BOTH artistocks AND download are not selected
-    // This fixes the issue where payment section would shake when buying only artistocks without download
+    // Don't allow payment if nothing is selected
     if (artistocksTotal === 0 && !includesDownload) {
         console.error("Nothing selected for purchase");
         
-        // Shake the payment section instead of showing an alert
-        const paymentSection = document.querySelector('.payment-section');
-        const purchaseSection = document.getElementById('purchaseSection');
+        // Add visual error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'purchase-error-message';
+        errorMessage.textContent = 'Please select either artistocks or enable the download';
+        errorMessage.style.color = '#ff6b6b';
+        errorMessage.style.textAlign = 'center';
+        errorMessage.style.marginTop = '10px';
+        errorMessage.style.marginBottom = '10px';
+        errorMessage.style.fontWeight = 'bold';
         
-        applyShakeAnimation(paymentSection);
-        applyShakeAnimation(purchaseSection);
+        // Add to purchase section
+        const purchaseSection = document.getElementById('purchaseSection');
+        if (purchaseSection && !purchaseSection.querySelector('.purchase-error-message')) {
+            const paymentSection = purchaseSection.querySelector('.payment-section');
+            if (paymentSection) {
+                purchaseSection.insertBefore(errorMessage, paymentSection);
+            } else {
+                purchaseSection.prepend(errorMessage);
+            }
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (errorMessage.parentNode) {
+                    errorMessage.remove();
+                }
+            }, 3000);
+        }
         
         return;
     }
