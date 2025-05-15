@@ -1,6 +1,7 @@
 // Configuration and state management
 import { config, loadConfigAndInit } from './config.js';
 import { initDownloadFlow } from './download.js';
+import { setupPurchaseFlow } from './purchase.js';
 
 let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
@@ -14,6 +15,9 @@ let safewordUsed = localStorage.getItem('safewordUsed') === 'true';
 let orbitAnimationId = null;
 let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
 let lastOrbitTimestamp = 0;
+
+// Purchase module reference
+let purchaseModule = null;
 
 // Magic SDK instance
 let magic = null;
@@ -199,6 +203,13 @@ function initializeApp() {
     
     console.log("Initial state:", { isAuthenticated, isLoggedIn, safewordUsed, currentArtist });
     
+    // Initialize purchase module
+    purchaseModule = setupPurchaseFlow({
+        currentArtist,
+        currentTokenAmount,
+        contentUnlocked
+    });
+    
     // Set initial theme based on stored artist
     applyArtistTheme(currentArtist);
     
@@ -262,7 +273,7 @@ function initializeApp() {
     const storedBalance = localStorage.getItem('artistocksBalance');
     if (storedBalance) {
         currentTokenAmount = parseInt(storedBalance);
-        updateFromTokenAmount(currentTokenAmount);
+        purchaseModule.updateFromTokenAmount(currentTokenAmount);
     } else {
         currentTokenAmount = config.defaults.initialTokenAmount;
     }
@@ -403,7 +414,7 @@ function applyArtistTheme(artistId) {
     }
 }
 
-// Update all UI elements with current artist data
+// Update artist elements
 function updateArtistElements() {
     const artistData = getCurrentArtistData();
     if (!artistData) {
@@ -422,7 +433,7 @@ function updateArtistElements() {
     videoSource.src = artistData.videoSrc;
 }
 
-// Set up token slider functionality
+// Set up token slider
 function setupTokenSlider() {
     const slider = document.getElementById('tokenSlider');
     const tokenAmountInput = document.getElementById('tokenAmountInput');
@@ -450,13 +461,13 @@ function setupTokenSlider() {
     slider.value = initialTokens;
     
     // Update values on load
-    updateFromTokenAmount(initialTokens);
+    purchaseModule.updateFromTokenAmount(initialTokens);
     
     // Update when slider changes
     slider.addEventListener('input', () => {
-        updateFromTokenAmount(slider.value);
+        purchaseModule.updateFromTokenAmount(slider.value);
         // Update the buy button display
-        updateTotalPrice();
+        purchaseModule.updateTotalPrice();
     });
     
     // Update when token amount input changes
@@ -473,9 +484,9 @@ function setupTokenSlider() {
         
         // Update the slider and values
         slider.value = value;
-        updateFromTokenAmount(value);
+        purchaseModule.updateFromTokenAmount(value);
         // Update the buy button display
-        updateTotalPrice();
+        purchaseModule.updateTotalPrice();
     });
     
     // Update when total amount input changes
@@ -497,60 +508,10 @@ function setupTokenSlider() {
         
         // Update slider and values
         slider.value = tokens;
-        updateFromTokenAmount(tokens);
+        purchaseModule.updateFromTokenAmount(tokens);
         // Update the buy button display
-        updateTotalPrice();
+        purchaseModule.updateTotalPrice();
     });
-}
-
-// Update from token amount 
-function updateFromTokenAmount(tokens) {
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data in updateFromTokenAmount");
-        return;
-    }
-    
-    const price = artistData.tokenPrice;
-    
-    // Update current token amount for purchase
-    currentTokenAmount = parseInt(tokens);
-    
-    // Calculate total price for artistocks only
-    const artistocksPrice = (currentTokenAmount * price);
-    
-    // Format token amount with commas
-    const formattedTokens = new Intl.NumberFormat().format(currentTokenAmount);
-    
-    // Update DOM elements
-    const tokenAmountInput = document.getElementById('tokenAmountInput');
-    const tokenTotalInput = document.getElementById('tokenTotalInput');
-    const purchaseAmount = document.getElementById('purchaseAmount');
-    const purchasedAmount = document.getElementById('purchasedAmount');
-    
-    if (tokenAmountInput) {
-        tokenAmountInput.value = formattedTokens;
-    }
-    
-    if (tokenTotalInput) {
-        // Just show the artistocks price, without adding the $1 download
-        tokenTotalInput.value = artistocksPrice.toFixed(2);
-        
-        console.log(`Artistocks price calculation: ${artistocksPrice.toFixed(4)} (${currentTokenAmount} tokens at $${price.toFixed(4)} each)`);
-    }
-    
-    if (purchaseAmount) {
-        purchaseAmount.textContent = formattedTokens;
-    }
-    
-    if (purchasedAmount) {
-        purchasedAmount.textContent = formattedTokens;
-    }
-    
-    // Update the buy button to reflect the new total
-    updateBuyButton();
-    
-    console.log(`Token amount updated: ${formattedTokens} tokens at $${price.toFixed(4)} = $${artistocksPrice.toFixed(4)}`);
 }
 
 // Update the token price display
@@ -635,7 +596,7 @@ function createCosmicParticles() {
     }
 }
 
-// Set up orbital tokens for the given artist
+// Set up orbital tokens
 function setupOrbitalTokens(artist) {
     const orbitalContainer = document.getElementById('orbitalTokens');
     if (!orbitalContainer) return;
@@ -695,7 +656,7 @@ function setupOrbitalTokens(artist) {
     setTimeout(positionOrbitalTokens, 100); // Small delay to ensure elements are rendered
 }
 
-// Animate the orbital tokens
+// Animate orbital tokens
 function animateOrbit() {
     // If animation is already running, cancel it first
     if (orbitAnimationId) {
@@ -737,7 +698,7 @@ function animateOrbit() {
     orbitAnimationId = requestAnimationFrame(animate);
 }
 
-// Position orbital tokens based on their current angles
+// Position orbital tokens
 function positionOrbitalTokens() {
     const tokens = document.querySelectorAll('.token');
     const container = document.querySelector('.video-container');
@@ -787,7 +748,7 @@ function positionOrbitalTokens() {
     });
 }
 
-// Handle email login form
+// Handle email login
 async function handleEmailLogin() {
     const email = document.getElementById('emailInput').value;
     const emailInput = document.getElementById('emailInput');
@@ -949,7 +910,7 @@ async function handleEmailLogin() {
     }
 }
 
-// Handle social login selection
+// Handle login method selection
 function handleLogin(method) {
     console.log(`Login selected: ${method}`);
     
@@ -974,7 +935,7 @@ function handleLogin(method) {
     completeLogin(method);
 }
 
-// Complete login process and show purchase section
+// Complete login
 function completeLogin(method) {
     console.log(`Completing login via ${method}`);
     
@@ -1038,11 +999,11 @@ function completeLogin(method) {
         // Remove existing event listeners by cloning and replacing
         const newBuyButton = buyButton.cloneNode(true);
         buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-        newBuyButton.addEventListener('click', handleBuyClick);
+        newBuyButton.addEventListener('click', () => purchaseModule.handleBuyClick());
     }
     
     // Update buy button text
-    updateBuyButton();
+    purchaseModule.updateBuyButton();
     
     // Show success toast message
     showLoginSuccessMessage();
@@ -1064,9 +1025,14 @@ function completeLogin(method) {
     
     // Log the login method for analytics (in a real app)
     console.log(`User logged in via ${method}`);
+    
+    // Need to update the buy button after login
+    if (purchaseModule) {
+        purchaseModule.updateBuyButton();
+    }
 }
 
-// Show success message after login
+// Show login success message
 function showLoginSuccessMessage() {
     // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('toastContainer');
@@ -1108,7 +1074,7 @@ function showLoginSuccessMessage() {
     }, 5000);
 }
 
-// Add a brief highlight animation to selected login button
+// Flash login button
 function flashLoginButton(method) {
     const button = document.querySelector(`.login-btn.${method}`);
     if (!button) return;
@@ -1122,276 +1088,7 @@ function flashLoginButton(method) {
     }, 300);
 }
 
-// Handle payment selection
-function handlePayment(method) {
-    console.log(`Payment selected: ${method} for artist: ${currentArtist}`);
-    paymentSelected = true;
-    
-    // Ensure user stays authenticated
-    isAuthenticated = true;
-    localStorage.setItem('isAuthenticated', 'true');
-    
-    // Get safeword status and check if this includes artistocks
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Determine the transaction type based on artistock amount
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data in handlePayment");
-        return;
-    }
-    
-    let artistocksTotal = 0;
-    let includesArtistocks = false;
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
-    
-    // Calculate artistocks total if applicable
-    if (safewordUsed && currentTokenAmount > 0) {
-        artistocksTotal = currentTokenAmount * artistData.tokenPrice;
-        includesArtistocks = true;
-    }
-    
-    // Calculate total price
-    const totalPrice = (artistocksTotal + (includesDownload ? 1 : 0)).toFixed(2);
-    
-    // Log the purchase details
-    console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
-    
-    // Don't allow payment if nothing is selected
-    if (artistocksTotal === 0 && !includesDownload) {
-        console.error("Nothing selected for purchase");
-        
-        // Apply shake animation instead of showing an alert
-        const paymentSection = document.querySelector('.payment-section');
-        const purchaseSection = document.getElementById('purchaseSection');
-        
-        // Create a shake animation function if it doesn't exist
-        if (typeof applyShakeAnimation !== 'function') {
-            window.applyShakeAnimation = function(element) {
-                if (!element) return;
-                element.style.animation = '';
-                void element.offsetWidth;
-                element.style.animation = 'shake 0.5s';
-                setTimeout(() => {
-                    element.style.animation = '';
-                }, 500);
-            };
-        }
-        
-        // Apply the animation
-        if (typeof applyShakeAnimation === 'function') {
-            applyShakeAnimation(paymentSection);
-            applyShakeAnimation(purchaseSection);
-        } else {
-            // Fallback if function not available
-            if (paymentSection) {
-                paymentSection.style.animation = 'shake 0.5s';
-                setTimeout(() => { paymentSection.style.animation = ''; }, 500);
-            }
-            if (purchaseSection) {
-                purchaseSection.style.animation = 'shake 0.5s';
-                setTimeout(() => { purchaseSection.style.animation = ''; }, 500);
-            }
-        }
-        
-        // Add visual error message
-        const errorMessage = document.createElement('div');
-        errorMessage.className = 'purchase-error-message';
-        errorMessage.textContent = 'Please select either artistocks or enable the download';
-        errorMessage.style.color = '#ff6b6b';
-        errorMessage.style.textAlign = 'center';
-        errorMessage.style.marginTop = '10px';
-        errorMessage.style.marginBottom = '10px';
-        errorMessage.style.fontWeight = 'bold';
-        
-        // Add to purchase section
-        if (purchaseSection && !purchaseSection.querySelector('.purchase-error-message')) {
-            purchaseSection.prepend(errorMessage);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                if (errorMessage.parentNode) {
-                    errorMessage.remove();
-                }
-            }, 3000);
-        }
-        
-        return;
-    }
-    
-    // Flash the selected payment button
-    flashPaymentButton(method);
-    
-    // Complete the payment process after a short delay
-    // This ensures the UI has time to update
-    setTimeout(() => {
-        if (includesArtistocks) {
-            console.log("Completing payment process for artistocks + download...");
-        } else {
-            console.log("Completing payment process for download only...");
-        }
-        
-        // Direct approach to showing success
-        showSuccessSection(includesArtistocks);
-        
-        // Wait a moment for the success section to complete its work
-        // before updating the wallet, to ensure contentUnlocked is saved
-        setTimeout(() => {
-            // Update wallet with the purchase, including whether download was purchased
-            if (window.wallet) {
-                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount, includesDownload);
-            }
-        }, 200);
-    }, 800);
-}
-
-// Show success section directly
-function showSuccessSection(includesArtistocks = false) {
-    console.log(`Showing success section for ${includesArtistocks ? 'artistocks+download' : 'download only'}`);
-    
-    // Ensure success section exists
-    let successSection = document.getElementById('successSection');
-    
-    // Get artist data
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data in showSuccessSection");
-        return;
-    }
-    
-    // Create or update the success section
-    if (!successSection) {
-        console.log("Creating new success section");
-        const contentSection = document.querySelector('.content-section');
-        if (!contentSection) {
-            console.error("Content section not found!");
-            return;
-        }
-        
-        successSection = document.createElement('div');
-        successSection.className = 'success-section';
-        successSection.id = 'successSection';
-        
-        // Create success content
-        const checkmark = document.createElement('div');
-        checkmark.className = 'success-check';
-        checkmark.textContent = '✓';
-        successSection.appendChild(checkmark);
-        
-        // Create title based on purchase type
-        const title = document.createElement('h3');
-        if (includesArtistocks) {
-            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
-        } else {
-            title.textContent = "You've unlocked this download!";
-        }
-        successSection.appendChild(title);
-        
-        // Generate IPFS hash for download
-        const ipfsHash = generateIPFSHash();
-        
-        // Create message based on purchase type
-        const message = document.createElement('p');
-        if (includesArtistocks) {
-            message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-        } else {
-            message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-        }
-        successSection.appendChild(message);
-        
-        // Add explore button
-        const exploreBtn = document.createElement('button');
-        exploreBtn.className = 'explore-btn';
-        exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
-        exploreBtn.addEventListener('click', () => {
-            currentArtist === 'gosheesh' ? transitionToArtist('jaitea') : transitionToArtist('gosheesh');
-        });
-        successSection.appendChild(exploreBtn);
-        
-        // Add to DOM
-        contentSection.appendChild(successSection);
-    } else {
-        console.log("Updating existing success section");
-        
-        // Clear existing content
-        successSection.innerHTML = '';
-        
-        // Recreate all elements based on purchase type
-        const checkmark = document.createElement('div');
-        checkmark.className = 'success-check';
-        checkmark.textContent = '✓';
-        successSection.appendChild(checkmark);
-        
-        // Create title based on purchase type
-        const title = document.createElement('h3');
-        if (includesArtistocks) {
-            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
-        } else {
-            title.textContent = "You've unlocked this download!";
-        }
-        successSection.appendChild(title);
-        
-        // Generate IPFS hash for download
-        const ipfsHash = generateIPFSHash();
-        
-        // Create message based on purchase type
-        const message = document.createElement('p');
-        if (includesArtistocks) {
-            message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-        } else {
-            message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-        }
-        successSection.appendChild(message);
-        
-        // Add explore button
-        const exploreBtn = document.createElement('button');
-        exploreBtn.className = 'explore-btn';
-        exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
-        exploreBtn.addEventListener('click', () => {
-            currentArtist === 'gosheesh' ? transitionToArtist('jaitea') : transitionToArtist('gosheesh');
-        });
-        successSection.appendChild(exploreBtn);
-    }
-    
-    // Mark this artist's content as unlocked
-    contentUnlocked[currentArtist] = true;
-    localStorage.setItem('artistUnlocked', JSON.stringify(contentUnlocked));
-    localStorage.setItem(`${currentArtist}_unlocked`, 'true');
-    
-    // Hide all sections except success
-    document.querySelectorAll('.content-section > div').forEach(section => {
-        section.style.display = 'none';
-    });
-    
-    // Show success section
-    if (successSection) {
-        successSection.style.display = 'block';
-        successSection.style.opacity = '1';
-        
-        // Scroll to success section
-        successSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    
-    console.log(`Purchase complete for ${includesArtistocks ? 'artistocks+download' : 'download only'}, artist: ${currentArtist}`);
-}
-
-// Generate a simulated IPFS hash
-function generateIPFSHash() {
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    let hash = 'Qm';
-    for (let i = 0; i < 44; i++) {
-        hash += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return hash;
-}
-
-// Expose generateIPFSHash function to window for use in wallet.js
-if (typeof window !== 'undefined') {
-    window.generateIPFSHash = generateIPFSHash;
-}
-
-// Function to transition to a different artist
+// Transition to another artist
 function transitionToArtist(artistId) {
     console.log(`Transitioning to artist: ${artistId}`);
     
@@ -1502,7 +1199,7 @@ function transitionToArtist(artistId) {
     }
     
     // Ensure purchase section exists
-    ensurePurchaseSectionExists();
+    purchaseModule.ensurePurchaseSectionExists();
     
     // Set up login section properly based on authentication
     const loginSection = document.getElementById('loginSection');
@@ -1561,10 +1258,10 @@ function transitionToArtist(artistId) {
     setTimeout(positionOrbitalTokens, 200);
     
     // First calculate the current total price
-    updateFromTokenAmount(currentTokenAmount);
+    purchaseModule.updateFromTokenAmount(currentTokenAmount);
     
     // Then update the total price - this ensures the total is correctly calculated
-    updateTotalPrice();
+    purchaseModule.updateTotalPrice();
     
     // Set up buy button with the correct event handler and text
     const buyButton = document.getElementById('buyButton');
@@ -1574,7 +1271,7 @@ function transitionToArtist(artistId) {
         buyButton.parentNode.replaceChild(newBuyButton, buyButton);
         
         // Add click listener directly
-        newBuyButton.addEventListener('click', handleBuyClick);
+        newBuyButton.addEventListener('click', () => purchaseModule.handleBuyClick());
         console.log("Re-attached click handler to buy button");
     }
     
@@ -1586,7 +1283,7 @@ function transitionToArtist(artistId) {
             // Make sure we can track clicks
             buyButton.addEventListener('click', function() {
                 console.log('Buy button clicked (backup handler)');
-                handleBuyClick();
+                purchaseModule.handleBuyClick();
             });
         }
         
@@ -1595,6 +1292,12 @@ function transitionToArtist(artistId) {
     }, 500);
     
     console.log(`Transition to ${currentArtist} complete`);
+    
+    // Update token amount display
+    purchaseModule.updateFromTokenAmount(currentTokenAmount);
+    
+    // Update total price calculation
+    purchaseModule.updateTotalPrice();
 }
 
 // Set up video controls
@@ -1681,491 +1384,19 @@ function setupVideoControls() {
             fullscreenToggle.querySelector('.fullscreen-icon').textContent = '⛶';
         }
     }
-}
 
-// Handle buy button click
-function handleBuyClick() {
-    console.log("Buy button clicked - Current artist:", currentArtist);
-    
-    // Always check authentication from localStorage
-    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    isLoggedIn = isAuthenticated;
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    console.log("Authentication state:", isAuthenticated); 
-    
-    // Get purchase options selection state
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
-    let artistocksTotal = 0;
-    
-    // Calculate artistocks amount if safeword is used
-    if (safewordUsed) {
-        const artistData = getCurrentArtistData();
-        if (artistData && currentTokenAmount > 0) {
-            artistocksTotal = currentTokenAmount * artistData.tokenPrice;
-        }
-    }
-    
-    // Check if either download or artistocks is selected
-    const hasValidSelection = includesDownload || (safewordUsed && artistocksTotal > 0);
-    
-    // Check authentication first
-    if (!isAuthenticated) {
-        console.log("Not authenticated, showing login and applying shake animation");
-        
-        // Make sure login section is visible first
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
-            
-            // Apply shake animation to the login section
-            loginSection.style.animation = '';
-            void loginSection.offsetWidth; // Force reflow
-            loginSection.style.animation = 'shake 0.5s';
-            
-            // Scroll to login section
-            loginSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            
-            // Reset animation after it completes
-            setTimeout(() => {
-                loginSection.style.animation = '';
-            }, 500);
-        }
-        
-        // Also shake the buy button to indicate action needed
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            buyButton.style.animation = '';
-            void buyButton.offsetWidth; // Force reflow
-            buyButton.style.animation = 'shake 0.5s';
-            
-            // Reset animation after it completes
-            setTimeout(() => {
-                buyButton.style.animation = '';
-            }, 500);
-        }
-        
-        return;
-    }
-    
-    // If no valid selection (neither download nor artistocks), show error and return
-    if (!hasValidSelection) {
-        console.log("No valid purchase selection");
-        
-        // Highlight the toggle to indicate it should be checked
-        if (contentUnlockToggle) {
-            contentUnlockToggle.parentElement.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
-            setTimeout(() => {
-                contentUnlockToggle.parentElement.style.boxShadow = '';
-            }, 3000);
-        }
-        
-        return;
-    }
-    
-    // If download isn't checked AND safeword hasn't been used, show error
-    if (!includesDownload && !safewordUsed) {
-        console.log("Download not selected and safeword not used, prompting user to check the box");
-        
-        // Highlight the toggle to indicate it should be checked
-        if (contentUnlockToggle) {
-            contentUnlockToggle.parentElement.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
-            setTimeout(() => {
-                contentUnlockToggle.parentElement.style.boxShadow = '';
-            }, 3000);
-        }
-        
-        return;
-    }
-    
-    console.log("Authenticated, proceeding with purchase flow");
-    
-    // Force-create the purchase section if it doesn't exist
-    ensurePurchaseSectionExists();
-    
-    // Get the purchase section directly
-    const purchaseSection = document.getElementById('purchaseSection');
-    if (!purchaseSection) {
-        console.error("Purchase section still not found after trying to create it!");
-        return;
-    }
-    
-    // First hide all other sections
-    document.querySelectorAll('.content-section > div').forEach(section => {
-        if (section.id !== 'purchaseSection') {
-            section.style.display = 'none';
-        }
-    });
-    
-    // Calculate the correct total price and update the headline
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data!");
-        return;
-    }
-    
-    // Check if advanced purchase options are visible and have a value
-    const unlockCost = contentUnlockToggle && contentUnlockToggle.checked ? 1 : 0;
-    
-    // Calculate total price (artistocks + $1 download)
-    const totalPrice = artistocksTotal + unlockCost;
-    console.log(`Total price: $${totalPrice.toFixed(2)} (Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost})`);
-    
-    // Explicitly update purchase headline
-    const purchaseHeadline = document.getElementById('purchaseHeadline');
-    if (purchaseHeadline) {
-        if (safewordUsed && artistocksTotal > 0) {
-            if (unlockCost > 0) {
-                // Both artistocks and download
-                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
-            } else {
-                // Just artistocks, no download
-                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${totalPrice.toFixed(2)}</span>`;
-            }
-        } else if (unlockCost > 0) {
-            // Just download
-            purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
-        } else {
-            // No purchase selected - this should never happen with our early validation
-            purchaseHeadline.innerHTML = `Please select an option to continue`;
-        }
-    }
-    
-    // Now force display the purchase section
-    purchaseSection.style.display = 'block';
-    purchaseSection.style.opacity = '1';
-    
-    // Ensure payment section is visible
-    const paymentSection = purchaseSection.querySelector('.payment-section');
-    if (paymentSection) {
-        paymentSection.style.display = 'grid';
-        paymentSection.style.opacity = '1';
-    }
-    
-    // Extra check for payment buttons - create them if missing
-    if (document.querySelectorAll('.payment-btn').length === 0) {
-        createPaymentButtons();
-    }
-    
-    // Force redraw
-    void purchaseSection.offsetHeight;
-    
-    // Scroll it into view
-    purchaseSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
-    console.log("Purchase flow setup complete - Forced display of purchase section");
-}
-
-// Ensure purchase section exists
-function ensurePurchaseSectionExists() {
-    console.log("Ensuring purchase section exists");
-    
-    let purchaseSection = document.getElementById('purchaseSection');
-    
-    // If purchase section doesn't exist, create it
-    if (!purchaseSection) {
-        console.log("Purchase section not found, creating it");
-        const contentSection = document.querySelector('.content-section');
-        if (contentSection) {
-            purchaseSection = document.createElement('div');
-            purchaseSection.className = 'purchase-section';
-            purchaseSection.id = 'purchaseSection';
-            
-            // Add headline
-            const headline = document.createElement('h3');
-            headline.id = 'purchaseHeadline';
-            headline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1</span>`;
-            purchaseSection.appendChild(headline);
-            
-            // Add payment section
-            const paymentSection = document.createElement('div');
-            paymentSection.className = 'payment-section';
-            purchaseSection.appendChild(paymentSection);
-            
-            // Add payment buttons
-            createPaymentButtons(paymentSection);
-            
-            // Add to DOM
-            contentSection.appendChild(purchaseSection);
-            console.log("Created new purchase section");
-        } else {
-            console.error("Content section not found, cannot create purchase section");
-        }
-    } else {
-        // Ensure purchase section has a payment section
-        let paymentSection = purchaseSection.querySelector('.payment-section');
-        if (!paymentSection) {
-            console.log("Payment section not found, creating it");
-            paymentSection = document.createElement('div');
-            paymentSection.className = 'payment-section';
-            purchaseSection.appendChild(paymentSection);
-            
-            // Add payment buttons
-            createPaymentButtons(paymentSection);
-        }
-    }
-}
-
-// Create payment buttons
-function createPaymentButtons(parentElement) {
-    const paymentSection = parentElement || document.querySelector('.payment-section');
-    if (!paymentSection) {
-        console.error("Cannot create payment buttons: no payment section found");
-        return;
-    }
-    
-    console.log("Creating payment buttons");
-    
-    // Clear existing buttons
-    paymentSection.innerHTML = '';
-    
-    // Add payment buttons
-    const paymentMethods = ['credit', 'paypal', 'venmo', 'crypto'];
-    paymentMethods.forEach(method => {
-        const btn = document.createElement('button');
-        btn.className = `payment-btn ${method}`;
-        btn.textContent = method === 'credit' ? 'Credit Card' : 
-                         method === 'paypal' ? 'PayPal' : 
-                         method === 'venmo' ? 'Venmo' : 'Crypto';
-        
-        // Add event listener directly
-        btn.addEventListener('click', () => handlePayment(method));
-        
-        paymentSection.appendChild(btn);
-    });
-    
-    console.log(`Created ${paymentMethods.length} payment buttons`);
-}
-
-// Set up content unlock toggle functionality
-function setupContentUnlockToggle() {
-    const toggle = document.getElementById('contentUnlockToggle');
-    if (!toggle) return;
-    
-    // Remove existing event listeners by cloning and replacing
-    const newToggle = toggle.cloneNode(true);
-    toggle.parentNode.replaceChild(newToggle, toggle);
-    
-    // Get the new reference
-    const updatedToggle = document.getElementById('contentUnlockToggle');
-    
-    // Create a helper function to show error messages
-    const showErrorMessage = (message) => {
-        // Remove any existing error message
-        const existingError = document.querySelector('.toggle-error-message');
-        if (existingError) {
-            existingError.remove();
-        }
-        
-        // Get parent container for the toggle
-        const toggleContainer = document.querySelector('.content-unlock-toggle');
-        if (!toggleContainer) return;
-        
-        // Create error message element
-        const errorElement = document.createElement('div');
-        errorElement.className = 'toggle-error-message';
-        errorElement.style.color = '#ff6b6b';
-        errorElement.style.marginTop = '8px';
-        errorElement.style.fontWeight = 'bold';
-        errorElement.style.fontSize = '0.9rem';
-        errorElement.textContent = message;
-        
-        // Add to container
-        toggleContainer.appendChild(errorElement);
-        
-        // Remove after delay
-        setTimeout(() => {
-            if (errorElement.parentNode) {
-                errorElement.remove();
-            }
-        }, 3000);
-    };
-    
-    // Listen for changes to update total price
-    updatedToggle.addEventListener('change', () => {
-        console.log(`Content unlock toggle changed to: ${updatedToggle.checked ? 'checked' : 'unchecked'}`);
-        
-        // Get safeword status
-        safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-        
-        // Update the total price calculation
-        updateTotalPrice();
-        
-        // Update buy button text to reflect the change
-        updateBuyButton();
-        
-        // If safeword is used and no artistocks are selected and download is unchecked, warn the user
-        if (safewordUsed && currentTokenAmount === 0 && !updatedToggle.checked) {
-            console.warn("No purchase selected");
-            
-            // Show inline error message
-            showErrorMessage("Please select either artistocks or enable the download");
-            
-            // If no valid selection, force toggle back on
-            updatedToggle.checked = true;
-            
-            // Update pricing again after forcing the toggle
-            updateTotalPrice();
-            updateBuyButton();
-        }
-        
-        // If safeword is NOT used and download is unchecked, force it back on
-        if (!safewordUsed && !updatedToggle.checked) {
-            console.warn("Download must be selected when safeword is not used");
-            
-            // Show inline error message
-            showErrorMessage("Download selection is required");
-            
-            // Force toggle back on
-            updatedToggle.checked = true;
-            
-            // Update pricing again
-            updateTotalPrice();
-            updateBuyButton();
-        }
-    });
-}
-
-// Function to update total price
-function updateTotalPrice() {
-    console.log("Updating total price");
-    const tokenTotalInput = document.getElementById('tokenTotalInput');
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    // Set up buy button click
     const buyButton = document.getElementById('buyButton');
-    
-    if (!tokenTotalInput || !contentUnlockToggle) return;
-    
-    // Get safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Calculate Artistocks cost
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data in updateTotalPrice");
-        return;
-    }
-    
-    // Get artistocks amount
-    const artistocksTotal = currentTokenAmount * artistData.tokenPrice;
-    
-    // Add $1 if content unlock is checked
-    const unlockCost = contentUnlockToggle.checked ? 1 : 0;
-    
-    // Calculate total price
-    const total = artistocksTotal + unlockCost;
-    
-    // Update total input with correct price
-    if (safewordUsed) {
-        // When safeword is used, always show total price (artistocks+download or just artistocks)
-        tokenTotalInput.value = total.toFixed(2);
-    } else {
-        // When safeword is not used, always show $1 if checked, otherwise $0
-        tokenTotalInput.value = unlockCost.toFixed(2);
-    }
-    
-    console.log(`Total price calculation: Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost.toFixed(2)}, Total: $${total.toFixed(2)}`);
-    
-    // Check if we have a valid selection
-    const hasValidSelection = contentUnlockToggle.checked || (safewordUsed && currentTokenAmount > 0);
-    
-    // Disable buy button if no valid selection
     if (buyButton) {
-        if (!hasValidSelection) {
-            buyButton.disabled = true;
-            buyButton.style.opacity = '0.5';
-            buyButton.style.cursor = 'not-allowed';
-        } else {
-            buyButton.disabled = false;
-            buyButton.style.opacity = '1';
-            buyButton.style.cursor = 'pointer';
-        }
-        
-        // Also update the buy button text directly to reflect changes
-        if (safewordUsed) {
-            // Safeword is used - show full details based on selection
-            if (artistocksTotal > 0) {
-                if (contentUnlockToggle.checked) {
-                    // Both artistocks and download
-                    buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
-                } else {
-                    // Just artistocks
-                    buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${artistocksTotal.toFixed(2)})`;
-                }
-            } else if (contentUnlockToggle.checked) {
-                // Just download
-                buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-            } else {
-                // No valid selection
-                buyButton.textContent = 'Select Purchase Options';
-            }
-        } else {
-            // Safeword not used - only show download option
-            if (contentUnlockToggle.checked) {
-                buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-            } else {
-                buyButton.textContent = 'Select Purchase Options';
-            }
-        }
-    }
-    
-    // If purchase headline is visible, update it based on content unlock toggle
-    const purchaseHeadline = document.getElementById('purchaseHeadline');
-    const purchaseSection = document.getElementById('purchaseSection');
-    
-    if (purchaseHeadline && purchaseSection && 
-        window.getComputedStyle(purchaseSection).display !== 'none') {
-        
-        if (safewordUsed) {
-            // If safeword is used, show price according to selection
-            if (contentUnlockToggle.checked) {
-                if (artistocksTotal > 0) {
-                    // Both Artistocks and download
-                    purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
-                } else {
-                    // Just download
-                    purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
-                }
-            } else if (artistocksTotal > 0) {
-                // Just Artistocks
-                purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${artistocksTotal.toFixed(2)}</span>`;
-            } else {
-                // No selection
-                purchaseHeadline.innerHTML = `Please select either download or artistocks to continue`;
-            }
-        } else {
-            // When safeword is not used, always show $1 for download
-            purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
-        }
-        
-        // Make sure purchaseAmount and artistStockPurchaseName are updated
-        const purchaseAmount = document.getElementById('purchaseAmount');
-        const artistStockName = document.getElementById('artistStockPurchaseName');
-        
-        if (purchaseAmount) {
-            purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
-        }
-        
-        if (artistStockName) {
-            artistStockName.textContent = artistData.name;
-        }
-    }
-    
-    // Update slider minimum if safeword is used
-    const slider = document.getElementById('tokenSlider');
-    if (slider && safewordUsed) {
-        const price = artistData.tokenPrice;
-        const minTokens = contentUnlockToggle.checked ? 0 : Math.ceil(1 / price);
-        slider.min = minTokens;
-        
-        // If current value is below new minimum, update it
-        if (parseInt(slider.value) < minTokens) {
-            slider.value = minTokens;
-            updateFromTokenAmount(minTokens);
-        }
+        buyButton.addEventListener('click', () => {
+            purchaseModule.handleBuyClick();
+        });
     }
 }
+
+
+
+
 
 // Set up logout button functionality
 function setupLogoutButton() {
@@ -2463,10 +1694,10 @@ function setupChatInput() {
             }, 1000);
             
             // First update the total price calculation
-            updateTotalPrice();
+            purchaseModule.updateTotalPrice();
             
             // Then update button text to reflect artistock purchase option is now available
-            updateBuyButton();
+            purchaseModule.updateBuyButton();
             
             // Update placeholder text
             this.placeholder = "Type something";
@@ -2495,75 +1726,9 @@ function updateExploreButton() {
     }
 }
 
-// Update buy button text based on current state
-function updateBuyButton() {
-    const buyButton = document.getElementById('buyButton');
-    if (!buyButton) return;
-    
-    // Get safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Get content unlock status
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
-    
-    // Get token amount for price calculation
-    const artistData = getCurrentArtistData();
-    if (!artistData) {
-        console.error("Could not get artist data in updateBuyButton");
-        return;
-    }
-    
-    // Calculate artistocks total
-    let artistocksTotal = 0;
-    if (currentTokenAmount > 0) {
-        artistocksTotal = currentTokenAmount * artistData.tokenPrice;
-    }
-    
-    // Calculate total price
-    const total = artistocksTotal + (includesDownload ? 1 : 0);
-    
-    // Check if we have a valid selection
-    const hasValidSelection = includesDownload || (safewordUsed && artistocksTotal > 0);
-    
-    // Disable button if no valid selection is made
-    buyButton.disabled = !hasValidSelection;
-    
-    if (!hasValidSelection) {
-        buyButton.style.opacity = '0.5';
-        buyButton.style.cursor = 'not-allowed';
-        buyButton.textContent = 'Select Purchase Options';
-        return;
-    } else {
-        buyButton.style.opacity = '1';
-        buyButton.style.cursor = 'pointer';
-    }
-    
-    // Update button text based on purchase content and safeword status
-    if (safewordUsed) {
-        // Safeword has been used, show all options
-        if (artistocksTotal > 0) {
-            if (includesDownload) {
-                // Both artistocks and download
-                buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
-            } else {
-                // Just artistocks
-                buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${artistocksTotal.toFixed(2)})`;
-            }
-        } else if (includesDownload) {
-            // Just download
-            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-        }
-        
-        buyButton.classList.add('safeword-activated');
-    } else {
-        // Safeword has NOT been used, only show download option
-        buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-        buyButton.classList.remove('safeword-activated');
-    }
-}
 
-// Update UI elements based on authentication state
+
+// Update UI based on authentication state
 function updateUIForAuthState() {
     // Always check authentication from localStorage
     isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -2689,62 +1854,15 @@ function updateUIForAuthState() {
             loginSection.style.opacity = '1';
         }
     }
+    
+    // Update purchase-related UI
+    if (purchaseModule) {
+        purchaseModule.updateTotalPrice();
+        purchaseModule.updateBuyButton();
+    }
 }
 
-// Helper function to set up payment buttons
-function setupPaymentButtons() {
-    console.log("Setting up payment buttons");
-    const paymentButtons = document.querySelectorAll('.payment-btn');
-    
-    if (paymentButtons.length === 0) {
-        console.error("No payment buttons found in the DOM!");
-        
-        // Try to find the payment section
-        const paymentSection = document.querySelector('.payment-section');
-        if (paymentSection) {
-            console.log("Payment section found, but no buttons. Creating them...");
-            
-            // Add payment buttons
-            const paymentMethods = ['credit', 'paypal', 'venmo', 'crypto'];
-            paymentMethods.forEach(method => {
-                const btn = document.createElement('button');
-                btn.className = `payment-btn ${method}`;
-                btn.textContent = method.charAt(0).toUpperCase() + method.slice(1);
-                paymentSection.appendChild(btn);
-            });
-            
-            // Now get the buttons again
-            const newButtons = document.querySelectorAll('.payment-btn');
-            console.log(`Created ${newButtons.length} payment buttons`);
-            
-            // Add event listeners
-            newButtons.forEach(button => {
-                const method = button.classList[1]; // Get the payment method from class
-                button.addEventListener('click', () => handlePayment(method));
-            });
-            
-            return;
-        } else {
-            console.error("Payment section not found either! Purchase flow is broken.");
-            debugPurchaseFlow();
-        }
-    }
-    
-    console.log(`Found ${paymentButtons.length} payment buttons, attaching handlers`);
-    
-    paymentButtons.forEach(button => {
-        // Remove existing event listeners by cloning and replacing
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        const method = newButton.classList[1]; // Get the payment method from class
-        
-        if (!method) {
-            console.error("Payment button missing method class:", newButton);
-        }
-        
-        newButton.addEventListener('click', () => handlePayment(method));
-    });
-}
+
 
 // Debug function to check purchase flow elements
 function debugPurchaseFlow() {
@@ -2835,7 +1953,7 @@ window.addEventListener('load', function() {
         console.log("Adding direct click listener to buy button");
         buyButton.addEventListener('click', function(e) {
             console.log("Buy button clicked directly");
-            handleBuyClick();
+            purchaseModule.handleBuyClick();
         });
     }
     
@@ -2846,29 +1964,11 @@ window.addEventListener('load', function() {
             console.log(`Adding direct click listener to ${method} payment button`);
             button.addEventListener('click', function(e) {
                 console.log(`${method} payment clicked directly`);
-                handlePayment(method);
+                purchaseModule.handlePayment(method);
             });
         }
     });
 });
-
-// Flash payment button animation
-function flashPaymentButton(method) {
-    const button = document.querySelector(`.payment-btn.${method}`);
-    if (!button) {
-        console.error(`Payment button for method ${method} not found!`);
-        debugPurchaseFlow();
-        return;
-    }
-    
-    button.style.transform = 'scale(1.05)';
-    button.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.5)';
-    
-    setTimeout(() => {
-        button.style.transform = '';
-        button.style.boxShadow = '';
-    }, 300);
-}
 
 // Add touch and drag functionality to the orbital tokens
 function setupTokenDragControls() {
@@ -3072,4 +2172,11 @@ function setupTokenDragControls() {
         isMouseDown = false;
         isDragging = false;
     });
+}
+
+// Expose functions for testing or direct use
+if (typeof window !== 'undefined') {
+    window.transitionToArtist = transitionToArtist;
+    window.getCurrentArtistData = getCurrentArtistData;
+    window.debugPurchaseFlow = debugPurchaseFlow;
 } 

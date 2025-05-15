@@ -6,6 +6,9 @@
 // Import orbit setup
 import { setupOrbit } from './orbit.js';
 
+// Import purchase setup
+import { setupPurchaseFlow } from './purchase.js';
+
 // Regular expression to match wallet addresses (Ethereum-style)
 const WALLET_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
@@ -167,6 +170,9 @@ function applyWalletTheme(walletAddress) {
   
   // Initialize orbital tokens
   setupOrbit(artistData);
+
+  // Set up purchase functionality
+  setupPurchase(artistData);
   
   console.log(`Applied theme for wallet: ${normalizedAddress}`);
   return true;
@@ -203,6 +209,10 @@ async function initializeWalletTheme() {
       
       // If all fallbacks fail, initialize orbit with default data
       setupOrbit(null);
+      
+      // Also initialize purchase with default data
+      setupPurchase(null);
+      
       return false;
     }
     
@@ -210,8 +220,11 @@ async function initializeWalletTheme() {
     return applyWalletTheme(walletAddress);
   } catch (error) {
     console.error('Error initializing wallet theme:', error);
-    // Even on error, make sure orbit is initialized
+    
+    // Even on error, make sure orbit and purchase are initialized
     setupOrbit(null);
+    setupPurchase(null);
+    
     return false;
   }
 }
@@ -239,6 +252,33 @@ function getWalletByArtistId(artistId) {
   
   console.warn(`No wallet found for artist ID: ${artistId}`);
   return null;
+}
+
+/**
+ * Set up purchase functionality for the current artist
+ * @param {Object} artistData - Artist data from config
+ */
+function setupPurchase(artistData) {
+  // Get current artist from localStorage or fallback to default
+  const currentArtist = localStorage.getItem('currentArtist') || 
+                        (artistData ? artistData.artistId : '') || 
+                        (window.config?.defaults?.defaultArtistId || '');
+  
+  // Get token amount from localStorage or use default
+  const currentTokenAmount = parseInt(localStorage.getItem('currentTokenAmount')) || 100;
+  
+  // Get content unlocked status from localStorage
+  const contentUnlocked = JSON.parse(localStorage.getItem('contentUnlocked') || '{}');
+  
+  // Initialize purchase flow
+  console.log(`Setting up purchase flow for artist: ${currentArtist}`);
+  
+  // Call the setupPurchaseFlow function with the current state
+  setupPurchaseFlow({
+    currentArtist,
+    currentTokenAmount,
+    contentUnlocked
+  });
 }
 
 // Initialize theme when the DOM is loaded
