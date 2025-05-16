@@ -168,6 +168,10 @@ video {
 .success-section {
     text-align: center;
     padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Content unlock toggle layout */

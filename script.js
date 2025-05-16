@@ -701,32 +701,10 @@ function completeLogin(method) {
     isLoggedIn = true;
     localStorage.setItem('isAuthenticated', 'true');
 
-    // Get safeword status from localStorage
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Add wallet address to the header if it exists
-    if (userWalletAddress) {
-        // Either update existing wallet display or create a new one
-        let walletDisplay = document.getElementById('walletDisplay');
-        
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
-            walletDisplay.id = 'walletDisplay';
-            walletDisplay.className = 'wallet-display';
-            
-            // Insert wallet display after artist name
-            const artistName = document.getElementById('artistName');
-            if (artistName && artistName.parentNode) {
-                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
-            }
-        }
-        
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail}\n${userWalletAddress}`;
+    // Remove existing wallet display if it exists
+    const walletDisplay = document.getElementById('walletDisplay');
+    if (walletDisplay) {
+        walletDisplay.remove();
     }
     
     // Use centralized function to update UI based on authentication state

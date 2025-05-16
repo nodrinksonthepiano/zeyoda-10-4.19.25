@@ -73,30 +73,8 @@ export function updateUIForAuthState() {
     // Handle wallet display
     const existingWalletDisplay = document.getElementById('walletDisplay');
     
-    if (isAuthenticated && userWalletAddress) {
-        // Create or update wallet display
-        let walletDisplay = existingWalletDisplay;
-        
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
-            walletDisplay.id = 'walletDisplay';
-            walletDisplay.className = 'wallet-display';
-            
-            // Insert wallet display after artist name
-            const artistName = document.getElementById('artistName');
-            if (artistName && artistName.parentNode) {
-                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
-            }
-        }
-        
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
-    } else if (existingWalletDisplay) {
-        // Remove wallet display if user is not authenticated
+    // Remove wallet display element entirely (if it exists)
+    if (existingWalletDisplay) {
         existingWalletDisplay.remove();
     }
     
