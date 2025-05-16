@@ -5,15 +5,22 @@ let magic = null;
 let userWalletAddress = null;
 let userEmail = null;
 let isAuthenticated = false;
-let isMagicAvailable = false;
-let useFallbackMode = false;
 
-// Immediately check if Magic is defined
-try {
-    isMagicAvailable = typeof Magic !== 'undefined';
-    console.log('Initial Magic SDK availability check:', isMagicAvailable);
-} catch (e) {
-    console.error('Magic SDK not available at load time');
+// Helper function to check authentication state
+export function isUserAuthenticated() {
+    // Check localStorage first (source of truth)
+    const storedAuthState = localStorage.getItem('isAuthenticated') === 'true';
+    return storedAuthState || isAuthenticated;
+}
+
+// Get user wallet address
+export function getUserWalletAddress() {
+    return localStorage.getItem('userWalletAddress') || userWalletAddress;
+}
+
+// Get user email
+export function getUserEmail() {
+    return localStorage.getItem('userEmail') || userEmail;
 }
 
 // Update UI for current auth state
@@ -129,57 +136,28 @@ export function updateUIForAuthState() {
     document.dispatchEvent(event);
 }
 
-// Initialize Magic SDK with much more robust error handling
+// Initialize Magic SDK
 export function initMagic() {
-    return new Promise((resolve) => {
-        // First check if Magic global is available
-        try {
-            isMagicAvailable = typeof Magic !== 'undefined';
-        } catch (e) {
-            isMagicAvailable = false;
+    try {
+        // Make sure Magic is defined
+        if (typeof Magic === 'undefined') {
+            console.error('Magic SDK not available');
+            return false;
         }
         
-        if (!isMagicAvailable) {
-            console.error('Magic SDK not available - switching to fallback mode');
-            useFallbackMode = true;
-            resolve(false);
-            return;
-        }
+        // Initialize Magic with Ethereum Sepolia network (optional)
+        magic = new Magic('pk_live_0A9CA1AC494AF3E6', {
+            network: 'ethereum-sepolia'
+        });
         
-        console.log('Initializing Magic SDK...');
+        // Check if user is already logged in
+        checkUserSession();
         
-        try {
-            // Initialize Magic with Ethereum Sepolia network
-            magic = new Magic('pk_live_0A9CA1AC494AF3E6', {
-                network: 'ethereum-sepolia'
-            });
-            
-            // Add a delay to let Magic fully initialize
-            setTimeout(() => {
-                try {
-                    // Verify magic instance has required methods
-                    if (!magic || !magic.auth || !magic.user) {
-                        console.error('Magic SDK instance missing required properties');
-                        useFallbackMode = true;
-                        resolve(false);
-                        return;
-                    }
-                    
-                    console.log('Magic SDK initialized successfully');
-                    checkUserSession();
-                    resolve(true);
-                } catch (err) {
-                    console.error('Error verifying Magic SDK:', err);
-                    useFallbackMode = true;
-                    resolve(false);
-                }
-            }, 1000);
-        } catch (error) {
-            console.error('Error initializing Magic SDK:', error);
-            useFallbackMode = true;
-            resolve(false);
-        }
-    });
+        return true;
+    } catch (error) {
+        console.error('Error initializing Magic SDK:', error);
+        return false;
+    }
 }
 
 // Generate a deterministic wallet address based on email
@@ -199,46 +177,89 @@ function generateDeterministicWallet(email) {
 
 // Check if the user already has an active session
 export async function checkUserSession() {
-    if (useFallbackMode || !magic) {
-        // Fallback to localStorage only in fallback mode
-        userWalletAddress = getWalletAddressFromLocalStorage();
-        userEmail = getEmailFromLocalStorage();
-        if (userWalletAddress && userEmail) {
-            isAuthenticated = true;
-            updateUIForAuthState();
-            return true;
-        }
-        return false;
-    }
-    
-    try {
-        const isLoggedInWithMagic = await magic.user.isLoggedIn();
-        
-        if (isLoggedInWithMagic) {
-            try {
-                const userMetadata = await magic.user.getMetadata();
-                userWalletAddress = userMetadata.publicAddress;
-                userEmail = userMetadata.email;
-                saveAuthToLocalStorage(userWalletAddress, userEmail);
+    if (!magic) {
+        console.log('Magic SDK not initialized, attempting to initialize...');
+        if (typeof Magic !== 'undefined') {
+            console.log('Magic global is available, initializing...');
+            initMagic();
+        } else {
+            console.log('Magic global not available, falling back to localStorage');
+            // Fallback to localStorage if Magic SDK is not available
+            userWalletAddress = localStorage.getItem('userWalletAddress');
+            userEmail = localStorage.getItem('userEmail');
+            if (userWalletAddress && userEmail) {
                 isAuthenticated = true;
                 updateUIForAuthState();
                 return true;
-            } catch (metadataError) {
-                console.error('Error getting metadata:', metadataError);
             }
+            return false;
         }
-    } catch (sessionError) {
-        console.error('Error checking session:', sessionError);
     }
     
-    // Fallback to localStorage
-    userWalletAddress = getWalletAddressFromLocalStorage();
-    userEmail = getEmailFromLocalStorage();
+    try {
+        console.log('Checking Magic user session...');
+        
+        // Check if we're on a redirect from Magic link
+        if (window.location.hash.includes('magic_credential')) {
+            console.log('Magic credential found in URL, completing authentication...');
+            try {
+                // This will complete the authentication process after redirect
+                await magic.auth.loginWithCredential();
+                console.log('Magic credential login successful');
+                
+                // Get user metadata after successful login
+                const userMetadata = await magic.user.getMetadata();
+                userWalletAddress = userMetadata.publicAddress;
+                userEmail = userMetadata.email;
+                
+                console.log(`User authenticated: ${userEmail}, wallet: ${userWalletAddress}`);
+                
+                // Store authentication data
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                localStorage.setItem('isAuthenticated', 'true');
+                isAuthenticated = true;
+                
+                // Update UI
+                updateUIForAuthState();
+                return true;
+            } catch (error) {
+                console.error('Error completing Magic authentication:', error);
+                return false;
+            }
+        }
+
+        // Normal session check
+        const isLoggedIn = await magic.user.isLoggedIn();
+        
+        if (isLoggedIn) {
+            console.log('User is already logged in with Magic');
+            const userMetadata = await magic.user.getMetadata();
+            userWalletAddress = userMetadata.publicAddress;
+            userEmail = userMetadata.email;
+            localStorage.setItem('userWalletAddress', userWalletAddress);
+            localStorage.setItem('userEmail', userEmail);
+            localStorage.setItem('isAuthenticated', 'true');
+            isAuthenticated = true;
+            updateUIForAuthState();
+            return true;
+        } else {
+            console.log('User is not logged in with Magic');
+        }
+    } catch (error) {
+        console.error('Error checking session:', error);
+    }
+    
+    // Check localStorage as backup
+    userWalletAddress = localStorage.getItem('userWalletAddress');
+    userEmail = localStorage.getItem('userEmail');
     if (userWalletAddress && userEmail) {
+        console.log('Recovered credentials from localStorage');
         isAuthenticated = true;
         updateUIForAuthState();
         return true;
     } else {
+        console.log('No credentials found in localStorage');
         resetAuthState();
         return false;
     }
@@ -255,131 +276,140 @@ export function resetAuthState() {
     updateUIForAuthState();
 }
 
-// Handle email login - with fallback mode that doesn't require Magic SDK
+// Handle email login
 export async function handleEmailLogin(email) {
     if (!email || !email.includes('@') || !email.includes('.')) {
         throw new Error('Invalid email');
     }
-    
-    console.log(`Attempting login with email: ${email.substring(0, 3)}...`);
-    
-    // Initialize magic if not already done
-    if (!magic && !useFallbackMode) {
-        const initResult = await initMagic();
-        if (!initResult) {
-            console.warn('Magic initialization failed - using fallback mode');
+
+    console.log(`Attempting login with email: ${email.substring(0, 3)}... using Magic UI`);
+
+    // Initialize Magic SDK if needed
+    if (!magic) {
+        const initialized = initMagic();
+        if (!initialized) {
+            throw new Error('Authentication service unavailable');
         }
     }
-    
-    // If in fallback mode or Magic failed to initialize
-    if (useFallbackMode || !magic) {
-        console.log('Using fallback authentication mode');
-        
-        // Simulate "sending" a magic link
-        // In a real implementation, you'd send an email here
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Generate a deterministic wallet address from the email
-        const walletAddress = generateDeterministicWallet(email);
-        
-        // Simulate login success with the generated wallet
-        userWalletAddress = walletAddress;
-        userEmail = email;
-        saveAuthToLocalStorage(walletAddress, email);
-        isAuthenticated = true;
-        updateUIForAuthState();
-        
-        // Return simulated user data
-        return { 
-            success: true, 
-            fallbackMode: true,
-            message: 'Authenticated in fallback mode. Magic link services will be available later.',
-            userWalletAddress: walletAddress,
-            userEmail: email
-        };
-    }
-    
-    // Standard Magic SDK flow if available
+
     try {
-        console.log('Using standard Magic SDK authentication');
-        
-        // Add timeout for Magic login
-        const loginPromise = magic.auth.loginWithEmailOTP({ email });
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-                reject(new Error('Login request timed out'));
-            }, 10000);
+        // Use Magic OTP (One-Time Password) login WITH Magic's built-in UI
+        const didToken = await magic.auth.loginWithEmailOTP({
+            email,
+            showUI: true // Enable Magic's UI
         });
-        
-        // Use the faster of the two
-        await Promise.race([loginPromise, timeoutPromise]);
-        
-        console.log('Magic link sent! Check your email');
-        
-        // In normal operation, actually getting here means the magic link was
-        // sent but not yet clicked. We'll treat this as a "success" for the UI.
-        return {
-            success: true,
-            emailSent: true,
-            message: 'Magic link sent! Please check your email including spam folders.'
-        };
-        
-    } catch (error) {
-        console.error('Magic login error:', error);
-        
-        // If timeout or other error, switch to fallback mode
-        if (error.message.includes('timed out') || 
-            error.message.includes('Magic SDK') ||
-            error.message.includes('undefined') ||
-            error.message.includes('authentication service')) {
+
+        if (didToken) {
+            console.log("Successfully logged in via Magic UI, DID Token received.");
+            // User is logged in. Fetch metadata and update state.
+
+            // Check if Magic user methods are properly available
+            if (!magic || !magic.user || typeof magic.user.getMetadata !== 'function') {
+                console.warn("Magic user.getMetadata is not available; using deterministic wallet as fallback.");
+                
+                // Use the email directly and generate a deterministic wallet address
+                // This is a reliable fallback since we know the user has authenticated with this email
+                userEmail = email;
+                userWalletAddress = generateDeterministicWallet(email);
+                isAuthenticated = true;
+                
+                // Store in localStorage
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                localStorage.setItem('isAuthenticated', 'true');
+                
+                // Make magic instance available globally
+                window.magic = magic;
+                
+                // Update UI to reflect logged in state
+                updateUIForAuthState();
+                
+                return { 
+                    success: true, 
+                    directlyLoggedIn: true, 
+                    message: "Login successful via Magic UI (fallback mode)." 
+                };
+            }
             
-            console.log('Magic SDK error - falling back to direct method');
-            useFallbackMode = true;
-            
-            // Use the fallback method in this case
-            return handleEmailLogin(email);
+            try {
+                // Try the standard flow with getMetadata if available
+                const userMetadata = await magic.user.getMetadata();
+                if (userMetadata && userMetadata.publicAddress && userMetadata.email) {
+                    userWalletAddress = userMetadata.publicAddress;
+                    userEmail = userMetadata.email;
+                    isAuthenticated = true;
+
+                    localStorage.setItem('userWalletAddress', userWalletAddress);
+                    localStorage.setItem('userEmail', userEmail);
+                    localStorage.setItem('isAuthenticated', 'true');
+
+                    updateUIForAuthState(); // Reflect changes immediately
+
+                    // Make magic instance available globally if it wasn't already (e.g. for logout)
+                    if (!window.magic) {
+                        window.magic = magic;
+                    }
+
+                    return { success: true, directlyLoggedIn: true, message: "Login successful via Magic UI." };
+                } else {
+                    console.error("Magic UI login succeeded but failed to retrieve user metadata.");
+                    throw new Error("Login succeeded but could not fetch user details.");
+                }
+            } catch (error) {
+                console.error("Error during getMetadata, using fallback:", error);
+                // Fall back to using email directly
+                userEmail = email;
+                userWalletAddress = generateDeterministicWallet(email);
+                isAuthenticated = true;
+                
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                localStorage.setItem('isAuthenticated', 'true');
+                
+                updateUIForAuthState();
+                
+                return { 
+                    success: true, 
+                    directlyLoggedIn: true, 
+                    message: "Login successful via Magic UI (error recovery mode)." 
+                };
+            }
+        } else {
+            // This case might occur if the user closes the modal before completion,
+            // but usually Magic throws an error for that.
+            console.warn("Magic UI login resolved without a DID token, but also without an error.");
+            throw new Error("Login process completed without a token and without an error from Magic.");
         }
-        
-        throw new Error(`Authentication failed: ${error.message || 'Unknown error'}`);
+    } catch (error) {
+        console.error('Login error with Magic UI:', error);
+        // Magic RPC Error codes:
+        // -10001: User closed modal
+        // -32603: User denied account access (e.g. if wallet extension interaction was involved)
+        if (error && error.code === -10001) { // User closed modal
+            throw new Error("Login process was cancelled by the user.");
+        }
+        // Propagate other errors with their original message if available
+        throw new Error(error.message || 'Authentication failed or was cancelled.');
     }
 }
 
 // Logout function
 export async function logout() {
-    if (magic && !useFallbackMode) {
+    if (magic) {
         try {
             await magic.user.logout();
         } catch (e) {
-            console.error('Error during Magic logout:', e);
+            console.error('Error during logout:', e);
         }
     }
     resetAuthState();
 }
 
-// Helpers for localStorage
-export function saveAuthToLocalStorage(wallet, email) {
-    localStorage.setItem('userWalletAddress', wallet);
-    localStorage.setItem('userEmail', email);
-    localStorage.setItem('isAuthenticated', 'true');
-}
-export function getWalletAddressFromLocalStorage() {
-    return localStorage.getItem('userWalletAddress');
-}
-export function getEmailFromLocalStorage() {
-    return localStorage.getItem('userEmail');
-}
-export function isUserAuthenticated() {
-    return localStorage.getItem('isAuthenticated') === 'true';
-}
-
 // Export state for use elsewhere
-export { magic, userWalletAddress, userEmail, isAuthenticated, useFallbackMode };
+export { magic, userWalletAddress, userEmail, isAuthenticated };
 
-// Initialize Magic SDK early - on page load
-document.addEventListener('DOMContentLoaded', () => {
-    // Pre-initialize Magic SDK as soon as the page loads
-    setTimeout(() => {
-        console.log('Pre-initializing Magic SDK...');
-        initMagic();
-    }, 1000); // Slight delay to allow other critical page elements to load first
-}); 
+// Initialize Magic SDK on page load
+document.addEventListener('DOMContentLoaded', initMagic);
+
+// Add window method for global access
+window.checkUserSession = checkUserSession;

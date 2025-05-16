@@ -12,6 +12,15 @@ import { setupPurchaseFlow } from './purchase.js';
 // Import auth UI setup
 import { setupAuthUI } from './auth-ui.js';
 
+// Import auth functions
+import { initMagic, checkUserSession, updateUIForAuthState, magic } from './auth.js';
+
+// Expose auth functions to window for callbacks
+window.checkUserSession = checkUserSession;
+window.initMagic = initMagic;
+window.updateUIForAuthState = updateUIForAuthState;
+window.magic = magic;
+
 // Make sure Magic SDK is available before initializing auth
 document.addEventListener('DOMContentLoaded', () => {
   // Check if Magic SDK is available
@@ -30,6 +39,33 @@ document.addEventListener('DOMContentLoaded', () => {
       banner.style.transition = 'opacity 0.5s';
       setTimeout(() => banner.remove(), 500);
     }, 5000);
+    
+    // Try loading Magic SDK dynamically as a fallback
+    const script = document.createElement('script');
+    script.src = 'https://auth.magic.link/sdk';
+    script.async = true;
+    script.onload = () => {
+      console.log('Magic SDK loaded dynamically');
+      if (typeof Magic !== 'undefined') {
+        console.log('Magic global is now available');
+        // Set global flag for successful dynamic load
+        window.magicSDKLoaded = true;
+        // Trigger initialization if auth.js is available
+        if (window.initMagic) {
+          window.initMagic();
+        }
+      }
+    };
+    script.onerror = () => {
+      console.error('Failed to load Magic SDK dynamically');
+    };
+    document.head.appendChild(script);
+  } else {
+    console.log('Magic SDK already loaded on page initialization');
+    window.magicSDKLoaded = true;
+    
+    // Initialize Magic since SDK is already available
+    initMagic();
   }
 });
 

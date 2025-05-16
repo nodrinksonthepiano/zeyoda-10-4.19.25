@@ -14,6 +14,22 @@
         function onMagicSDKLoaded() {
             window.magicSDKLoaded = true;
             console.log("Magic SDK loaded successfully");
+            
+            // Initialize Magic if the global function exists
+            if (window.initMagic) {
+                setTimeout(() => {
+                    window.initMagic();
+                    console.log("Magic SDK initialized after loading");
+                    
+                    // Check for magic_credential immediately after initialization
+                    if (window.location.hash.includes('magic_credential')) {
+                        console.log("Magic credential detected, completing authentication");
+                        if (window.checkUserSession) {
+                            window.checkUserSession();
+                        }
+                    }
+                }, 100);
+            }
         }
         
         function handleMagicSDKError() {
@@ -22,8 +38,46 @@
             if (loginFeedback) {
                 loginFeedback.textContent = "Authentication service unavailable. Please try again later.";
                 loginFeedback.style.display = "block";
+                loginFeedback.className = "feedback error";
             }
         }
+
+        // Force authentication check after page loads - this helps after verification
+        window.addEventListener('load', function() {
+            // Check if this is a Magic redirect by looking for magic_credential in URL hash
+            if (window.location.hash.includes('magic_credential')) {
+                console.log("Magic credential detected in URL");
+                // Slight delay to ensure auth.js has initialized
+                setTimeout(function() {
+                    if (window.checkUserSession) {
+                        console.log("Checking user session due to magic_credential");
+                        window.checkUserSession();
+                    } else {
+                        console.error("checkUserSession function not available for magic_credential");
+                        
+                        // Try to handle with loginWithCredential directly if Magic is available
+                        if (window.Magic && window.magic) {
+                            console.log("Attempting to use Magic directly");
+                            window.magic.auth.loginWithCredential()
+                                .then(didToken => {
+                                    console.log("Magic credential login successful");
+                                    window.location.reload();
+                                })
+                                .catch(error => {
+                                    console.error("Magic credential login failed:", error);
+                                });
+                        }
+                    }
+                }, 500);
+            } else {
+                // Always check session on page load
+                setTimeout(function() {
+                    if (window.checkUserSession) {
+                        window.checkUserSession();
+                    }
+                }, 500);
+            }
+        });
     </script>
     <script src="https://auth.magic.link/sdk" onload="onMagicSDKLoaded()" onerror="handleMagicSDKError()"></script>
 </head>
@@ -106,16 +160,18 @@
                 
                 <div class="email-login-container">
                     <input type="email" id="emailInput" placeholder="Enter your email address" class="email-input">
+                    <input type="text" id="otpInput" placeholder="Enter verification code" class="email-input" style="display: none;" maxlength="6" pattern="[0-9]*" inputmode="numeric">
                     <button id="emailLoginBtn" class="login-btn email">Continue with Email</button>
                     <div id="loginFeedback" class="login-processing-msg" style="display: none;"></div>
+                    <div class="email-only-note">Note: Currently only email login is available</div>
                 </div>
                 <div class="social-login-container">
                     <p class="login-separator">or continue with</p>
                     <div class="social-buttons">
-                        <button class="login-btn twitter" onclick="handleLogin('twitter')">X (Twitter)</button>
-                        <button class="login-btn gmail" onclick="handleLogin('gmail')">Gmail</button>
-                        <button class="login-btn phone" onclick="handleLogin('phone')">Phone</button>
-                        <button class="login-btn facebook" onclick="handleLogin('facebook')">Facebook</button>
+                        <button class="login-btn twitter disabled" onclick="handleLogin('twitter')">X (Twitter)</button>
+                        <button class="login-btn gmail disabled" onclick="handleLogin('gmail')">Gmail</button>
+                        <button class="login-btn phone disabled" onclick="handleLogin('phone')">Phone</button>
+                        <button class="login-btn facebook disabled" onclick="handleLogin('facebook')">Facebook</button>
                     </div>
                 </div>
             </div>

@@ -2,7 +2,7 @@
 import { config, loadConfigAndInit } from './config.js';
 import { initDownloadFlow } from './download.js';
 import { setupPurchaseFlow } from './purchase.js';
-import { initMagic, checkUserSession, resetAuthState, 
+import { initMagic, checkUserSession, resetAuthState, updateUIForAuthState,
          isUserAuthenticated, handleEmailLogin, logout } from './auth.js';
 import { setupAuthUI } from './auth-ui.js';
 
@@ -22,51 +22,19 @@ let lastOrbitTimestamp = 0;
 // Purchase module reference
 let purchaseModule = null;
 
-// References to auth values from auth.js
-let userWalletAddress = null;
-let userEmail = null;
-
-// Magic SDK instance
-let magic = null;
-
-// Initialize Magic SDK
-// function initMagic() { ... } - Removed as it's imported from auth.js
+// Initialize Magic SDK is now imported from auth.js
 
 // Add a function to recover authentication from localStorage
 function recoverFromLocalStorage() {
-    userWalletAddress = localStorage.getItem('userWalletAddress');
-    userEmail = localStorage.getItem('userEmail');
-    
-    if (userWalletAddress && userEmail) {
-        console.log(`Recovered stored credentials: ${userEmail}`);
-        
-        // We'll consider the user logged in based on localStorage
-        isAuthenticated = true;
-        isLoggedIn = true;
-        localStorage.setItem('isAuthenticated', 'true');
-        
-        // Update UI based on authenticated state
-        updateUIForAuthState();
-        return true;
-    } else {
-        console.log('No stored credentials found');
-        resetAuthState();
-        return false;
-    }
+    // Use the function from auth.js instead of duplicating code
+    return checkUserSession();
 }
-
-// Check if the user already has an active session
-// async function checkUserSession() { ... } - Removed as it's imported from auth.js
-
-// Reset authentication state
-// function resetAuthState() { ... } - Removed as it's imported from auth.js
 
 // Fetch configuration and initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Magic SDK
-    initMagic();
+    // Initialize Magic SDK will be called from init.js
     
-    // Initialize Auth UI
+    // Initialize Auth UI from imported module
     setupAuthUI();
     
     // Load configuration using the imported function
@@ -632,8 +600,8 @@ function positionOrbitalTokens() {
 function handleLogin(method) {
     console.log(`Login selected: ${method}`);
     
-    // For now, social logins are disabled (show a message instead)
-    alert(`${method} login will be available in the upcoming Next.js version.`);
+    // For now, social logins are disabled (show a more descriptive message)
+    alert(`${method} login is currently unavailable. Please use email login instead. Social logins will be available in the upcoming Next.js version.`);
     return;
     
     // The code below will not execute until social logins are enabled
