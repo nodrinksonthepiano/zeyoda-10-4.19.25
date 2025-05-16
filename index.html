@@ -163,7 +163,6 @@
                     <input type="text" id="otpInput" placeholder="Enter verification code" class="email-input" style="display: none;" maxlength="6" pattern="[0-9]*" inputmode="numeric">
                     <button id="emailLoginBtn" class="login-btn email">Continue with Email</button>
                     <div id="loginFeedback" class="login-processing-msg" style="display: none;"></div>
-                    <div class="email-only-note">Note: Currently only email login is available</div>
                 </div>
                 <div class="social-login-container">
                     <p class="login-separator">or continue with</p>
@@ -181,10 +180,25 @@
                 <h3 id="purchaseHeadline">Complete your download purchase for $1</h3>
                 
                 <div class="payment-section">
-                    <button class="payment-btn credit">Credit Card</button>
-                    <button class="payment-btn paypal">PayPal</button>
-                    <button class="payment-btn venmo">Venmo</button>
-                    <button class="payment-btn crypto">Crypto</button>
+                    <button class="payment-btn venmo" style="padding: 12px; display: flex; align-items: center; justify-content: center;">
+                        <span class="payment-icon">V</span>
+                        Pay with Venmo
+                    </button>
+                    
+                    <button class="payment-btn paypal" style="padding: 12px; display: flex; align-items: center; justify-content: center;">
+                        <span class="payment-icon">P</span>
+                        Pay with PayPal
+                    </button>
+                    
+                    <button class="payment-btn credit" style="padding: 12px; display: flex; align-items: center; justify-content: center;">
+                        <span class="payment-icon">💳</span>
+                        Pay with Credit Card
+                    </button>
+                    
+                    <button class="payment-btn crypto" style="padding: 12px; display: flex; align-items: center; justify-content: center;">
+                        <span class="payment-icon">₿</span>
+                        Pay with Crypto
+                    </button>
                 </div>
             </div>
             
