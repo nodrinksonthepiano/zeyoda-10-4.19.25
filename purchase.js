@@ -418,6 +418,10 @@ export function setupPurchaseFlow(appState = {}) {
         // Update current token amount
         currentTokenAmount = tokens;
         
+        // Store current token amount in localStorage for persistence
+        localStorage.setItem('currentTokenAmount', tokens);
+        console.log(`Saved token amount to localStorage: ${tokens}`);
+        
         // Get artist data
         const artistData = getCurrentArtistData();
         if (!artistData) {
@@ -614,8 +618,18 @@ export function setupPurchaseFlow(appState = {}) {
         let includesArtistocks = false;
         
         if (safewordUsed && currentTokenAmount > 0) {
-            artistocksTotal = currentTokenAmount * artistData.tokenPrice;
+            // Ensure currentTokenAmount is a number and not formatted with commas
+            const parsedTokenAmount = typeof currentTokenAmount === 'string' 
+                ? parseInt(currentTokenAmount.replace(/,/g, '')) 
+                : currentTokenAmount;
+                
+            artistocksTotal = parsedTokenAmount * artistData.tokenPrice;
             includesArtistocks = true;
+            
+            // Save to localStorage for recovery - use both keys for compatibility
+            localStorage.setItem('artistocksBalance', parsedTokenAmount);
+            localStorage.setItem('currentTokenAmount', parsedTokenAmount);
+            console.log(`Saving ${parsedTokenAmount} tokens to localStorage (current token amount for ${currentArtist})`);
         }
         
         // Calculate total price
@@ -643,7 +657,15 @@ export function setupPurchaseFlow(appState = {}) {
             setTimeout(() => {
                 // Update wallet with the purchase, including whether download was purchased
                 if (window.wallet) {
-                    window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, currentTokenAmount, includesDownload);
+                    // Ensure we're passing the correct token amount value
+                    const tokenAmountToSave = safewordUsed && currentTokenAmount > 0 ? 
+                        (typeof currentTokenAmount === 'string' ? 
+                            parseInt(currentTokenAmount.replace(/,/g, '')) : 
+                            currentTokenAmount) : 
+                        0;
+                            
+                    console.log(`Passing ${tokenAmountToSave} tokens to wallet.onPurchaseComplete`);
+                    window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, tokenAmountToSave, includesDownload);
                 }
             }, 200);
         }, 800);
@@ -664,6 +686,16 @@ export function setupPurchaseFlow(appState = {}) {
         if (!artistData) {
             console.error("Could not get artist data in showSuccessSection");
             return;
+        }
+
+        // Get the total token count from userAssets
+        let totalTokens = currentTokenAmount;
+        if (window.wallet && includesArtistocks) {
+            const userAssets = window.wallet.loadAssets();
+            if (userAssets && userAssets[currentArtist] && userAssets[currentArtist].tokens) {
+                totalTokens = userAssets[currentArtist].tokens;
+                console.log(`Displaying total of ${totalTokens} tokens from wallet for ${currentArtist}`);
+            }
         }
         
         // Create or update the success section
@@ -688,7 +720,7 @@ export function setupPurchaseFlow(appState = {}) {
             // Create title based on purchase type
             const title = document.createElement('h3');
             if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
             } else {
                 title.textContent = "You've unlocked this download!";
             }
@@ -738,7 +770,7 @@ export function setupPurchaseFlow(appState = {}) {
             
             const title = document.createElement('h3');
             if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
             } else {
                 title.textContent = "You've unlocked this download!";
             }

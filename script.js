@@ -122,9 +122,14 @@ function initializeApp() {
     if (storedBalance) {
         currentTokenAmount = parseInt(storedBalance);
         purchaseModule.updateFromTokenAmount(currentTokenAmount);
+        console.log(`Loaded stored balance: ${currentTokenAmount} tokens`);
     } else {
         currentTokenAmount = config.defaults.initialTokenAmount;
+        console.log(`Using default token amount: ${currentTokenAmount}`);
     }
+    
+    // Save the current token amount to ensure consistent values across artists
+    localStorage.setItem('currentTokenAmount', currentTokenAmount);
 
     // Ensure the token preview section is always visible on initial load
     // regardless of authentication state (so the download button is visible)
@@ -304,18 +309,74 @@ function setupTokenSlider() {
     slider.min = minTokens;
     slider.max = maxTokens;
     
-    // Set initial value to 200,000 tokens (equivalent to $100)
-    const initialTokens = 200000;
+    // Check if we have wallet assets for this artist
+    let initialTokens = 100; // Default value if no storage found
+    
+    // Load user assets from the wallet if available
+    let userAssets = {};
+    try {
+        // Try to get assets from wallet module first
+        if (window.wallet && typeof window.wallet.loadAssets === 'function') {
+            userAssets = window.wallet.loadAssets();
+        } else {
+            // Fallback to localStorage
+            const storedAssets = localStorage.getItem('userAssets');
+            if (storedAssets) {
+                userAssets = JSON.parse(storedAssets);
+            }
+        }
+        
+        // Check if we have tokens for this artist
+        if (userAssets[currentArtist] && userAssets[currentArtist].tokens) {
+            initialTokens = parseInt(userAssets[currentArtist].tokens);
+            console.log(`Using wallet tokens for ${currentArtist}: ${initialTokens}`);
+        } else {
+            // Fallback to checking various localStorage values
+            const currentAmount = localStorage.getItem('currentTokenAmount');
+            const lastPurchase = localStorage.getItem('lastPurchaseAmount');
+            const artistocksBalance = localStorage.getItem('artistocksBalance');
+            
+            if (currentAmount) {
+                initialTokens = parseInt(currentAmount);
+                console.log(`Using currentTokenAmount from localStorage: ${initialTokens}`);
+            } else if (lastPurchase) {
+                initialTokens = parseInt(lastPurchase);
+                console.log(`Using lastPurchaseAmount from localStorage: ${initialTokens}`);
+            } else if (artistocksBalance) {
+                initialTokens = parseInt(artistocksBalance);
+                console.log(`Using artistocksBalance from localStorage: ${initialTokens}`);
+            } else {
+                console.log(`No saved token amount found, using default: ${initialTokens}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading token amount:', error);
+    }
+    
+    // Make sure value is within limits
+    initialTokens = Math.max(minTokens, Math.min(maxTokens, initialTokens));
+    console.log(`Final slider initial value: ${initialTokens} tokens (min=${minTokens}, max=${maxTokens})`);
+    
+    // Update global variable
+    currentTokenAmount = initialTokens;
+    
+    // Set the slider value
     slider.value = initialTokens;
+    
+    // Save in localStorage for consistency between pages
+    localStorage.setItem('currentTokenAmount', initialTokens);
     
     // Update values on load
     purchaseModule.updateFromTokenAmount(initialTokens);
     
     // Update when slider changes
     slider.addEventListener('input', () => {
-        purchaseModule.updateFromTokenAmount(slider.value);
+        currentTokenAmount = parseInt(slider.value);
+        purchaseModule.updateFromTokenAmount(currentTokenAmount);
         // Update the buy button display
         purchaseModule.updateTotalPrice();
+        // Save the current value for consistency
+        localStorage.setItem('currentTokenAmount', currentTokenAmount);
     });
     
     // Update when token amount input changes
@@ -330,11 +391,16 @@ function setupTokenSlider() {
         // Apply boundaries
         value = Math.max(minTokens, Math.min(maxTokens, value));
         
+        // Update the global variable
+        currentTokenAmount = value;
+        
         // Update the slider and values
         slider.value = value;
         purchaseModule.updateFromTokenAmount(value);
         // Update the buy button display
         purchaseModule.updateTotalPrice();
+        // Save the current value
+        localStorage.setItem('currentTokenAmount', value);
     });
     
     // Update when total amount input changes
@@ -354,11 +420,16 @@ function setupTokenSlider() {
         // Convert to tokens
         const tokens = Math.round(value / price);
         
+        // Update global variable
+        currentTokenAmount = tokens;
+        
         // Update slider and values
         slider.value = tokens;
         purchaseModule.updateFromTokenAmount(tokens);
         // Update the buy button display
         purchaseModule.updateTotalPrice();
+        // Save the current value
+        localStorage.setItem('currentTokenAmount', tokens);
     });
 }
 

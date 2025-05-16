@@ -307,9 +307,15 @@ function updateWalletDisplay(highlightArtistId = undefined) {
         if (artistAssets.tokens && artistAssets.tokens > 0) {
             const tokensItem = document.createElement('li');
             tokensItem.className = 'wallet-asset-item tokens';
+            
+            // Ensure tokens are displayed properly, by forcing numeric conversion
+            const tokenCount = parseInt(artistAssets.tokens);
+            console.log(`Displaying ${tokenCount} tokens for ${artistId}`);
+            
+            // Display the token count with proper formatting
             tokensItem.innerHTML = `
                 <span class="asset-icon">⚡</span>
-                <span class="asset-amount">${new Intl.NumberFormat().format(artistAssets.tokens)}</span>
+                <span class="asset-amount">${new Intl.NumberFormat().format(tokenCount)}</span>
                 <span class="asset-name">${artistName} Artistocks</span>
             `;
             assetsList.appendChild(tokensItem);
@@ -348,6 +354,9 @@ function handleAssetDownload(ipfsHash) {
 function addArtistTokens(artistId, amount) {
     console.log(`Adding ${amount} tokens for artist ${artistId}`);
     
+    // Ensure amount is a number
+    const parsedAmount = typeof amount === 'string' ? parseInt(amount.replace(/,/g, '')) : parseInt(amount);
+    
     // Ensure artist entry exists
     if (!userAssets[artistId]) {
         userAssets[artistId] = {
@@ -356,14 +365,23 @@ function addArtistTokens(artistId, amount) {
         };
     }
     
-    // Add tokens
-    userAssets[artistId].tokens = (userAssets[artistId].tokens || 0) + amount;
+    // Add tokens - if the user already has tokens, don't overwrite them, add to existing total
+    const currentTokens = parseInt(userAssets[artistId].tokens || 0);
+    userAssets[artistId].tokens = currentTokens + parsedAmount;
+    
+    // Log the current token total
+    console.log(`New token total for ${artistId}: ${userAssets[artistId].tokens}`);
     
     // Save assets
     saveUserAssets();
     
     // Update display
     updateWalletDisplay();
+    
+    // Also save in localStorage for consistent token display across pages
+    localStorage.setItem('artistocksBalance', userAssets[artistId].tokens);
+    localStorage.setItem('currentTokenAmount', userAssets[artistId].tokens);
+    localStorage.setItem('lastPurchaseAmount', parsedAmount);
 }
 
 /**
@@ -443,7 +461,26 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
     
     // If purchase includes artistocks, add tokens
     if (includesArtistocks && tokenAmount > 0) {
-        addArtistTokens(artistId, tokenAmount);
+        // Convert tokenAmount to number if it's a string
+        const tokenCount = typeof tokenAmount === 'string' ? parseInt(tokenAmount.replace(/,/g, '')) : parseInt(tokenAmount);
+        console.log(`Adding ${tokenCount} tokens to wallet for ${artistId}`);
+        
+        // Update global success display
+        const purchasedAmount = document.getElementById('purchasedAmount');
+        if (purchasedAmount) {
+            purchasedAmount.textContent = new Intl.NumberFormat().format(tokenCount);
+        }
+        
+        // Fix the "undefined" Artistocks text
+        const artistStockName = document.getElementById('artistStockName');
+        if (artistStockName && artistStockName.textContent === 'undefined') {
+            const artistData = window.config && window.config.artists && window.config.artists[artistId];
+            const artistName = artistData ? (artistData.name || artistId.toUpperCase()) : artistId.toUpperCase();
+            artistStockName.textContent = artistName;
+        }
+        
+        // Add tokens to wallet
+        addArtistTokens(artistId, tokenCount);
     }
     
     // Add download ONLY if specifically purchased (when includesDownload is true)

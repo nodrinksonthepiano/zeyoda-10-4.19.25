@@ -773,6 +773,16 @@ function showSuccessSection(includesArtistocks = false) {
         return;
     }
     
+    // Get the total token count from userAssets
+    let totalTokens = currentTokenAmount;
+    if (window.wallet && includesArtistocks) {
+        const userAssets = window.wallet.loadAssets();
+        if (userAssets && userAssets[currentArtist] && userAssets[currentArtist].tokens) {
+            totalTokens = userAssets[currentArtist].tokens;
+            console.log(`Displaying total of ${totalTokens} tokens from wallet for ${currentArtist}`);
+        }
+    }
+    
     // Create or update the success section
     if (!successSection) {
         console.log("Creating new success section");
@@ -795,7 +805,7 @@ function showSuccessSection(includesArtistocks = false) {
         // Create title based on purchase type
         const title = document.createElement('h3');
         if (includesArtistocks) {
-            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
         } else {
             title.textContent = "You've unlocked this download!";
         }
@@ -839,7 +849,7 @@ function showSuccessSection(includesArtistocks = false) {
         // Create title based on purchase type
         const title = document.createElement('h3');
         if (includesArtistocks) {
-            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+            title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
         } else {
             title.textContent = "You've unlocked this download!";
         }
