@@ -7,3 +7,21 @@
 
 /* Import the modular CSS system */
 @import url('./styles/style.css');
+
+/* Auth UI animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.error {
+  border-color: red !important;
+}
+
+#loginFeedback {
+  color: red;
+  font-size: 0.9em;
+  margin-top: 5px;
+  display: none;
+}

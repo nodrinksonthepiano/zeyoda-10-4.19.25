@@ -2,6 +2,9 @@
 import { config, loadConfigAndInit } from './config.js';
 import { initDownloadFlow } from './download.js';
 import { setupPurchaseFlow } from './purchase.js';
+import { initMagic, checkUserSession, resetAuthState, 
+         isUserAuthenticated, handleEmailLogin, logout } from './auth.js';
+import { setupAuthUI } from './auth-ui.js';
 
 let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
@@ -19,43 +22,15 @@ let lastOrbitTimestamp = 0;
 // Purchase module reference
 let purchaseModule = null;
 
-// Magic SDK instance
-let magic = null;
+// References to auth values from auth.js
 let userWalletAddress = null;
 let userEmail = null;
 
+// Magic SDK instance
+let magic = null;
+
 // Initialize Magic SDK
-function initMagic() {
-    try {
-        // First check if Magic is already initialized
-        if (magic) {
-            console.log('Magic SDK already initialized');
-            // Still check the session to ensure login state is consistent
-            checkUserSession();
-            return;
-        }
-        
-        // Initialize Magic instance with minimal configuration
-        // Use only the required network parameter for Sepolia testnet
-        magic = new Magic('pk_live_0A9CA1AC494AF3E6', {
-            network: 'ethereum-sepolia'
-        });
-        
-        console.log('Magic SDK initialized');
-        
-        // Check if user is already logged in
-        setTimeout(() => {
-            // Add a small delay to ensure Magic SDK is fully initialized
-            checkUserSession();
-        }, 100);
-    } catch (error) {
-        console.error('Error initializing Magic SDK:', error);
-        console.log('Attempting to recover using localStorage authentication data');
-        
-        // Try to recover from localStorage even if Magic initialization fails
-        recoverFromLocalStorage();
-    }
-}
+// function initMagic() { ... } - Removed as it's imported from auth.js
 
 // Add a function to recover authentication from localStorage
 function recoverFromLocalStorage() {
@@ -81,110 +56,18 @@ function recoverFromLocalStorage() {
 }
 
 // Check if the user already has an active session
-async function checkUserSession() {
-    try {
-        console.log('Checking Magic user session...');
-        
-        // Make sure Magic SDK is initialized
-        if (!magic) {
-            console.error('Magic SDK not initialized when checking session');
-            resetAuthState();
-            return false;
-        }
-        
-        // First check if the user has an active session with Magic
-        let isLoggedInWithMagic = false;
-        try {
-            isLoggedInWithMagic = await magic.user.isLoggedIn();
-            console.log('Magic.user.isLoggedIn() result:', isLoggedInWithMagic);
-        } catch (sessionError) {
-            console.error('Error checking Magic login status:', sessionError);
-            // Continue with fallback rather than exiting
-        }
-        
-        if (isLoggedInWithMagic) {
-            console.log('Active Magic session found');
-            
-            // Get user metadata (including wallet address and email)
-            try {
-                const userMetadata = await magic.user.getMetadata();
-                console.log('User metadata:', userMetadata);
-                
-                userWalletAddress = userMetadata.publicAddress;
-                userEmail = userMetadata.email;
-                
-                // Save user data to localStorage
-                localStorage.setItem('userWalletAddress', userWalletAddress);
-                localStorage.setItem('userEmail', userEmail);
-                
-                // Set authentication state
-                isAuthenticated = true;
-                isLoggedIn = true;
-                localStorage.setItem('isAuthenticated', 'true');
-                
-                console.log(`Retrieved user data: ${userEmail} (${userWalletAddress})`);
-                
-                // Update UI based on authenticated state
-                updateUIForAuthState();
-                return true;
-            } catch (metadataError) {
-                console.error('Error getting user metadata:', metadataError);
-                // Continue with fallback rather than exiting
-            }
-        }
-        
-        // Try to recover from localStorage as a fallback
-        userWalletAddress = localStorage.getItem('userWalletAddress');
-        userEmail = localStorage.getItem('userEmail');
-        
-        if (userWalletAddress && userEmail) {
-            console.log(`No active Magic session, but found stored credentials: ${userEmail}`);
-            
-            // We'll consider the user logged in based on localStorage
-            isAuthenticated = true;
-            isLoggedIn = true;
-            localStorage.setItem('isAuthenticated', 'true');
-            
-            // Update UI based on authenticated state
-            updateUIForAuthState();
-            return true;
-        } else {
-            console.log('No active Magic session or stored credentials');
-            resetAuthState();
-            return false;
-        }
-    } catch (error) {
-        console.error('Error checking Magic session:', error);
-        resetAuthState();
-        return false;
-    }
-}
+// async function checkUserSession() { ... } - Removed as it's imported from auth.js
 
 // Reset authentication state
-function resetAuthState() {
-    console.log('Resetting authentication state');
-    isAuthenticated = false;
-    isLoggedIn = false;
-    userWalletAddress = null;
-    userEmail = null;
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userWalletAddress');
-    localStorage.removeItem('userEmail');
-    
-    // Update UI for non-authenticated state
-    updateUIForAuthState();
-}
+// function resetAuthState() { ... } - Removed as it's imported from auth.js
 
 // Fetch configuration and initialize the page
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Magic SDK
     initMagic();
     
-    // Set up email login button
-    const emailLoginBtn = document.getElementById('emailLoginBtn');
-    if (emailLoginBtn) {
-        emailLoginBtn.addEventListener('click', handleEmailLogin);
-    }
+    // Initialize Auth UI
+    setupAuthUI();
     
     // Load configuration using the imported function
     loadConfigAndInit(initializeApp);
@@ -195,7 +78,7 @@ function initializeApp() {
     console.log("Initializing application");
     
     // Check authentication status
-    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    isAuthenticated = isUserAuthenticated();
     isLoggedIn = isAuthenticated;
     
     // Check safeword status
@@ -236,9 +119,6 @@ function initializeApp() {
     
     // Set up video controls
     setupVideoControls();
-    
-    // Set up logout button
-    setupLogoutButton();
     
     // Set up chat input listeners
     setupChatInput();
@@ -748,168 +628,6 @@ function positionOrbitalTokens() {
     });
 }
 
-// Handle email login
-async function handleEmailLogin() {
-    const email = document.getElementById('emailInput').value;
-    const emailInput = document.getElementById('emailInput');
-    const emailLoginBtn = document.getElementById('emailLoginBtn');
-    const loginFeedback = document.getElementById('loginFeedback');
-    
-    // Reset any previous error states
-    emailInput.classList.remove('error');
-    if (loginFeedback) {
-        loginFeedback.style.display = 'none';
-        loginFeedback.classList.remove('error');
-    }
-    
-    // Check if Magic SDK is initialized
-    if (!magic) {
-        console.log('Magic SDK not initialized, trying to initialize now');
-        
-        // Try to initialize it now
-        initMagic();
-        
-        // Small delay to let initialization complete
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Check again
-        if (!magic) {
-            console.error('Failed to initialize Magic SDK');
-            if (loginFeedback) {
-                loginFeedback.textContent = 'Unable to connect to authentication service. Using localStorage fallback.';
-                loginFeedback.classList.add('error');
-                loginFeedback.style.display = 'block';
-            }
-            
-            // Try localStorage fallback anyway
-            const success = recoverFromLocalStorage();
-            if (success) {
-                completeLogin('localStorage');
-                return;
-            }
-            
-            return;
-        }
-    }
-    
-    // Very basic email validation
-    if (email && email.includes('@') && email.includes('.')) {
-        try {
-            console.log(`Attempting login with email: ${email}`);
-            
-            // Show loading state on the button
-            if (emailLoginBtn) {
-                emailLoginBtn.innerHTML = '<span class="loading-spinner"></span>Sending...';
-                emailLoginBtn.disabled = true;
-                emailLoginBtn.classList.add('loading');
-            }
-            
-            // Show processing message
-            if (loginFeedback) {
-                loginFeedback.textContent = 'Processing login... Check your email for the verification link';
-                loginFeedback.style.display = 'block';
-            }
-            
-            // First store the email to ensure we have it even if Magic fails
-            localStorage.setItem('userEmail', email);
-            
-            // Try Magic login
-            try {
-                // Call Magic Link login
-                await magic.auth.loginWithEmailOTP({ email });
-                
-                // If we get here, login was successful
-                console.log('Magic login successful');
-                
-                try {
-                    // Get user metadata
-                    const userMetadata = await magic.user.getMetadata();
-                    userWalletAddress = userMetadata.publicAddress;
-                    userEmail = userMetadata.email;
-                    
-                    // Save to localStorage
-                    localStorage.setItem('userWalletAddress', userWalletAddress);
-                    localStorage.setItem('userEmail', userEmail);
-                    localStorage.setItem('isAuthenticated', 'true');
-                    
-                    console.log(`Login complete - wallet: ${userWalletAddress}`);
-                } catch (metadataError) {
-                    console.error('Error getting user metadata:', metadataError);
-                    
-                    // Generate a fallback wallet address if needed
-                    if (!userWalletAddress) {
-                        userWalletAddress = '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-                        localStorage.setItem('userWalletAddress', userWalletAddress);
-                        localStorage.setItem('isAuthenticated', 'true');
-                        console.log(`Created fallback wallet: ${userWalletAddress}`);
-                    }
-                }
-                
-                // Complete login flow
-                completeLogin('email');
-            } catch (error) {
-                console.error('Magic SDK login error:', error);
-                
-                // Show error message but try localStorage fallback
-                if (loginFeedback) {
-                    loginFeedback.textContent = 'Magic login unavailable. Using local authentication instead.';
-                    loginFeedback.style.display = 'block';
-                }
-                
-                // Use fallback login method with just localStorage
-                userWalletAddress = '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-                localStorage.setItem('userWalletAddress', userWalletAddress);
-                localStorage.setItem('isAuthenticated', 'true');
-                console.log(`Created fallback wallet: ${userWalletAddress}`);
-                
-                // Complete login without Magic
-                completeLogin('localStorage');
-            }
-            
-            // Reset button state
-            if (emailLoginBtn) {
-                emailLoginBtn.innerHTML = 'Continue with Email';
-                emailLoginBtn.disabled = false;
-                emailLoginBtn.classList.remove('loading');
-            }
-        } catch (error) {
-            console.error('Error during login process:', error);
-            
-            // Reset button state
-            if (emailLoginBtn) {
-                emailLoginBtn.innerHTML = 'Continue with Email';
-                emailLoginBtn.disabled = false;
-                emailLoginBtn.classList.remove('loading');
-            }
-            
-            // Try localStorage fallback anyway
-            userWalletAddress = '0x' + [...Array(40)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
-            localStorage.setItem('userWalletAddress', userWalletAddress);
-            localStorage.setItem('isAuthenticated', 'true');
-            
-            // Complete login without Magic
-            completeLogin('localStorage');
-        }
-    } else {
-        // Invalid email
-        emailInput.classList.add('error');
-        emailInput.style.animation = 'shake 0.5s';
-        
-        // Show error message
-        if (loginFeedback) {
-            loginFeedback.textContent = 'Please enter a valid email address.';
-            loginFeedback.classList.add('error');
-            loginFeedback.style.display = 'block';
-        }
-        
-        // Reset animation
-        setTimeout(() => {
-            emailInput.style.animation = '';
-            emailInput.focus();
-        }, 500);
-    }
-}
-
 // Handle login method selection
 function handleLogin(method) {
     console.log(`Login selected: ${method}`);
@@ -1394,212 +1112,6 @@ function setupVideoControls() {
     }
 }
 
-
-
-
-
-// Set up logout button functionality
-function setupLogoutButton() {
-    const logoutButton = document.getElementById('logoutButton');
-    if (!logoutButton) return;
-
-    // Remove any existing event listeners by cloning and replacing the button
-    const newLogoutButton = logoutButton.cloneNode(true);
-    logoutButton.parentNode.replaceChild(newLogoutButton, logoutButton);
-    
-    // Add a single event listener to the new button
-    newLogoutButton.addEventListener('click', async () => {
-        // Ask for confirmation
-        if (!confirm('Are you sure you want to reset data? This will log you out.')) {
-            return;
-        }
-        
-        // Change button text to indicate logout in progress
-        newLogoutButton.textContent = 'Logging out...';
-        newLogoutButton.disabled = true;
-        
-        // Log out from Magic if it's initialized
-        if (magic) {
-            try {
-                console.log('Attempting to logout from Magic...');
-                await magic.user.logout();
-                console.log('Successfully logged out from Magic');
-            } catch (error) {
-                console.error('Error logging out from Magic:', error);
-            }
-        }
-        
-        // Clear wallet data if wallet module is available
-        if (window.wallet && typeof window.wallet.clear === 'function') {
-            window.wallet.clear();
-        }
-        
-        // Remove wallet display if it exists
-        const walletDisplay = document.getElementById('walletDisplay');
-        if (walletDisplay) {
-            walletDisplay.remove();
-        }
-        
-        // Clear all localStorage
-        localStorage.removeItem('currentArtist');
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('artistUnlocked');
-        localStorage.removeItem('artistocksBalance');
-        localStorage.removeItem('safewordUsed');
-        localStorage.removeItem('userWalletAddress');
-        localStorage.removeItem('userEmail');
-
-        // Reset state variables
-        isLoggedIn = false;
-        isAuthenticated = false;
-        paymentSelected = false;
-        currentTokenAmount = 100;
-        contentUnlocked = {};
-        safewordUsed = false;
-        userWalletAddress = null;
-        userEmail = null;
-
-        // Reset to default artist
-        currentArtist = 'gosheesh';
-        document.body.className = 'gosheesh-theme';
-
-        // Update UI elements
-        document.getElementById('artistName').textContent = 'GOSHEESH';
-        document.getElementById('artistTokenName').textContent = getCurrentArtistData().name;
-        document.getElementById('artistNameAccess').textContent = getCurrentArtistData().name;
-        document.getElementById('artworkTitle').textContent = getCurrentArtistData().artworkTitle;
-
-        // Reset advanced purchase options
-        const advancedOptions = document.getElementById('advancedPurchaseOptions');
-        if (advancedOptions) {
-            advancedOptions.style.display = 'none';
-            advancedOptions.classList.remove('show');
-            advancedOptions.style.opacity = '0';
-            advancedOptions.style.maxHeight = '0';
-        }
-        
-        // Reset buy button text
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            buyButton.textContent = `Get Download ($${config.defaults.downloadPrice})`;
-            buyButton.classList.remove('safeword-activated');
-        }
-
-        // Hide the login feedback message
-        const loginFeedback = document.getElementById('loginFeedback');
-        if (loginFeedback) {
-            loginFeedback.style.display = 'none';
-            loginFeedback.textContent = '';
-            loginFeedback.classList.remove('error');
-        }
-
-        // Reset video source and state
-        const video = document.getElementById('artistVideo');
-        const source = document.getElementById('videoSource');
-        if (video && source) {
-            // Store current mute state
-            const isMuted = video.muted;
-            
-            // Update source
-            source.src = `assets/${currentArtist}-video.mp4`;
-            
-            // Reload video
-            video.load();
-            
-            // When video is ready, show it
-            video.oncanplay = () => {
-                video.style.opacity = '1';
-                showVideoFallback(false);
-                video.muted = isMuted;
-                
-                // If unmuted, make sure audio is playing
-                if (!video.muted) {
-                    video.play().catch(err => {
-                        console.error('Error playing video:', err);
-                        // If autoplay with sound fails, mute and try again
-                        video.muted = true;
-                        video.play().catch(err2 => console.error('Video still cannot play:', err2));
-                    });
-                }
-                
-                // Update mute button icons
-                const mutedIcon = document.querySelector('.muted-icon');
-                const unmutedIcon = document.querySelector('.unmuted-icon');
-                const muteToggle = document.getElementById('muteToggle');
-                
-                if (mutedIcon && unmutedIcon && muteToggle) {
-                    if (video.muted) {
-                        mutedIcon.style.display = '';
-                        unmutedIcon.style.display = 'none';
-                        muteToggle.setAttribute('aria-label', 'Unmute');
-                    } else {
-                        mutedIcon.style.display = 'none';
-                        unmutedIcon.style.display = '';
-                        muteToggle.setAttribute('aria-label', 'Mute');
-                    }
-                }
-            };
-            
-            // Start playing
-            video.play().catch(() => {
-                showVideoFallback(true);
-            });
-        }
-
-        // Show login section
-        const loginSection = document.getElementById('loginSection');
-        if (loginSection) {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
-        }
-
-        // Always show token preview section
-        const tokenSection = document.getElementById('tokenPreviewSection');
-        if (tokenSection) {
-            tokenSection.style.display = 'block';
-            tokenSection.style.opacity = '1';
-            tokenSection.style.transform = 'translateY(0)';
-        }
-
-        // Hide purchase and success sections
-        const purchaseSection = document.getElementById('purchaseSection');
-        if (purchaseSection) {
-            purchaseSection.style.display = 'none';
-            purchaseSection.style.opacity = '0';
-        }
-
-        const successSection = document.getElementById('successSection');
-        if (successSection) {
-            successSection.style.display = 'none';
-        }
-
-        // Reset content unlock toggle
-        const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-        if (contentUnlockToggle) {
-            contentUnlockToggle.checked = true; // Set to true by default for download availability
-        }
-
-        // Reset token slider
-        setupTokenSlider();
-
-        // Reset orbital tokens
-        setupOrbitalTokens(currentArtist);
-        orbitAnimationRunning = false;
-        animateOrbit();
-
-        // Reset angle offset
-        orbitAngleOffset = 0;
-        localStorage.setItem('orbitAngleOffset', '0');
-
-        // Reset button state
-        newLogoutButton.textContent = 'Reset Data';
-        newLogoutButton.disabled = false;
-        
-        // Show logout success toast
-        showLogoutSuccessToast();
-    });
-}
-
 // Show success message after logout
 function showLogoutSuccessToast() {
     // Create toast container if it doesn't exist
@@ -1725,144 +1237,6 @@ function updateExploreButton() {
         exploreBtn.onclick = () => transitionToArtist('gosheesh');
     }
 }
-
-
-
-// Update UI based on authentication state
-function updateUIForAuthState() {
-    // Always check authentication from localStorage
-    isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    isLoggedIn = isAuthenticated;
-    
-    // Check safeword status
-    safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-    
-    // Retrieve wallet address and email if they're in localStorage
-    if (isAuthenticated) {
-        userWalletAddress = localStorage.getItem('userWalletAddress') || userWalletAddress;
-        userEmail = localStorage.getItem('userEmail') || userEmail;
-    }
-    
-    console.log("updateUIForAuthState:", { 
-        isAuthenticated, 
-        safewordUsed, 
-        currentArtist,
-        userEmail: userEmail ? userEmail.substring(0, 3) + '...' : null,
-        walletAddress: userWalletAddress ? userWalletAddress.substring(0, 6) + '...' : null
-    });
-    
-    // Handle UI visibility based on authentication
-    const loginSection = document.getElementById('loginSection');
-    const tokenSection = document.getElementById('tokenPreviewSection');
-    const advancedOptions = document.getElementById('advancedPurchaseOptions');
-    const purchaseSection = document.getElementById('purchaseSection');
-    const successSection = document.getElementById('successSection');
-    const loginFeedback = document.getElementById('loginFeedback');
-    
-    // Reset login feedback message
-    if (loginFeedback) {
-        loginFeedback.style.display = 'none';
-        loginFeedback.textContent = '';
-        loginFeedback.classList.remove('error');
-    }
-    
-    // MOST IMPORTANT: Always ensure token preview section is visible, 
-    // regardless of authentication (so the download button is always available)
-    if (tokenSection) {
-        console.log("Making token section visible");
-        tokenSection.style.display = 'block';
-        tokenSection.style.opacity = '1';
-        tokenSection.style.transform = 'translateY(0)';
-    }
-    
-    // Clear purchase and success sections when updating UI
-    if (purchaseSection) {
-        purchaseSection.style.display = 'none';
-    }
-    
-    if (successSection) {
-        successSection.style.display = 'none';
-    }
-    
-    // Handle wallet display
-    const existingWalletDisplay = document.getElementById('walletDisplay');
-    
-    if (isAuthenticated && userWalletAddress) {
-        // Create or update wallet display
-        let walletDisplay = existingWalletDisplay;
-        
-        if (!walletDisplay) {
-            walletDisplay = document.createElement('div');
-            walletDisplay.id = 'walletDisplay';
-            walletDisplay.className = 'wallet-display';
-            
-            // Insert wallet display after artist name
-            const artistName = document.getElementById('artistName');
-            if (artistName && artistName.parentNode) {
-                artistName.parentNode.insertBefore(walletDisplay, artistName.nextSibling);
-            }
-        }
-        
-        // Show abbreviated wallet address
-        const shortAddress = userWalletAddress.substring(0, 6) + '...' + userWalletAddress.substring(userWalletAddress.length - 4);
-        walletDisplay.textContent = shortAddress;
-        
-        // Add tooltip with full address and email
-        walletDisplay.title = `${userEmail || 'No email available'}\n${userWalletAddress}`;
-    } else if (existingWalletDisplay) {
-        // Remove wallet display if user is not authenticated
-        existingWalletDisplay.remove();
-    }
-    
-    if (isAuthenticated) {
-        console.log("User is authenticated - hiding login section");
-        // Hide login for authenticated users
-        if (loginSection) {
-            loginSection.style.display = 'none';
-            loginSection.style.opacity = '0';
-        }
-        
-        // Show advanced options if safeword has been used
-        if (advancedOptions) {
-            if (safewordUsed) {
-                console.log("Showing advanced options (safeword used)");
-                advancedOptions.style.display = 'block';
-                advancedOptions.classList.add('show');
-                advancedOptions.style.opacity = '1';
-                advancedOptions.style.maxHeight = '300px';
-            } else {
-                console.log("Hiding advanced options (safeword not used)");
-                advancedOptions.style.display = 'none';
-                advancedOptions.classList.remove('show');
-                advancedOptions.style.opacity = '0';
-                advancedOptions.style.maxHeight = '0';
-            }
-        }
-        
-        // Update chat input placeholder
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.placeholder = safewordUsed ? 
-                "Type something" : 
-                "Type something";
-        }
-    } else {
-        console.log("User is not authenticated - showing login section");
-        // Show login for non-authenticated users
-        if (loginSection) {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
-        }
-    }
-    
-    // Update purchase-related UI
-    if (purchaseModule) {
-        purchaseModule.updateTotalPrice();
-        purchaseModule.updateBuyButton();
-    }
-}
-
-
 
 // Debug function to check purchase flow elements
 function debugPurchaseFlow() {
@@ -2077,7 +1451,7 @@ function setupTokenDragControls() {
                 e.preventDefault();
             }
         }
-    }, { passive: false }); // Need passive: false to call preventDefault
+    }, { passive: false });
     
     // Touch end handler
     orbitalContainer.addEventListener('touchend', function(e) {

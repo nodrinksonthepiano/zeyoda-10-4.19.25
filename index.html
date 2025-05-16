@@ -7,8 +7,25 @@
     <title>ZEYODA - Decentralized Artist Orbit</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- Magic SDK - reverting to original config -->
-    <script src="https://auth.magic.link/sdk"></script>
+    <!-- Magic SDK with loading verification -->
+    <script>
+        // Track Magic SDK loading
+        window.magicSDKLoaded = false;
+        function onMagicSDKLoaded() {
+            window.magicSDKLoaded = true;
+            console.log("Magic SDK loaded successfully");
+        }
+        
+        function handleMagicSDKError() {
+            console.error("Failed to load Magic SDK");
+            const loginFeedback = document.getElementById('loginFeedback');
+            if (loginFeedback) {
+                loginFeedback.textContent = "Authentication service unavailable. Please try again later.";
+                loginFeedback.style.display = "block";
+            }
+        }
+    </script>
+    <script src="https://auth.magic.link/sdk" onload="onMagicSDKLoaded()" onerror="handleMagicSDKError()"></script>
 </head>
 <body>
     <div id="particles" class="cosmic-particles"></div>
@@ -134,6 +151,7 @@
     <script src="wallet.js"></script>
     <!-- Initialize wallet-based theming system -->
     <script src="init.js" type="module"></script>
+    <script src="auth-ui.js" type="module"></script>
     <script src="script.js" type="module"></script>
 </body>
 </html> 

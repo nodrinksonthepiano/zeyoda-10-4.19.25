@@ -9,6 +9,30 @@ import { setupOrbit } from './orbit.js';
 // Import purchase setup
 import { setupPurchaseFlow } from './purchase.js';
 
+// Import auth UI setup
+import { setupAuthUI } from './auth-ui.js';
+
+// Make sure Magic SDK is available before initializing auth
+document.addEventListener('DOMContentLoaded', () => {
+  // Check if Magic SDK is available
+  if (typeof Magic === 'undefined') {
+    console.error('Magic SDK not loaded! Authentication will not work.');
+    
+    // Create a banner to notify users
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background-color: #ff4444; color: white; padding: 8px; text-align: center; z-index: 9999';
+    banner.textContent = 'Authentication service unavailable. Some features may not work properly.';
+    document.body.appendChild(banner);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      banner.style.opacity = '0';
+      banner.style.transition = 'opacity 0.5s';
+      setTimeout(() => banner.remove(), 500);
+    }, 5000);
+  }
+});
+
 // Regular expression to match wallet addresses (Ethereum-style)
 const WALLET_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
