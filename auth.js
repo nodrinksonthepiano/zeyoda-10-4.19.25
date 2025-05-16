@@ -386,8 +386,56 @@ export async function logout() {
 // Export state for use elsewhere
 export { magic, userWalletAddress, userEmail, isAuthenticated };
 
-// Initialize Magic SDK on page load
-document.addEventListener('DOMContentLoaded', initMagic);
+// Initialize Magic SDK and check for existing session on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    // First initialize Magic SDK
+    const initialized = initMagic();
+    
+    if (initialized && magic) {
+        try {
+            // Check if user is already logged in
+            const isLoggedIn = await magic.user.isLoggedIn();
+            
+            if (isLoggedIn) {
+                console.log('User is already logged in on page load, restoring session...');
+                
+                // Fetch user metadata
+                const userMetadata = await magic.user.getMetadata();
+                
+                // Update state variables
+                userWalletAddress = userMetadata.publicAddress;
+                userEmail = userMetadata.email;
+                isAuthenticated = true;
+                
+                // Store in localStorage for persistence
+                localStorage.setItem('userWalletAddress', userWalletAddress);
+                localStorage.setItem('userEmail', userEmail);
+                localStorage.setItem('isAuthenticated', 'true');
+                
+                // Update UI to reflect logged in state
+                updateUIForAuthState();
+                
+                console.log('Session restored successfully');
+                
+                // Trigger event for other components
+                const event = new CustomEvent('auth:sessionRestored', { 
+                    detail: { userWalletAddress, userEmail }
+                });
+                document.dispatchEvent(event);
+            } else {
+                // Check if we have localStorage values as fallback
+                await checkUserSession();
+            }
+        } catch (error) {
+            console.error('Error checking login state on page load:', error);
+            // Try localStorage fallback
+            await checkUserSession();
+        }
+    } else {
+        // If Magic initialization failed, still try localStorage
+        await checkUserSession();
+    }
+});
 
 // Add window method for global access
 window.checkUserSession = checkUserSession;

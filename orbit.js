@@ -27,6 +27,66 @@ let startTime = Date.now();
 let orbitContainer = null;
 
 /**
+ * Shows an error banner within a container element
+ * @param {HTMLElement} container - The container to show the error in
+ * @param {string} message - The error message to display
+ */
+function showErrorBanner(container, message) {
+    if (!container) {
+        console.error('Cannot show error banner: no container provided');
+        return;
+    }
+    
+    // Create an error banner style if it doesn't exist
+    if (!document.querySelector('style#orbit-error-styles')) {
+        const style = document.createElement('style');
+        style.id = 'orbit-error-styles';
+        style.textContent = `
+            @keyframes fadeOut {
+                0% { opacity: 1; }
+                80% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            
+            .error-banner {
+                background-color: rgba(244, 67, 54, 0.1);
+                border-left: 4px solid #F44336;
+                color: #F44336;
+                padding: 10px 15px;
+                margin: 10px 0;
+                border-radius: 4px;
+                font-size: 14px;
+                animation: fadeOut 5s forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Remove any existing error banners
+    const existingBanners = container.querySelectorAll('.error-banner');
+    existingBanners.forEach(banner => banner.remove());
+    
+    // Create the error banner
+    const banner = document.createElement('div');
+    banner.className = 'error-banner';
+    banner.textContent = message;
+    
+    // Insert at the top of the container
+    if (container.firstChild) {
+        container.insertBefore(banner, container.firstChild);
+    } else {
+        container.appendChild(banner);
+    }
+    
+    // Auto-remove after animation completes
+    setTimeout(() => {
+        if (banner && banner.parentNode) {
+            banner.parentNode.removeChild(banner);
+        }
+    }, 5000);
+}
+
+/**
  * Initialize the orbital tokens
  * @param {Object} artistData - Artist data containing orbital tokens
  */
@@ -36,13 +96,21 @@ export function setupOrbit(artistData) {
         console.warn('No orbital tokens found in artist data, using fallback data');
         // Create fallback orbit data if none provided
         artistData = createFallbackOrbitData();
-        if (!artistData) return;
+        if (!artistData) {
+            // Find a suitable container for the error message
+            const contentContainer = document.querySelector('.content-section') || document.body;
+            showErrorBanner(contentContainer, 'Failed to initialize orbital tokens: missing artist data');
+            return;
+        }
     }
 
     // Get the container
     orbitContainer = document.getElementById('orbitalTokens');
     if (!orbitContainer) {
         console.error('Orbit container not found');
+        // Find a suitable container for the error message
+        const contentContainer = document.querySelector('.content-section') || document.body;
+        showErrorBanner(contentContainer, 'Failed to initialize orbital tokens: container not found');
         return;
     }
 

@@ -14,6 +14,62 @@ import { config } from './config.js';
  * @param {Object} appState.contentUnlocked - Record of which artists' content is unlocked
  */
 export function setupPurchaseFlow(appState = {}) {
+    // Helper function to show error banners
+    function showErrorBanner(container, message) {
+        if (!container) {
+            console.error('Cannot show error banner: no container element');
+            return;
+        }
+        
+        // Create an error banner style if it doesn't exist
+        if (!document.querySelector('style#purchase-error-styles')) {
+            const style = document.createElement('style');
+            style.id = 'purchase-error-styles';
+            style.textContent = `
+                @keyframes fadeOut {
+                    0% { opacity: 1; }
+                    80% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+                
+                .error-banner {
+                    background-color: rgba(244, 67, 54, 0.1);
+                    border-left: 4px solid #F44336;
+                    color: #F44336;
+                    padding: 10px 15px;
+                    margin: 10px 0;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    animation: fadeOut 5s forwards;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remove any existing error banners
+        const existingBanners = container.querySelectorAll('.error-banner');
+        existingBanners.forEach(banner => banner.remove());
+        
+        // Create the error banner
+        const banner = document.createElement('div');
+        banner.className = 'error-banner';
+        banner.textContent = message;
+        
+        // Insert at the top of the container
+        if (container.firstChild) {
+            container.insertBefore(banner, container.firstChild);
+        } else {
+            container.appendChild(banner);
+        }
+        
+        // Auto-remove after animation completes
+        setTimeout(() => {
+            if (banner && banner.parentNode) {
+                banner.parentNode.removeChild(banner);
+            }
+        }, 5000);
+    }
+    
     // Extract state from passed object or use defaults
     let currentArtist = appState.currentArtist || localStorage.getItem('currentArtist') || '';
     let currentTokenAmount = appState.currentTokenAmount || parseInt(localStorage.getItem('currentTokenAmount')) || 100;
@@ -133,6 +189,12 @@ export function setupPurchaseFlow(appState = {}) {
                 }, 3000);
             }
             
+            // Show error banner
+            const tokenSection = document.getElementById('tokenPreviewSection');
+            if (tokenSection) {
+                showErrorBanner(tokenSection, "Please select an option to continue with your purchase");
+            }
+            
             return;
         }
         
@@ -146,6 +208,12 @@ export function setupPurchaseFlow(appState = {}) {
                 setTimeout(() => {
                     contentUnlockToggle.parentElement.style.boxShadow = '';
                 }, 3000);
+            }
+            
+            // Show error banner
+            const tokenSection = document.getElementById('tokenPreviewSection');
+            if (tokenSection) {
+                showErrorBanner(tokenSection, "Please select the Download option to continue");
             }
             
             return;
@@ -611,6 +679,11 @@ export function setupPurchaseFlow(appState = {}) {
         const artistData = getCurrentArtistData();
         if (!artistData) {
             console.error("Could not get artist data in handlePayment");
+            // Find the purchase section to show the error banner
+            const purchaseSection = document.getElementById('purchaseSection');
+            if (purchaseSection) {
+                showErrorBanner(purchaseSection, "Failed to load artist data for this purchase");
+            }
             return;
         }
         
@@ -664,6 +737,12 @@ export function setupPurchaseFlow(appState = {}) {
         // Don't allow payment if nothing is selected
         if (artistocksTotal === 0 && !includesDownload) {
             console.error("Nothing selected for purchase");
+            
+            // Find the purchase section to show the error banner
+            const purchaseSection = document.getElementById('purchaseSection');
+            if (purchaseSection) {
+                showErrorBanner(purchaseSection, "Please select an option to complete your purchase");
+            }
             return;
         }
         
@@ -912,6 +991,15 @@ export function setupPurchaseFlow(appState = {}) {
                 console.log("Created new purchase section");
             } else {
                 console.error("Content section not found, cannot create purchase section");
+                
+                // Show error banner on any available element
+                const tokenSection = document.getElementById('tokenPreviewSection');
+                if (tokenSection) {
+                    showErrorBanner(tokenSection, "There was a problem preparing the purchase form. Please try refreshing the page.");
+                } else {
+                    // Last resort - show on body
+                    showErrorBanner(document.body, "There was a problem preparing the purchase form. Please try refreshing the page.");
+                }
             }
         } else {
             // Ensure purchase section has a payment section

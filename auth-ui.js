@@ -10,6 +10,36 @@ export function setupAuthUI() {
 }
 
 /**
+ * Shows an error banner within a container element
+ * @param {HTMLElement} container - The container to show the error in
+ * @param {string} message - The error message to display
+ */
+function showErrorBanner(container, message) {
+  // Remove any existing error banners
+  const existingBanners = container.querySelectorAll('.error-banner');
+  existingBanners.forEach(banner => banner.remove());
+  
+  // Create the error banner
+  const banner = document.createElement('div');
+  banner.className = 'error-banner';
+  banner.textContent = message;
+  
+  // Insert at the top of the container
+  if (container.firstChild) {
+    container.insertBefore(banner, container.firstChild);
+  } else {
+    container.appendChild(banner);
+  }
+  
+  // Auto-remove after animation completes
+  setTimeout(() => {
+    if (banner && banner.parentNode) {
+      banner.parentNode.removeChild(banner);
+    }
+  }, 5000);
+}
+
+/**
  * Setup email login button and form
  */
 function setupEmailLogin() {
@@ -222,10 +252,13 @@ function setupEmailLogin() {
           
           // Set appropriate error message
           if (errorMessage.includes('Magic SDK not initialized')) {
+            showErrorBanner(loginSection, "Authentication service unavailable");
             loginFeedback.textContent = "Authentication service unavailable";
           } else if (errorMessage.includes('Invalid email')) {
+            showErrorBanner(loginSection, "Please enter a valid email address");
             loginFeedback.textContent = "Please enter a valid email address";
           } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+            showErrorBanner(loginSection, "Network error - check your connection");
             loginFeedback.textContent = "Network error - check your connection";
           } else if (errorMessage.includes('Magic link sent') || errorMessage.includes('check your email')) {
             // This is an "error" that indicates the email was actually sent.
@@ -251,6 +284,7 @@ function setupEmailLogin() {
             }
             return; // Exit click handler
           } else {
+            showErrorBanner(loginSection, "Login failed - " + errorMessage);
             loginFeedback.textContent = "Login failed - " + errorMessage;
           }
           
@@ -418,6 +452,12 @@ document.addEventListener('DOMContentLoaded', () => {
         20%, 40%, 60%, 80% { transform: translateX(5px); }
       }
       
+      @keyframes fadeOut {
+        0% { opacity: 1; }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      
       .error {
         border-color: red !important;
       }
@@ -430,6 +470,17 @@ document.addEventListener('DOMContentLoaded', () => {
       .feedback.error {
         color: #F44336;
         font-weight: bold;
+      }
+      
+      .error-banner {
+        background-color: rgba(244, 67, 54, 0.1);
+        border-left: 4px solid #F44336;
+        color: #F44336;
+        padding: 10px 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+        font-size: 14px;
+        animation: fadeOut 5s forwards;
       }
     `;
     document.head.appendChild(style);

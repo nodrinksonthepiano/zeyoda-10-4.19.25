@@ -10,6 +10,65 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Validates artist config to ensure all required fields are present
+ * @param {Object} config - The artist configuration to validate
+ * @returns {boolean} - Whether the config is valid
+ */
+export function validateArtistConfig(config) {
+    // Check for required fields
+    if (!config.artistId) {
+        console.error('Invalid artist config: missing artistId');
+        return false;
+    }
+    
+    if (!config.artistName) {
+        console.error('Invalid artist config: missing artistName');
+        return false;
+    }
+    
+    // Check for variables object with required CSS variables
+    if (!config.variables || typeof config.variables !== 'object') {
+        console.error('Invalid artist config: missing variables object');
+        return false;
+    }
+    
+    // Check for essential CSS variables
+    const requiredVariables = [
+        '--primary-color',
+        '--accent-color',
+        '--gradient-start',
+        '--gradient-end',
+        '--artist-font'
+    ];
+    
+    for (const variable of requiredVariables) {
+        if (!config.variables[variable]) {
+            console.error(`Invalid artist config: missing CSS variable ${variable}`);
+            return false;
+        }
+    }
+    
+    // Check for token metadata
+    if (!config.tokenName) {
+        console.error('Invalid artist config: missing tokenName');
+        return false;
+    }
+    
+    if (!config.artworkTitle) {
+        console.error('Invalid artist config: missing artworkTitle');
+        return false;
+    }
+    
+    if (!config.artworkYear) {
+        console.error('Invalid artist config: missing artworkYear');
+        return false;
+    }
+    
+    // Valid configuration
+    return true;
+}
+
+/**
  * Convert the new wallet-based config format to the legacy format
  * for backward compatibility
  * @param {Object} rawConfig - The raw config data from JSON
@@ -113,12 +172,29 @@ export async function loadConfigAndInit(callback) {
             window.config = config;
         }
         
-        // Validate config data
+        // Validate overall config data
         if (!config || !config.artists || Object.keys(config.artists).length === 0) {
             throw new Error('Invalid configuration: missing artists data');
         }
         
-        console.log('Configuration loaded successfully:', config);
+        // Validate each artist configuration
+        for (const [wallet, artistConfig] of Object.entries(config.wallets)) {
+            if (!validateArtistConfig(artistConfig)) {
+                console.warn(`Skipping initialization for invalid artist config with wallet ${wallet}`);
+                // Remove invalid configs from both structures
+                if (artistConfig.artistId) {
+                    delete config.artists[artistConfig.artistId];
+                }
+                delete config.wallets[wallet];
+            }
+        }
+        
+        // Check if we still have valid configurations after validation
+        if (Object.keys(config.wallets).length === 0) {
+            console.error('No valid artist configurations found after validation');
+        } else {
+            console.log('Configuration loaded successfully:', config);
+        }
         
         // Call the callback function (initializeApp)
         callback();
@@ -244,6 +320,25 @@ export async function loadConfigAndInit(callback) {
         // Update window.config to match
         if (typeof window !== 'undefined') {
             window.config = config;
+        }
+        
+        // Validate each artist in fallback configuration
+        for (const [wallet, artistConfig] of Object.entries(config.wallets)) {
+            if (!validateArtistConfig(artistConfig)) {
+                console.warn(`Skipping initialization for invalid fallback artist config with wallet ${wallet}`);
+                // Remove invalid configs from both structures
+                if (artistConfig.artistId) {
+                    delete config.artists[artistConfig.artistId];
+                }
+                delete config.wallets[wallet];
+            }
+        }
+        
+        // Check if we still have valid configurations after validation
+        if (Object.keys(config.wallets).length === 0) {
+            console.error('No valid artist configurations found in fallback config');
+        } else {
+            console.log('Using valid fallback configurations');
         }
         
         // Call the callback function with fallback configuration
