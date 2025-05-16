@@ -222,21 +222,28 @@ function toggleWallet(open = undefined, highlightArtistId = undefined) {
 function updateWalletDisplay(highlightArtistId = undefined) {
     console.log('Updating wallet display');
     if (!walletInitialized) return;
+    
     const walletButton = document.getElementById('walletButton');
     const walletContainer = document.getElementById('walletContainer');
+    
     if (!walletButton || !walletContainer) {
         console.error('Wallet UI elements not found!');
         return;
     }
+    
     const hasUserAssets = hasAssets();
     walletButton.style.display = hasUserAssets ? 'block' : 'none';
+    
     const walletContent = document.getElementById('walletContent');
     const emptyState = document.getElementById('walletEmptyState');
+    
     if (!walletContent || !emptyState) {
         console.error('Wallet content elements not found!');
         return;
     }
+    
     emptyState.style.display = hasUserAssets ? 'none' : 'block';
+    
     // Clear existing artist sections
     const artistSections = walletContent.querySelectorAll('.wallet-artist-section');
     artistSections.forEach(section => {
@@ -244,15 +251,22 @@ function updateWalletDisplay(highlightArtistId = undefined) {
             section.remove();
         }
     });
+    
     if (!hasUserAssets) return;
+    
+    // Log all assets for debugging
+    console.log('Current user assets:', JSON.stringify(userAssets));
+    
     Object.entries(userAssets).forEach(([artistId, artistAssets]) => {
         if (!((artistAssets.tokens && artistAssets.tokens > 0) || 
               (artistAssets.downloads && artistAssets.downloads.length > 0))) {
             return;
         }
+        
         let artistName = artistId.toUpperCase();
         let artistLogo = '';
         let artistProfileUrl = '';
+        
         try {
             const artistConfig = config.artists[artistId];
             if (artistConfig) {
@@ -263,10 +277,12 @@ function updateWalletDisplay(highlightArtistId = undefined) {
         } catch (error) {
             console.warn(`Could not get display name for artist ${artistId}`, error);
         }
+        
         // Create artist section
         const artistSection = document.createElement('div');
         artistSection.className = 'wallet-artist-section';
         artistSection.setAttribute('data-artist-id', artistId);
+        
         // Highlight if needed
         if (highlightArtistId && artistId === highlightArtistId) {
             artistSection.style.background = 'rgba(255,255,255,0.08)';
@@ -274,11 +290,13 @@ function updateWalletDisplay(highlightArtistId = undefined) {
                 artistSection.scrollIntoView({behavior: 'smooth', block: 'center'});
             }, 200);
         }
+        
         // Create artist header (logo + name, clickable)
         const artistHeader = document.createElement('h4');
         artistHeader.style.display = 'flex';
         artistHeader.style.alignItems = 'center';
         artistHeader.style.cursor = 'pointer';
+        
         if (artistLogo) {
             const logoImg = document.createElement('img');
             logoImg.src = artistLogo;
@@ -289,9 +307,11 @@ function updateWalletDisplay(highlightArtistId = undefined) {
             logoImg.style.borderRadius = '50%';
             artistHeader.appendChild(logoImg);
         }
+        
         const nameSpan = document.createElement('span');
         nameSpan.textContent = artistName;
         artistHeader.appendChild(nameSpan);
+        
         // Make header clickable to jump to artist profile in orbit
         artistHeader.addEventListener('click', () => {
             if (typeof transitionToArtist === 'function') {
@@ -300,26 +320,47 @@ function updateWalletDisplay(highlightArtistId = undefined) {
                 window.open(artistProfileUrl, '_blank');
             }
         });
+        
         artistSection.appendChild(artistHeader);
+        
         // Create list of assets
         const assetsList = document.createElement('ul');
         assetsList.className = 'wallet-assets-list';
+        
         if (artistAssets.tokens && artistAssets.tokens > 0) {
             const tokensItem = document.createElement('li');
             tokensItem.className = 'wallet-asset-item tokens';
             
-            // Ensure tokens are displayed properly, by forcing numeric conversion
-            const tokenCount = parseInt(artistAssets.tokens);
-            console.log(`Displaying ${tokenCount} tokens for ${artistId}`);
+            // IMPORTANT: Use the actual stored token count without any transformations
+            // This should be the exact number stored in userAssets[artistId].tokens
+            const rawTokenCount = artistAssets.tokens;
+            
+            // For display purposes only, ensure we have a valid number
+            let displayTokenCount;
+            if (typeof rawTokenCount === 'string') {
+                displayTokenCount = parseInt(rawTokenCount.replace(/,/g, ''));
+            } else {
+                displayTokenCount = rawTokenCount;
+            }
+            
+            // Minimal validation only to prevent UI crashes
+            if (isNaN(displayTokenCount) || !isFinite(displayTokenCount) || displayTokenCount < 0) {
+                console.error(`Critical: Invalid token count in wallet display: ${rawTokenCount}`);
+                // Do NOT modify the source data - just use 0 for display only if truly invalid
+                displayTokenCount = 0;
+            }
+            
+            console.log(`Displaying wallet tokens for ${artistId}: Raw value=${rawTokenCount}, Display value=${displayTokenCount}`);
             
             // Display the token count with proper formatting
             tokensItem.innerHTML = `
                 <span class="asset-icon">⚡</span>
-                <span class="asset-amount">${new Intl.NumberFormat().format(tokenCount)}</span>
+                <span class="asset-amount">${new Intl.NumberFormat().format(displayTokenCount)}</span>
                 <span class="asset-name">${artistName} Artistocks</span>
             `;
             assetsList.appendChild(tokensItem);
         }
+        
         if (artistAssets.downloads && artistAssets.downloads.length > 0) {
             artistAssets.downloads.forEach(download => {
                 const downloadItem = document.createElement('li');
@@ -332,6 +373,7 @@ function updateWalletDisplay(highlightArtistId = undefined) {
                 assetsList.appendChild(downloadItem);
             });
         }
+        
         artistSection.appendChild(assetsList);
         walletContent.appendChild(artistSection);
     });
@@ -354,8 +396,32 @@ function handleAssetDownload(ipfsHash) {
 function addArtistTokens(artistId, amount) {
     console.log(`Adding ${amount} tokens for artist ${artistId}`);
     
-    // Ensure amount is a number
-    const parsedAmount = typeof amount === 'string' ? parseInt(amount.replace(/,/g, '')) : parseInt(amount);
+    // Ensure amount is a valid number (not NaN, not Infinity)
+    let parsedAmount;
+    
+    if (typeof amount === 'string') {
+        // Remove commas and parse as integer
+        parsedAmount = parseInt(amount.replace(/,/g, ''));
+    } else if (typeof amount === 'number') {
+        // Ensure it's an integer
+        parsedAmount = Math.floor(amount);
+    } else {
+        // Check localStorage for current token amount instead of defaulting to 0
+        const storedAmount = localStorage.getItem('currentTokenAmount');
+        parsedAmount = storedAmount ? parseInt(storedAmount) : 100; // Minimum default is 100
+        console.log(`Invalid token amount input, using stored amount: ${parsedAmount}`);
+    }
+    
+    // Validate the parsed amount (prevent extreme values)
+    if (isNaN(parsedAmount) || !isFinite(parsedAmount) || parsedAmount < 0) {
+        // Get stored amount instead of defaulting to 0
+        const storedAmount = localStorage.getItem('currentTokenAmount');
+        parsedAmount = storedAmount ? parseInt(storedAmount) : 100;
+        console.error(`Invalid token amount: ${amount}, using stored amount: ${parsedAmount}`);
+    } else if (parsedAmount > 100000000) { // Cap at 100 million
+        console.warn(`Token amount ${parsedAmount} exceeds maximum, capping at 100 million`);
+        parsedAmount = 100000000;
+    }
     
     // Ensure artist entry exists
     if (!userAssets[artistId]) {
@@ -366,8 +432,32 @@ function addArtistTokens(artistId, amount) {
     }
     
     // Add tokens - if the user already has tokens, don't overwrite them, add to existing total
-    const currentTokens = parseInt(userAssets[artistId].tokens || 0);
-    userAssets[artistId].tokens = currentTokens + parsedAmount;
+    // Make sure current tokens is a valid number
+    let currentTokens = 0;
+    try {
+        currentTokens = parseInt(userAssets[artistId].tokens || 0);
+        if (isNaN(currentTokens) || !isFinite(currentTokens) || currentTokens < 0) {
+            // Check localStorage before resetting to 0
+            const storedAmount = localStorage.getItem('artistocksBalance');
+            currentTokens = storedAmount ? parseInt(storedAmount) : 0;
+            console.warn(`Invalid current token count: ${userAssets[artistId].tokens}, using stored amount: ${currentTokens}`);
+        } else if (currentTokens > 100000000) { // Cap at 100 million
+            console.warn(`Current token count ${currentTokens} exceeds maximum, capping at 100 million`);
+            currentTokens = 100000000;
+        }
+    } catch (e) {
+        // Check localStorage before defaulting to 0
+        const storedAmount = localStorage.getItem('artistocksBalance');
+        currentTokens = storedAmount ? parseInt(storedAmount) : 0;
+        console.error(`Error parsing current token count: ${e}, using stored amount: ${currentTokens}`);
+    }
+    
+    // Calculate new token total, ensuring it's within valid range
+    const newTotal = currentTokens + parsedAmount;
+    const finalTotal = Math.min(Math.max(0, newTotal), 100000000); // Ensure between 0 and 100 million
+    
+    // Store final value as integer
+    userAssets[artistId].tokens = finalTotal;
     
     // Log the current token total
     console.log(`New token total for ${artistId}: ${userAssets[artistId].tokens}`);
@@ -379,8 +469,9 @@ function addArtistTokens(artistId, amount) {
     updateWalletDisplay();
     
     // Also save in localStorage for consistent token display across pages
-    localStorage.setItem('artistocksBalance', userAssets[artistId].tokens);
-    localStorage.setItem('currentTokenAmount', userAssets[artistId].tokens);
+    // Use the same value everywhere to prevent inconsistencies
+    localStorage.setItem('artistocksBalance', finalTotal);
+    localStorage.setItem('currentTokenAmount', finalTotal);
     localStorage.setItem('lastPurchaseAmount', parsedAmount);
 }
 
@@ -461,30 +552,93 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
     
     // If purchase includes artistocks, add tokens
     if (includesArtistocks && tokenAmount > 0) {
-        // Convert tokenAmount to number if it's a string
-        const tokenCount = typeof tokenAmount === 'string' ? parseInt(tokenAmount.replace(/,/g, '')) : parseInt(tokenAmount);
-        console.log(`Adding ${tokenCount} tokens to wallet for ${artistId}`);
+        // Use the exact token amount passed from purchase.js - critical fix
+        // This should be the raw value from the user input, not a processed value
+        let actualTokenCount = tokenAmount;
+        
+        // Minimal validation - don't change the value unless absolutely necessary
+        if (typeof actualTokenCount === 'string') {
+            actualTokenCount = parseInt(actualTokenCount.replace(/,/g, ''));
+        }
+        
+        // Only validate for crash prevention, not to "fix" the value
+        if (isNaN(actualTokenCount) || !isFinite(actualTokenCount)) {
+            console.error(`CRITICAL: Invalid token amount received: ${tokenAmount}`);
+            // As a last resort, read directly from the UI
+            const tokenInput = document.getElementById('tokenAmountInput');
+            if (tokenInput) {
+                actualTokenCount = parseInt(tokenInput.value.replace(/,/g, ''));
+                console.log(`RECOVERY: Using direct input value: ${actualTokenCount}`);
+            } else {
+                const slider = document.getElementById('tokenSlider');
+                if (slider) {
+                    actualTokenCount = parseInt(slider.value);
+                    console.log(`RECOVERY: Using direct slider value: ${actualTokenCount}`);
+                } else {
+                    // Only as a last resort, use a meaningful default
+                    actualTokenCount = 2000; // Higher default - don't use 100
+                    console.log(`RECOVERY: Using default token count: ${actualTokenCount}`);
+                }
+            }
+        }
+        
+        console.log(`Adding ${actualTokenCount} tokens to wallet for ${artistId}`);
         
         // Update global success display
         const purchasedAmount = document.getElementById('purchasedAmount');
         if (purchasedAmount) {
-            purchasedAmount.textContent = new Intl.NumberFormat().format(tokenCount);
+            purchasedAmount.textContent = new Intl.NumberFormat().format(actualTokenCount);
         }
         
         // Fix the "undefined" Artistocks text
         const artistStockName = document.getElementById('artistStockName');
-        if (artistStockName && artistStockName.textContent === 'undefined') {
+        if (artistStockName) {
             const artistData = window.config && window.config.artists && window.config.artists[artistId];
             const artistName = artistData ? (artistData.name || artistId.toUpperCase()) : artistId.toUpperCase();
             artistStockName.textContent = artistName;
         }
         
-        // Add tokens to wallet
-        addArtistTokens(artistId, tokenCount);
+        // Directly update user assets with the exact amount - don't use helper functions
+        
+        // Ensure artist entry exists
+        if (!userAssets[artistId]) {
+            userAssets[artistId] = {
+                tokens: 0,
+                downloads: []
+            };
+        }
+        
+        // Get current tokens (if any)
+        let currentTokens = 0;
+        try {
+            currentTokens = parseInt(userAssets[artistId].tokens || 0);
+            if (isNaN(currentTokens) || !isFinite(currentTokens)) {
+                currentTokens = 0;
+            }
+        } catch (e) {
+            console.error("Error parsing existing tokens:", e);
+            currentTokens = 0;
+        }
+        
+        // Add new tokens to existing (if any)
+        const newTotal = currentTokens + actualTokenCount;
+        
+        // Update user assets directly
+        userAssets[artistId].tokens = newTotal;
+        
+        // Save to localStorage
+        saveUserAssets();
+        
+        // Also update all related localStorage values for consistency
+        localStorage.setItem('artistocksBalance', newTotal.toString());
+        localStorage.setItem('currentTokenAmount', actualTokenCount.toString());
+        localStorage.setItem('lastPurchaseAmount', actualTokenCount.toString());
+        
+        // Update the wallet display
+        updateWalletDisplay(artistId);
     }
     
     // Add download ONLY if specifically purchased (when includesDownload is true)
-    // This fixes the bug where downloads appear even when only tokens were purchased
     if (includesDownload) {
         // Check if we already have this download
         const artistAssets = userAssets[artistId] || { tokens: 0, downloads: [] };
@@ -521,7 +675,7 @@ function onPurchaseComplete(artistId, includesArtistocks, tokenAmount, includesD
     // Show wallet if not already open
     if (!isWalletOpen) {
         setTimeout(() => {
-            toggleWallet();
+            toggleWallet(true, artistId);  // Force open and highlight artist
         }, 1000); // Wait a second after purchase to show wallet
     }
 }

@@ -83,7 +83,7 @@ export function setupPurchaseFlow(appState = {}) {
         
         // Check authentication first
         if (!isAuthenticated) {
-            console.log("Not authenticated, showing login and applying shake animation");
+            console.log("Not authenticated, showing login and applying gentle shake animation");
             
             // Make sure login section is visible first
             const loginSection = document.getElementById('loginSection');
@@ -91,10 +91,10 @@ export function setupPurchaseFlow(appState = {}) {
                 loginSection.style.display = 'flex';
                 loginSection.style.opacity = '1';
                 
-                // Apply shake animation to the login section
+                // Apply gentle shake animation to the login section
                 loginSection.style.animation = '';
                 void loginSection.offsetWidth; // Force reflow
-                loginSection.style.animation = 'shake 0.5s';
+                loginSection.style.animation = 'shake 1.2s ease-in-out';
                 
                 // Scroll to login section
                 loginSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -102,20 +102,20 @@ export function setupPurchaseFlow(appState = {}) {
                 // Reset animation after it completes
                 setTimeout(() => {
                     loginSection.style.animation = '';
-                }, 500);
+                }, 1200);
             }
             
-            // Also shake the buy button to indicate action needed
+            // Also gently shake the buy button to indicate action needed
             const buyButton = document.getElementById('buyButton');
             if (buyButton) {
                 buyButton.style.animation = '';
                 void buyButton.offsetWidth; // Force reflow
-                buyButton.style.animation = 'shake 0.5s';
+                buyButton.style.animation = 'shake 1.2s ease-in-out';
                 
                 // Reset animation after it completes
                 setTimeout(() => {
                     buyButton.style.animation = '';
-                }, 500);
+                }, 1200);
             }
             
             return;
@@ -617,26 +617,49 @@ export function setupPurchaseFlow(appState = {}) {
         let artistocksTotal = 0;
         let includesArtistocks = false;
         
-        if (safewordUsed && currentTokenAmount > 0) {
-            // Ensure currentTokenAmount is a number and not formatted with commas
-            const parsedTokenAmount = typeof currentTokenAmount === 'string' 
-                ? parseInt(currentTokenAmount.replace(/,/g, '')) 
-                : currentTokenAmount;
-                
-            artistocksTotal = parsedTokenAmount * artistData.tokenPrice;
+        // CRITICAL FIX - Get the exact token amount from the input or slider, not from the stored value
+        let exactTokenAmount = 0;
+        
+        // Get token count directly from input if available (more reliable)
+        const tokenInput = document.getElementById('tokenAmountInput');
+        if (tokenInput) {
+            exactTokenAmount = parseInt(tokenInput.value.replace(/,/g, ''));
+            console.log(`Using token input value: ${exactTokenAmount}`);
+        } else {
+            // Fallback to slider
+            const slider = document.getElementById('tokenSlider');
+            if (slider) {
+                exactTokenAmount = parseInt(slider.value);
+                console.log(`Using slider value: ${exactTokenAmount}`);
+            } else {
+                // Last resort - use stored value
+                exactTokenAmount = currentTokenAmount;
+                console.log(`Using currentTokenAmount: ${exactTokenAmount}`);
+            }
+        }
+        
+        // Make sure it's a valid number
+        if (isNaN(exactTokenAmount) || !isFinite(exactTokenAmount)) {
+            console.error(`Invalid token amount: ${exactTokenAmount}, using currentTokenAmount`);
+            exactTokenAmount = currentTokenAmount;
+        }
+        
+        if (safewordUsed && exactTokenAmount > 0) {
+            artistocksTotal = exactTokenAmount * artistData.tokenPrice;
             includesArtistocks = true;
             
-            // Save to localStorage for recovery - use both keys for compatibility
-            localStorage.setItem('artistocksBalance', parsedTokenAmount);
-            localStorage.setItem('currentTokenAmount', parsedTokenAmount);
-            console.log(`Saving ${parsedTokenAmount} tokens to localStorage (current token amount for ${currentArtist})`);
+            // Store exact amount in multiple locations for consistency
+            localStorage.setItem('artistocksBalance', exactTokenAmount);
+            localStorage.setItem('currentTokenAmount', exactTokenAmount);
+            localStorage.setItem('lastPurchaseAmount', exactTokenAmount);
+            console.log(`Saving ${exactTokenAmount} tokens to localStorage (current token amount for ${currentArtist})`);
         }
         
         // Calculate total price
         const totalPrice = (artistocksTotal + (includesDownload ? 1 : 0)).toFixed(2);
         
         // Log the purchase details
-        console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'})`);
+        console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'}, Token amount: ${exactTokenAmount})`);
         
         // Don't allow payment if nothing is selected
         if (artistocksTotal === 0 && !includesDownload) {
@@ -647,36 +670,29 @@ export function setupPurchaseFlow(appState = {}) {
         // Flash the selected payment button
         flashPaymentButton(method);
         
-        // Complete the payment process after a short delay
+        // Simulate payment processing
         setTimeout(() => {
-            // Show success section
-            showSuccessSection(includesArtistocks);
+            console.log("Payment processing complete");
             
-            // Wait a moment for the success section to complete its work
-            // before updating the wallet, to ensure contentUnlocked is saved
-            setTimeout(() => {
-                // Update wallet with the purchase, including whether download was purchased
-                if (window.wallet) {
-                    // Ensure we're passing the correct token amount value
-                    const tokenAmountToSave = safewordUsed && currentTokenAmount > 0 ? 
-                        (typeof currentTokenAmount === 'string' ? 
-                            parseInt(currentTokenAmount.replace(/,/g, '')) : 
-                            currentTokenAmount) : 
-                        0;
-                            
-                    console.log(`Passing ${tokenAmountToSave} tokens to wallet.onPurchaseComplete`);
-                    window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, tokenAmountToSave, includesDownload);
-                }
-            }, 200);
+            // Update the success section with the exact token amount
+            showSuccessSection(includesArtistocks, exactTokenAmount);
+            
+            // If the wallet module is available, update it with the purchase
+            if (window.wallet && typeof window.wallet.onPurchaseComplete === 'function') {
+                // CRITICAL: Pass the exact token amount directly to wallet
+                console.log(`Passing exact token amount to wallet: ${exactTokenAmount}`);
+                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, exactTokenAmount, includesDownload);
+            }
         }, 800);
     }
 
     /**
      * Show success section with appropriate content
      * @param {boolean} includesArtistocks - Whether the purchase includes artistocks
+     * @param {number} exactTokenAmount - The exact number of tokens purchased
      */
-    function showSuccessSection(includesArtistocks = false) {
-        console.log(`Showing success section for ${includesArtistocks ? 'artistocks+download' : 'download only'}`);
+    function showSuccessSection(includesArtistocks = false, exactTokenAmount = null) {
+        console.log(`Showing success section for ${includesArtistocks ? 'artistocks+download' : 'download only'}, token amount: ${exactTokenAmount}`);
         
         // Ensure success section exists
         let successSection = document.getElementById('successSection');
@@ -688,15 +704,30 @@ export function setupPurchaseFlow(appState = {}) {
             return;
         }
 
-        // Get the total token count from userAssets
-        let totalTokens = currentTokenAmount;
-        if (window.wallet && includesArtistocks) {
-            const userAssets = window.wallet.loadAssets();
-            if (userAssets && userAssets[currentArtist] && userAssets[currentArtist].tokens) {
-                totalTokens = userAssets[currentArtist].tokens;
-                console.log(`Displaying total of ${totalTokens} tokens from wallet for ${currentArtist}`);
+        // Use the exact token amount if provided, otherwise fall back to currentTokenAmount
+        let displayTokenAmount = exactTokenAmount;
+        if (displayTokenAmount === null || isNaN(displayTokenAmount) || !isFinite(displayTokenAmount)) {
+            displayTokenAmount = currentTokenAmount;
+        }
+        
+        // If we want to show the total from wallet, this is optional
+        if (includesArtistocks && window.wallet && window.wallet.loadAssets) {
+            try {
+                const userAssets = window.wallet.loadAssets();
+                if (userAssets && userAssets[currentArtist] && userAssets[currentArtist].tokens) {
+                    const totalTokens = parseInt(userAssets[currentArtist].tokens);
+                    if (!isNaN(totalTokens) && isFinite(totalTokens) && totalTokens > 0) {
+                        console.log(`Found total of ${totalTokens} tokens in wallet for ${currentArtist}`);
+                        // Uncomment to use total instead of the purchased amount
+                        // displayTokenAmount = totalTokens;
+                    }
+                }
+            } catch (e) {
+                console.error("Error getting user assets:", e);
             }
         }
+        
+        console.log(`Using token amount for display: ${displayTokenAmount}`);
         
         // Create or update the success section
         if (!successSection) {
@@ -720,7 +751,7 @@ export function setupPurchaseFlow(appState = {}) {
             // Create title based on purchase type
             const title = document.createElement('h3');
             if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(displayTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
             } else {
                 title.textContent = "You've unlocked this download!";
             }
@@ -770,7 +801,7 @@ export function setupPurchaseFlow(appState = {}) {
             
             const title = document.createElement('h3');
             if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(totalTokens)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
+                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(displayTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
             } else {
                 title.textContent = "You've unlocked this download!";
             }
