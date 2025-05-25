@@ -5,15 +5,18 @@ import { setupPurchaseFlow } from './purchase.js';
 import { initMagic, checkUserSession, resetAuthState, updateUIForAuthState,
          isUserAuthenticated, handleEmailLogin, logout } from './auth.js';
 import { setupAuthUI } from './auth-ui.js';
+import { simulateSwap } from './liquidity.js';
 
+// Global state variables
 let currentArtist = localStorage.getItem('currentArtist') || "gosheesh";
 let isLoggedIn = false;
 let paymentSelected = false;
 let orbitAnimationRunning = false;
 let currentTokenAmount = 100;
-let isAuthenticated = false; // Will be properly set during initialization
+let isAuthenticated = false;
 let contentUnlocked = {};
 let safewordUsed = localStorage.getItem('safewordUsed') === 'true';
+
 // Add orbital animation state variables
 let orbitAnimationId = null;
 let orbitAngleOffset = parseFloat(localStorage.getItem('orbitAngleOffset') || '0');
@@ -286,151 +289,221 @@ function updateArtistElements() {
     videoSource.src = artistData.videoSrc;
 }
 
-// Set up token slider
+// Initialize token lists
+function refreshTokenLists() {
+    const artistData = getCurrentArtistData();
+    if (!artistData) return;
+
+    const fromTokenSelect = document.getElementById('fromToken');
+    const toTokenSelect = document.getElementById('toToken');
+    
+    // Get all available tokens when safeword is used
+    let tokenOptions = `<option value="CASH">CASH</option>`;
+    if (safewordUsed) {
+        Object.values(window.config.wallets).forEach(wallet => {
+            tokenOptions += `<option value="${wallet.tokenName}">${wallet.tokenName}</option>`;
+        });
+    }
+
+    fromTokenSelect.innerHTML = toTokenSelect.innerHTML = tokenOptions;
+    
+    // Set default values
+    fromTokenSelect.value = 'CASH';
+    toTokenSelect.value = artistData.tokenName;
+}
+
+// Preview swap based on current selections
+function previewSwap() {
+    const fromTokenSelect = document.getElementById('fromToken');
+    const toTokenSelect = document.getElementById('toToken');
+    const tokenSlider = document.getElementById('tokenSlider');
+    const buyButton = document.getElementById('buyButton');
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+
+    if (!fromTokenSelect || !toTokenSelect || !tokenSlider || !buyButton) return;
+
+    const from = fromTokenSelect.value;
+    const to = toTokenSelect.value;
+    const amount = Number(tokenSlider.value);
+    
+    // Get swap simulation
+    const { toAmount } = simulateSwap(from, to, amount);
+    
+    // Update button text based on swap type
+    if (from === 'CASH') {
+        const totalCost = contentUnlockToggle.checked ? amount + 1 : amount;
+        if (contentUnlockToggle.checked) {
+            buyButton.textContent = `GET DOWNLOAD + ${toAmount} ${to} ($${totalCost.toFixed(2)})`;
+        } else {
+            buyButton.textContent = `BUY ${toAmount} ${to} ($${amount.toFixed(2)})`;
+        }
+    } else if (to === 'CASH') {
+        if (contentUnlockToggle.checked) {
+            buyButton.textContent = `SWAP ${amount} ${from} FOR $${toAmount.toFixed(2)} + DOWNLOAD`;
+        } else {
+            buyButton.textContent = `SWAP ${amount} ${from} FOR $${toAmount.toFixed(2)}`;
+        }
+    } else {
+        if (contentUnlockToggle.checked) {
+            buyButton.textContent = `SWAP ${amount} ${from} FOR ${toAmount} ${to} + DOWNLOAD`;
+        } else {
+            buyButton.textContent = `SWAP ${amount} ${from} FOR ${toAmount} ${to}`;
+        }
+    }
+}
+
+// Modify setupTokenSlider to handle token swaps
 function setupTokenSlider() {
     const slider = document.getElementById('tokenSlider');
-    const tokenAmountInput = document.getElementById('tokenAmountInput');
-    const tokenTotalInput = document.getElementById('tokenTotalInput');
+    const fromTokenSelect = document.getElementById('fromToken');
+    const toTokenSelect = document.getElementById('toToken');
     
     if (!slider) return;
     
     const artistData = getCurrentArtistData();
+    if (!artistData) return;
     
-    // Calculate price and limits
-    const price = artistData.tokenPrice;
-    const maxDollarAmount = 10000;
-    const minDollarAmount = 0; // Changed from 1 to 0 to allow $0 purchases
+    // Set initial slider range
+    updateSliderRange();
     
-    // Calculate token limits based on dollar amounts
-    const maxTokens = Math.floor(maxDollarAmount / price);
-    const minTokens = Math.ceil(minDollarAmount / price);
+    // Initialize token lists
+    refreshTokenLists();
     
-    // Set min and max attributes dynamically based on price
-    slider.min = minTokens;
-    slider.max = maxTokens;
-    
-    // Check if we have wallet assets for this artist
-    let initialTokens = 100; // Default value if no storage found
-    
-    // Load user assets from the wallet if available
-    let userAssets = {};
+    // Set initial value
+    let initialTokens = 100;
     try {
-        // Try to get assets from wallet module first
-        if (window.wallet && typeof window.wallet.loadAssets === 'function') {
-            userAssets = window.wallet.loadAssets();
-        } else {
-            // Fallback to localStorage
-            const storedAssets = localStorage.getItem('userAssets');
-            if (storedAssets) {
-                userAssets = JSON.parse(storedAssets);
-            }
-        }
+        const userAssets = localStorage.getItem('userAssets') ? 
+            JSON.parse(localStorage.getItem('userAssets')) : {};
         
-        // Check if we have tokens for this artist
-        if (userAssets[currentArtist] && userAssets[currentArtist].tokens) {
+        if (userAssets[currentArtist]?.tokens) {
             initialTokens = parseInt(userAssets[currentArtist].tokens);
-            console.log(`Using wallet tokens for ${currentArtist}: ${initialTokens}`);
         } else {
-            // Fallback to checking various localStorage values
-            const currentAmount = localStorage.getItem('currentTokenAmount');
-            const lastPurchase = localStorage.getItem('lastPurchaseAmount');
-            const artistocksBalance = localStorage.getItem('artistocksBalance');
-            
-            if (currentAmount) {
-                initialTokens = parseInt(currentAmount);
-                console.log(`Using currentTokenAmount from localStorage: ${initialTokens}`);
-            } else if (lastPurchase) {
-                initialTokens = parseInt(lastPurchase);
-                console.log(`Using lastPurchaseAmount from localStorage: ${initialTokens}`);
-            } else if (artistocksBalance) {
-                initialTokens = parseInt(artistocksBalance);
-                console.log(`Using artistocksBalance from localStorage: ${initialTokens}`);
-            } else {
-                console.log(`No saved token amount found, using default: ${initialTokens}`);
-            }
+            const storedAmount = localStorage.getItem('currentTokenAmount');
+            if (storedAmount) initialTokens = parseInt(storedAmount);
         }
     } catch (error) {
         console.error('Error loading token amount:', error);
     }
     
-    // Make sure value is within limits
-    initialTokens = Math.max(minTokens, Math.min(maxTokens, initialTokens));
-    console.log(`Final slider initial value: ${initialTokens} tokens (min=${minTokens}, max=${maxTokens})`);
-    
-    // Update global variable
-    currentTokenAmount = initialTokens;
-    
-    // Set the slider value
+    // Update slider value
     slider.value = initialTokens;
-    
-    // Save in localStorage for consistency between pages
+    currentTokenAmount = initialTokens;
     localStorage.setItem('currentTokenAmount', initialTokens);
     
-    // Update values on load
-    purchaseModule.updateFromTokenAmount(initialTokens);
+    // Update preview on load
+    previewSwap();
     
-    // Update when slider changes
+    // Add event listeners
     slider.addEventListener('input', () => {
         currentTokenAmount = parseInt(slider.value);
-        purchaseModule.updateFromTokenAmount(currentTokenAmount);
-        // Update the buy button display
-        purchaseModule.updateTotalPrice();
-        // Save the current value for consistency
+        previewSwap();
         localStorage.setItem('currentTokenAmount', currentTokenAmount);
     });
     
-    // Update when token amount input changes
-    tokenAmountInput.addEventListener('input', () => {
-        let value = parseInt(tokenAmountInput.value.replace(/,/g, ''));
-        
-        // If the input is not a valid number, reset to default
-        if (isNaN(value) || value < 0) {
-            value = config.defaults.initialTokenAmount;
-        }
-        
-        // Apply boundaries
-        value = Math.max(minTokens, Math.min(maxTokens, value));
-        
-        // Update the global variable
-        currentTokenAmount = value;
-        
-        // Update the slider and values
-        slider.value = value;
-        purchaseModule.updateFromTokenAmount(value);
-        // Update the buy button display
-        purchaseModule.updateTotalPrice();
-        // Save the current value
-        localStorage.setItem('currentTokenAmount', value);
+    fromTokenSelect.addEventListener('change', () => {
+        updateSliderRange();
+        previewSwap();
     });
     
-    // Update when total amount input changes
-    tokenTotalInput.addEventListener('input', () => {
-        let value = parseFloat(tokenTotalInput.value.replace(/,/g, ''));
+    toTokenSelect.addEventListener('change', previewSwap);
+}
+
+// Helper function to update slider range based on selected token
+function updateSliderRange() {
+    const slider = document.getElementById('tokenSlider');
+    const fromTokenSelect = document.getElementById('fromToken');
+    if (!slider || !fromTokenSelect) return;
+
+    const fromToken = fromTokenSelect.value;
+    const artistData = getCurrentArtistData();
+    
+    if (fromToken === 'CASH') {
+        // For CASH, use dollar amounts
+        slider.min = 1;
+        slider.max = 10000;
+        slider.step = 1;
+    } else {
+        // For tokens, use token amounts
+        const userAssets = localStorage.getItem('userAssets') ? 
+            JSON.parse(localStorage.getItem('userAssets')) : {};
         
-        // If the input is not a valid number, reset to default
-        if (isNaN(value) || value < 0) {
-            value = config.defaults.initialTokenAmount * price;
+        // Get available balance for the selected token
+        const tokenBalance = userAssets[currentArtist]?.tokens || 0;
+        
+        slider.min = 1;
+        slider.max = Math.max(tokenBalance, 10000);
+        slider.step = 1;
+    }
+    
+    // Ensure current value is within new range
+    slider.value = Math.min(Math.max(slider.min, currentTokenAmount), slider.max);
+    currentTokenAmount = parseInt(slider.value);
+    previewSwap();
+}
+
+// Update handleBuyClick to handle token swaps
+function handleBuyClick() {
+    if (!isAuthenticated) return shakeLogin();
+    if (!safewordUsed) return shakeSafeword();
+    
+    const fromTokenSelect = document.getElementById('fromToken');
+    const toTokenSelect = document.getElementById('toToken');
+    const tokenSlider = document.getElementById('tokenSlider');
+    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+    
+    if (!fromTokenSelect || !toTokenSelect || !tokenSlider) return;
+    
+    const from = fromTokenSelect.value;
+    const to = toTokenSelect.value;
+    const amount = Number(tokenSlider.value);
+    
+    // Get swap simulation
+    const { toAmount } = simulateSwap(from, to, amount);
+    
+    // Handle different swap types
+    if (from === 'CASH') {
+        // CASH to TOKEN swap
+        const totalCost = contentUnlockToggle.checked ? amount + 1 : amount;
+        
+        // Process payment and add tokens
+        processPayment(totalCost).then(() => {
+            if (window.wallet) {
+                window.wallet.addArtistTokens(currentArtist, toAmount);
+            }
+            showSuccessSection(true, toAmount);
+        });
+    } else {
+        // TOKEN to CASH or TOKEN to TOKEN swap
+        const userAssets = localStorage.getItem('userAssets') ? 
+            JSON.parse(localStorage.getItem('userAssets')) : {};
+        
+        // Check if user has enough tokens
+        const fromBalance = userAssets[currentArtist]?.tokens || 0;
+        if (fromBalance < amount) {
+            showError('Insufficient balance for swap');
+            return;
         }
         
-        // Apply boundaries
-        const minTotal = minTokens * price;
-        const maxTotal = maxTokens * price;
-        value = Math.max(minTotal, Math.min(maxTotal, value));
+        // Process the swap
+        if (window.wallet) {
+            // Deduct source tokens
+            window.wallet.addArtistTokens(currentArtist, -amount);
+            
+            if (to === 'CASH') {
+                // Add CASH balance
+                processCashout(toAmount);
+            } else {
+                // Add destination tokens
+                const toArtist = Object.values(window.config.wallets)
+                    .find(w => w.tokenName === to)?.artistId;
+                if (toArtist) {
+                    window.wallet.addArtistTokens(toArtist, toAmount);
+                }
+            }
+        }
         
-        // Convert to tokens
-        const tokens = Math.round(value / price);
-        
-        // Update global variable
-        currentTokenAmount = tokens;
-        
-        // Update slider and values
-        slider.value = tokens;
-        purchaseModule.updateFromTokenAmount(tokens);
-        // Update the buy button display
-        purchaseModule.updateTotalPrice();
-        // Save the current value
-        localStorage.setItem('currentTokenAmount', tokens);
-    });
+        showSuccessSection(true, toAmount);
+    }
 }
 
 // Update the token price display
@@ -1570,4 +1643,26 @@ if (typeof window !== 'undefined') {
     window.transitionToArtist = transitionToArtist;
     window.getCurrentArtistData = getCurrentArtistData;
     window.debugPurchaseFlow = debugPurchaseFlow;
+}
+
+// Get DOM elements
+const tokenSlider = document.getElementById('tokenSlider');
+const fromTokenSelect = document.getElementById('fromToken');
+const toTokenSelect = document.getElementById('toToken');
+const buyButton = document.getElementById('buyButton');
+const contentUnlockToggle = document.getElementById('contentUnlockToggle');
+
+// Update UI when safeword is used
+function onSafewordUsed() {
+    safewordUsed = true;
+    localStorage.setItem('safewordUsed', 'true');
+    refreshTokenLists();
+    previewSwap();
+}
+
+// Update UI when artist changes
+function onArtistChange(newArtist) {
+    currentArtist = newArtist;
+    refreshTokenLists();
+    previewSwap();
 } 

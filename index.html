@@ -141,12 +141,16 @@
                     <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
                     <div class="slider-value-container">
                         <div class="token-input-group">
-                            <label for="tokenAmountInput">Artistocks:</label>
-                            <input type="text" id="tokenAmountInput" class="token-input" value="100">
+                            <label for="fromToken">Art ∞</label>
+                            <select id="fromToken" class="swap-select">
+                                <option value="CASH">CASH</option>
+                            </select>
                         </div>
                         <div class="total-input-group">
-                            <label for="tokenTotalInput">Total: $</label>
-                            <input type="text" id="tokenTotalInput" class="total-input" value="0.05">
+                            <label for="toToken">$</label>
+                            <select id="toToken" class="swap-select">
+                                <option value="CASH">CASH</option>
+                            </select>
                         </div>
                     </div>
                     <p class="token-price-info">1 <span id="artistTokenName">Artist</span> Artistock = $<span id="tokenUnitPrice">0.0005</span> (Minimum purchase: $1)</p>
