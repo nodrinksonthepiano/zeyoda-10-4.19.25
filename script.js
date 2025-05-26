@@ -299,17 +299,53 @@ function refreshTokenLists() {
     
     // Get all available tokens when safeword is used
     let tokenOptions = `<option value="CASH">CASH</option>`;
+    
     if (safewordUsed) {
-        Object.values(window.config.wallets).forEach(wallet => {
-            tokenOptions += `<option value="${wallet.tokenName}">${wallet.tokenName}</option>`;
+        // Get user assets from localStorage
+        const userAssets = localStorage.getItem('userAssets') ? 
+            JSON.parse(localStorage.getItem('userAssets')) : {};
+            
+        // Add tokens that the user owns or are available for purchase
+        Object.values(config.artists).forEach(artist => {
+            if (artist.tokenName) {
+                // Check if user owns these tokens
+                const artistId = Object.values(config.wallets)
+                    .find(w => w.tokenName === artist.tokenName)?.artistId;
+                const hasTokens = artistId && userAssets[artistId]?.tokens > 0;
+                
+                // Add to options if user owns tokens or it's the current artist's token
+                if (hasTokens || artist.tokenName === artistData.tokenName) {
+                    tokenOptions += `<option value="${artist.tokenName}">${artist.tokenName}</option>`;
+                }
+            }
         });
     }
 
-    fromTokenSelect.innerHTML = toTokenSelect.innerHTML = tokenOptions;
+    // Set options for both selects
+    fromTokenSelect.innerHTML = tokenOptions;
+    toTokenSelect.innerHTML = tokenOptions;
     
     // Set default values
-    fromTokenSelect.value = 'CASH';
-    toTokenSelect.value = artistData.tokenName;
+    if (safewordUsed) {
+        // If user has tokens of current artist, default to those as source
+        const userAssets = localStorage.getItem('userAssets') ? 
+            JSON.parse(localStorage.getItem('userAssets')) : {};
+        if (userAssets[currentArtist]?.tokens > 0) {
+            fromTokenSelect.value = artistData.tokenName;
+            toTokenSelect.value = 'CASH';
+        } else {
+            // Otherwise default to buying with CASH
+            fromTokenSelect.value = 'CASH';
+            toTokenSelect.value = artistData.tokenName;
+        }
+    } else {
+        // When safeword not used, always CASH to current artist's token
+        fromTokenSelect.value = 'CASH';
+        toTokenSelect.value = artistData.tokenName;
+    }
+    
+    // Update preview after setting values
+    previewSwap();
 }
 
 // Preview swap based on current selections
@@ -324,30 +360,33 @@ function previewSwap() {
 
     const from = fromTokenSelect.value;
     const to = toTokenSelect.value;
-    const amount = Number(tokenSlider.value);
+    const tokenAmount = Number(tokenSlider.value);
+    const artistData = getCurrentArtistData();
     
-    // Get swap simulation
-    const { toAmount } = simulateSwap(from, to, amount);
+    // Calculate cash amount based on token amount
+    const cashAmount = tokenAmount * artistData.tokenPrice;
     
     // Update button text based on swap type
     if (from === 'CASH') {
-        const totalCost = contentUnlockToggle.checked ? amount + 1 : amount;
+        const totalCost = contentUnlockToggle.checked ? cashAmount + 1 : cashAmount;
         if (contentUnlockToggle.checked) {
-            buyButton.textContent = `GET DOWNLOAD + ${toAmount} ${to} ($${totalCost.toFixed(2)})`;
+            buyButton.textContent = `GET DOWNLOAD + ${tokenAmount} ${to} ($${totalCost.toFixed(2)})`;
         } else {
-            buyButton.textContent = `BUY ${toAmount} ${to} ($${amount.toFixed(2)})`;
+            buyButton.textContent = `BUY ${tokenAmount} ${to} ($${cashAmount.toFixed(2)})`;
         }
     } else if (to === 'CASH') {
         if (contentUnlockToggle.checked) {
-            buyButton.textContent = `SWAP ${amount} ${from} FOR $${toAmount.toFixed(2)} + DOWNLOAD`;
+            buyButton.textContent = `SWAP ${tokenAmount} ${from} FOR $${cashAmount.toFixed(2)} + DOWNLOAD`;
         } else {
-            buyButton.textContent = `SWAP ${amount} ${from} FOR $${toAmount.toFixed(2)}`;
+            buyButton.textContent = `SWAP ${tokenAmount} ${from} FOR $${cashAmount.toFixed(2)}`;
         }
     } else {
+        // Token to token swap
+        const { toAmount } = simulateSwap(from, to, tokenAmount);
         if (contentUnlockToggle.checked) {
-            buyButton.textContent = `SWAP ${amount} ${from} FOR ${toAmount} ${to} + DOWNLOAD`;
+            buyButton.textContent = `SWAP ${tokenAmount} ${from} FOR ${toAmount} ${to} + DOWNLOAD`;
         } else {
-            buyButton.textContent = `SWAP ${amount} ${from} FOR ${toAmount} ${to}`;
+            buyButton.textContent = `SWAP ${tokenAmount} ${from} FOR ${toAmount} ${to}`;
         }
     }
 }
@@ -357,6 +396,8 @@ function setupTokenSlider() {
     const slider = document.getElementById('tokenSlider');
     const fromTokenSelect = document.getElementById('fromToken');
     const toTokenSelect = document.getElementById('toToken');
+    const tokenAmountInput = document.getElementById('tokenAmountInput');
+    const tokenTotalInput = document.getElementById('tokenTotalInput');
     
     if (!slider) return;
     
@@ -369,36 +410,62 @@ function setupTokenSlider() {
     // Initialize token lists
     refreshTokenLists();
     
-    // Set initial value
-    let initialTokens = 100;
-    try {
-        const userAssets = localStorage.getItem('userAssets') ? 
-            JSON.parse(localStorage.getItem('userAssets')) : {};
-        
-        if (userAssets[currentArtist]?.tokens) {
-            initialTokens = parseInt(userAssets[currentArtist].tokens);
-        } else {
-            const storedAmount = localStorage.getItem('currentTokenAmount');
-            if (storedAmount) initialTokens = parseInt(storedAmount);
-        }
-    } catch (error) {
-        console.error('Error loading token amount:', error);
-    }
+    // Start with $1 cash
+    const initialCash = 1.00;
+    const initialTokens = Math.floor(initialCash / artistData.tokenPrice);
     
-    // Update slider value
+    // Set initial values
     slider.value = initialTokens;
     currentTokenAmount = initialTokens;
-    localStorage.setItem('currentTokenAmount', initialTokens);
+    localStorage.setItem('currentTokenAmount', currentTokenAmount);
+    
+    if (tokenAmountInput && tokenTotalInput) {
+        // Set initial input values - $1 gets you 2000 tokens at $0.0005 per token
+        tokenTotalInput.value = initialTokens; // Right input shows tokens
+        tokenAmountInput.value = initialCash.toFixed(2); // Left input shows cash
+        
+        // Update when slider changes
+        slider.addEventListener('input', () => {
+            const tokenAmount = parseInt(slider.value);
+            const cashAmount = (tokenAmount * artistData.tokenPrice).toFixed(2);
+            
+            tokenTotalInput.value = tokenAmount; // Right input shows tokens
+            tokenAmountInput.value = cashAmount; // Left input shows cash
+            
+            currentTokenAmount = tokenAmount;
+            localStorage.setItem('currentTokenAmount', tokenAmount);
+            previewSwap();
+        });
+        
+        // Update when cash amount changes (left input)
+        tokenAmountInput.addEventListener('input', () => {
+            const cashAmount = parseFloat(tokenAmountInput.value) || 0;
+            const tokenAmount = Math.floor(cashAmount / artistData.tokenPrice);
+            
+            slider.value = tokenAmount;
+            tokenTotalInput.value = tokenAmount; // Right input shows tokens
+            
+            currentTokenAmount = tokenAmount;
+            localStorage.setItem('currentTokenAmount', tokenAmount);
+            previewSwap();
+        });
+        
+        // Update when token amount changes (right input)
+        tokenTotalInput.addEventListener('input', () => {
+            const tokenAmount = parseInt(tokenTotalInput.value) || 0;
+            const cashAmount = (tokenAmount * artistData.tokenPrice).toFixed(2);
+            
+            slider.value = tokenAmount;
+            tokenAmountInput.value = cashAmount; // Left input shows cash
+            
+            currentTokenAmount = tokenAmount;
+            localStorage.setItem('currentTokenAmount', tokenAmount);
+            previewSwap();
+        });
+    }
     
     // Update preview on load
     previewSwap();
-    
-    // Add event listeners
-    slider.addEventListener('input', () => {
-        currentTokenAmount = parseInt(slider.value);
-        previewSwap();
-        localStorage.setItem('currentTokenAmount', currentTokenAmount);
-    });
     
     fromTokenSelect.addEventListener('change', () => {
         updateSliderRange();
@@ -418,12 +485,31 @@ function updateSliderRange() {
     const artistData = getCurrentArtistData();
     
     if (fromToken === 'CASH') {
-        // For CASH, use dollar amounts
-        slider.min = 1;
-        slider.max = 10000;
+        // For CASH, calculate token range based on $1 to $10,000
+        // At $0.0005 per token:
+        // $1 = 2000 tokens (1/0.0005)
+        // $10,000 = 20,000,000 tokens (10000/0.0005)
+        const minTokens = Math.ceil(1 / artistData.tokenPrice);
+        const maxTokens = Math.floor(10000 / artistData.tokenPrice);
+        
+        slider.min = minTokens;
+        slider.max = maxTokens;
         slider.step = 1;
+        
+        // Reset to $1 worth of tokens
+        const oneUsdInTokens = Math.floor(1 / artistData.tokenPrice);
+        slider.value = oneUsdInTokens;
+        currentTokenAmount = oneUsdInTokens;
+        
+        // Update inputs if they exist
+        const tokenAmountInput = document.getElementById('tokenAmountInput');
+        const tokenTotalInput = document.getElementById('tokenTotalInput');
+        if (tokenAmountInput && tokenTotalInput) {
+            tokenAmountInput.value = (1).toFixed(2); // Left input shows $1.00
+            tokenTotalInput.value = oneUsdInTokens; // Right input shows tokens
+        }
     } else {
-        // For tokens, use token amounts
+        // For tokens, use token amounts directly
         const userAssets = localStorage.getItem('userAssets') ? 
             JSON.parse(localStorage.getItem('userAssets')) : {};
         
@@ -431,7 +517,7 @@ function updateSliderRange() {
         const tokenBalance = userAssets[currentArtist]?.tokens || 0;
         
         slider.min = 1;
-        slider.max = Math.max(tokenBalance, 10000);
+        slider.max = Math.max(tokenBalance, Math.floor(10000 / artistData.tokenPrice));
         slider.step = 1;
     }
     
@@ -460,6 +546,10 @@ function handleBuyClick() {
     // Get swap simulation
     const { toAmount } = simulateSwap(from, to, amount);
     
+    // Get user assets
+    const userAssets = localStorage.getItem('userAssets') ? 
+        JSON.parse(localStorage.getItem('userAssets')) : {};
+    
     // Handle different swap types
     if (from === 'CASH') {
         // CASH to TOKEN swap
@@ -467,42 +557,71 @@ function handleBuyClick() {
         
         // Process payment and add tokens
         processPayment(totalCost).then(() => {
-            if (window.wallet) {
-                window.wallet.addArtistTokens(currentArtist, toAmount);
+            // Find the target artist ID for the token
+            const toArtist = Object.values(config.wallets)
+                .find(w => w.tokenName === to)?.artistId;
+            
+            if (toArtist && window.wallet) {
+                // Add tokens to the correct artist
+                window.wallet.addArtistTokens(toArtist, toAmount);
+                
+                // Update localStorage
+                userAssets[toArtist] = userAssets[toArtist] || { tokens: 0 };
+                userAssets[toArtist].tokens = (userAssets[toArtist].tokens || 0) + toAmount;
+                localStorage.setItem('userAssets', JSON.stringify(userAssets));
             }
+            
             showSuccessSection(true, toAmount);
+            
+            // Refresh token lists to update available options
+            refreshTokenLists();
         });
     } else {
         // TOKEN to CASH or TOKEN to TOKEN swap
-        const userAssets = localStorage.getItem('userAssets') ? 
-            JSON.parse(localStorage.getItem('userAssets')) : {};
+        // Find source artist ID
+        const fromArtist = Object.values(config.wallets)
+            .find(w => w.tokenName === from)?.artistId;
+        
+        if (!fromArtist) {
+            showError('Could not find source artist for swap');
+            return;
+        }
         
         // Check if user has enough tokens
-        const fromBalance = userAssets[currentArtist]?.tokens || 0;
+        const fromBalance = userAssets[fromArtist]?.tokens || 0;
         if (fromBalance < amount) {
             showError('Insufficient balance for swap');
             return;
         }
         
-        // Process the swap
         if (window.wallet) {
             // Deduct source tokens
-            window.wallet.addArtistTokens(currentArtist, -amount);
+            window.wallet.addArtistTokens(fromArtist, -amount);
+            userAssets[fromArtist].tokens -= amount;
             
             if (to === 'CASH') {
                 // Add CASH balance
                 processCashout(toAmount);
             } else {
                 // Add destination tokens
-                const toArtist = Object.values(window.config.wallets)
+                const toArtist = Object.values(config.wallets)
                     .find(w => w.tokenName === to)?.artistId;
                 if (toArtist) {
                     window.wallet.addArtistTokens(toArtist, toAmount);
+                    // Update localStorage
+                    userAssets[toArtist] = userAssets[toArtist] || { tokens: 0 };
+                    userAssets[toArtist].tokens = (userAssets[toArtist].tokens || 0) + toAmount;
                 }
             }
+            
+            // Update localStorage
+            localStorage.setItem('userAssets', JSON.stringify(userAssets));
         }
         
         showSuccessSection(true, toAmount);
+        
+        // Refresh token lists to update available options
+        refreshTokenLists();
     }
 }
 
@@ -813,6 +932,9 @@ function completeLogin(method) {
     // Update buy button text
     purchaseModule.updateBuyButton();
     
+    // Update explore button
+    updateExploreButton();
+    
     // Show success toast message
     showLoginSuccessMessage();
     
@@ -915,12 +1037,14 @@ function transitionToArtist(artistId) {
     const artistData = getCurrentArtistData();
     
     // Important: Get authentication and safeword status FIRST
-    // to ensure they're preserved during transition
     isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     isLoggedIn = isAuthenticated;
     safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
-    console.log(`Artist transition - Auth state: ${isAuthenticated}, Safeword: ${safewordUsed}`);
+    // Reset to $1 worth of tokens for the new artist
+    const oneUsdInTokens = Math.floor(1 / artistData.tokenPrice);
+    currentTokenAmount = oneUsdInTokens;
+    localStorage.setItem('currentTokenAmount', currentTokenAmount);
     
     // Update UI elements with the new artist name
     updateArtistElements();
@@ -931,74 +1055,41 @@ function transitionToArtist(artistId) {
     // Update video source
     const video = document.getElementById('artistVideo');
     const source = document.getElementById('videoSource');
-    if (!video || !source) return;
-    
-    const isMuted = video.muted; // Store the current mute state
-    
-    // Hide video temporarily during transition
-    video.style.opacity = '0';
-    
-    // Update source
-    source.src = artistData.videoSrc;
-    video.load();
-    
-    // When video is ready, show it
-    video.oncanplay = () => {
-        video.style.opacity = '1';
-        showVideoFallback(false);
-        video.muted = isMuted; // Restore the mute state
-        
-        // If unmuted, make sure audio is playing
-        if (!video.muted) {
-            video.play().catch(err => {
-                console.error('Error playing video:', err);
-                // If autoplay with sound fails, mute and try again
-                video.muted = true;
-                video.play().catch(err2 => console.error('Video still cannot play:', err2));
-            });
-        }
-        
-        // Update mute button icons to match the video state
-        const mutedIcon = document.querySelector('.muted-icon');
-        const unmutedIcon = document.querySelector('.unmuted-icon');
-        const muteToggle = document.getElementById('muteToggle');
-        
-        if (mutedIcon && unmutedIcon && muteToggle) {
-            if (video.muted) {
-                mutedIcon.style.display = '';
-                unmutedIcon.style.display = 'none';
-                muteToggle.setAttribute('aria-label', 'Unmute');
-            } else {
-                mutedIcon.style.display = 'none';
-                unmutedIcon.style.display = '';
-                muteToggle.setAttribute('aria-label', 'Mute');
+    if (video && source) {
+        const isMuted = video.muted;
+        video.style.opacity = '0';
+        source.src = artistData.videoSrc;
+        video.load();
+        video.oncanplay = () => {
+            video.style.opacity = '1';
+            showVideoFallback(false);
+            video.muted = isMuted;
+            if (!video.muted) {
+                video.play().catch(err => {
+                    console.error('Error playing video:', err);
+                    video.muted = true;
+                    video.play().catch(err2 => console.error('Video still cannot play:', err2));
+                });
             }
-        }
-    };
-    
-    // Start playing
-    video.play().catch(() => {
-        // Video might not play, handle error
-        showVideoFallback(true);
-    });
+        };
+    }
     
     // Update token price and reset token slider
     updateArtistTokenPrice();
+    setupTokenSlider();
     
-    // Clear chat input
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.value = '';
-        // For better UX, update placeholder
-        chatInput.placeholder = "Type something";
+    // Update orbital tokens for the new artist
+    setupOrbitalTokens(currentArtist);
+    
+    // Update explore button
+    updateExploreButton();
+    
+    // Update token lists if safeword is used
+    if (safewordUsed) {
+        refreshTokenLists();
     }
-
-    // Reset UI: Hide all sections initially
-    document.querySelectorAll('.content-section > div').forEach(section => {
-        section.style.display = 'none';
-    });
     
-    // Always ensure the token preview section is visible for all artists
+    // Ensure the token preview section is visible
     const tokenSection = document.getElementById('tokenPreviewSection');
     if (tokenSection) {
         tokenSection.style.display = 'block';
@@ -1006,106 +1097,7 @@ function transitionToArtist(artistId) {
         tokenSection.style.transform = 'translateY(0)';
     }
     
-    // Ensure purchase section exists
-    purchaseModule.ensurePurchaseSectionExists();
-    
-    // Set up login section properly based on authentication
-    const loginSection = document.getElementById('loginSection');
-    if (loginSection) {
-        if (isAuthenticated) {
-            loginSection.style.display = 'none';
-            loginSection.style.opacity = '0';
-        } else {
-            loginSection.style.display = 'flex';
-            loginSection.style.opacity = '1';
-        }
-    }
-    
-    // Set up content unlock toggle properly
-    const contentUnlockToggle = document.getElementById('contentUnlockToggle');
-    if (contentUnlockToggle) {
-        // Default to true for download availability
-        contentUnlockToggle.checked = true;
-    }
-    
-    // Set up advanced purchase options based on safeword
-    const advancedOptions = document.getElementById('advancedPurchaseOptions');
-    if (advancedOptions) {
-        if (safewordUsed && isAuthenticated) {
-            advancedOptions.style.display = 'block';
-            advancedOptions.classList.add('show');
-            advancedOptions.style.opacity = '1';
-            advancedOptions.style.maxHeight = '300px';
-        } else {
-            advancedOptions.style.display = 'none';
-            advancedOptions.classList.remove('show');
-            advancedOptions.style.opacity = '0';
-            advancedOptions.style.maxHeight = '0';
-        }
-    }
-    
-    // Update orbital tokens
-    setupOrbitalTokens(currentArtist);
-    
-    // Update the explore button
-    updateExploreButton();
-    
-    // Re-initialize token drag controls for new tokens
-    setupTokenDragControls();
-    
-    // Reset animation flag to ensure animation restarts with new tokens
-    // Keep angle offset but restart the animation
-    if (orbitAnimationId) {
-        cancelAnimationFrame(orbitAnimationId);
-        orbitAnimationId = null;
-    }
-    orbitAnimationRunning = false;
-    animateOrbit();
-    
-    // Position tokens correctly after transition
-    setTimeout(positionOrbitalTokens, 200);
-    
-    // First calculate the current total price
-    purchaseModule.updateFromTokenAmount(currentTokenAmount);
-    
-    // Then update the total price - this ensures the total is correctly calculated
-    purchaseModule.updateTotalPrice();
-    
-    // Set up buy button with the correct event handler and text
-    const buyButton = document.getElementById('buyButton');
-    if (buyButton) {
-        // Direct approach: Remove all existing listeners
-        const newBuyButton = buyButton.cloneNode(true);
-        buyButton.parentNode.replaceChild(newBuyButton, buyButton);
-        
-        // Add click listener directly
-        newBuyButton.addEventListener('click', () => purchaseModule.handleBuyClick());
-        console.log("Re-attached click handler to buy button");
-    }
-    
-    // Do a final check after everything is set up
-    setTimeout(() => {
-        // Re-check buy button
-        const buyButton = document.getElementById('buyButton');
-        if (buyButton) {
-            // Make sure we can track clicks
-            buyButton.addEventListener('click', function() {
-                console.log('Buy button clicked (backup handler)');
-                purchaseModule.handleBuyClick();
-            });
-        }
-        
-        // Debug the setup
-        debugPurchaseFlow();
-    }, 500);
-    
     console.log(`Transition to ${currentArtist} complete`);
-    
-    // Update token amount display
-    purchaseModule.updateFromTokenAmount(currentTokenAmount);
-    
-    // Update total price calculation
-    purchaseModule.updateTotalPrice();
 }
 
 // Set up video controls
@@ -1665,4 +1657,5 @@ function onArtistChange(newArtist) {
     currentArtist = newArtist;
     refreshTokenLists();
     previewSwap();
+    updateExploreButton();
 } 

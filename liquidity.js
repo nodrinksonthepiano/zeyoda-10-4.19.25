@@ -6,21 +6,23 @@
  * @returns {Object} Simulated swap result with toAmount
  */
 export function simulateSwap(fromToken, toToken, fromAmount) {
-    // Get current artist data from config
-    const artistData = window.config.wallets[Object.keys(window.config.wallets)[0]];
-    if (!artistData) return { toAmount: 0 };
+    // For CASH→TOKEN or TOKEN→CASH swaps, find the relevant artist data
+    const relevantArtist = Object.values(window.config.wallets)
+        .find(w => w.tokenName === (fromToken === 'CASH' ? toToken : fromToken));
+    
+    if (!relevantArtist) return { toAmount: 0 };
 
     // For CASH→TOKEN: amount * price
-    if (fromToken === 'CASH' && toToken === artistData.tokenName) {
+    if (fromToken === 'CASH' && toToken === relevantArtist.tokenName) {
         return {
-            toAmount: Math.floor(fromAmount / artistData.tokenPrice)
+            toAmount: Math.floor(fromAmount / relevantArtist.tokenPrice)
         };
     }
     
-    // For TOKEN→CASH: amount / price
-    if (fromToken === artistData.tokenName && toToken === 'CASH') {
+    // For TOKEN→CASH: amount * price
+    if (fromToken === relevantArtist.tokenName && toToken === 'CASH') {
         return {
-            toAmount: fromAmount * artistData.tokenPrice
+            toAmount: fromAmount * relevantArtist.tokenPrice
         };
     }
 

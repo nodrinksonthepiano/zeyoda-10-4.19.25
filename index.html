@@ -141,13 +141,13 @@
                     <input type="range" min="1" max="20000000" value="100" class="token-slider" id="tokenSlider">
                     <div class="slider-value-container">
                         <div class="token-input-group">
-                            <label for="fromToken">Art ∞</label>
+                            <input type="number" id="tokenAmountInput" class="token-input" value="2000" min="0" max="1000000000" step="1">
                             <select id="fromToken" class="swap-select">
                                 <option value="CASH">CASH</option>
                             </select>
                         </div>
                         <div class="total-input-group">
-                            <label for="toToken">$</label>
+                            <input type="number" id="tokenTotalInput" class="token-input" value="1.00" min="0" max="1000000000" step="0.01">
                             <select id="toToken" class="swap-select">
                                 <option value="CASH">CASH</option>
                             </select>

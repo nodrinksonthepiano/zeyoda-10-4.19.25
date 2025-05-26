@@ -828,7 +828,15 @@ function showSuccessSection(includesArtistocks = false) {
         exploreBtn.className = 'explore-btn';
         exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
         exploreBtn.addEventListener('click', () => {
-            window.location.hash = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
+            const nextArtist = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
+            if (typeof window.transitionToArtist === 'function') {
+                window.transitionToArtist(nextArtist);
+            } else {
+                // Fallback to direct state change
+                currentArtist = nextArtist;
+                localStorage.setItem('currentArtist', currentArtist);
+                window.location.reload(); // Reload to apply changes
+            }
         });
         successSection.appendChild(exploreBtn);
         
@@ -872,7 +880,15 @@ function showSuccessSection(includesArtistocks = false) {
         exploreBtn.className = 'explore-btn';
         exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
         exploreBtn.addEventListener('click', () => {
-            window.location.hash = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
+            const nextArtist = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
+            if (typeof window.transitionToArtist === 'function') {
+                window.transitionToArtist(nextArtist);
+            } else {
+                // Fallback to direct state change
+                currentArtist = nextArtist;
+                localStorage.setItem('currentArtist', currentArtist);
+                window.location.reload(); // Reload to apply changes
+            }
         });
         successSection.appendChild(exploreBtn);
     }

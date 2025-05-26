@@ -161,8 +161,8 @@ export function setupOrbit(artistData) {
         if (token.artistId) {
             tokenElement.addEventListener('click', () => {
                 // If there's a handler for artist switching, call it
-                if (typeof window.switchToArtist === 'function') {
-                    window.switchToArtist(token.artistId);
+                if (typeof window.transitionToArtist === 'function') {
+                    window.transitionToArtist(token.artistId);
                 } else {
                     console.log(`Clicked artist token: ${token.artistId}`);
                 }
