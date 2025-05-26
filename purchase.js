@@ -6,6 +6,10 @@
 // Import configuration
 import { config } from './config.js';
 
+// Constants for token pricing
+const TOKEN_PRICE = 0.0005; // $0.0005 per token
+const MIN_PURCHASE_AMOUNT = 1.00; // $1 minimum purchase
+
 /**
  * Set up the purchase flow with the given application state
  * @param {Object} appState - Application state object
@@ -79,9 +83,10 @@ export function setupPurchaseFlow(appState = {}) {
     let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
     let safewordUsed = localStorage.getItem('safewordUsed') === 'true';
     
-    // Initialize the purchase flow
+    // Initialize all components
     setupContentUnlockToggle();
     setupPaymentButtons();
+    setupTokenSlider();
     
     // Update price display
     updateTotalPrice();
@@ -105,7 +110,8 @@ export function setupPurchaseFlow(appState = {}) {
         ensurePurchaseSectionExists,
         createPaymentButtons,
         setupPaymentButtons,
-        generateIPFSHash
+        generateIPFSHash,
+        setupTokenSlider
     };
 
     /**
@@ -312,130 +318,73 @@ export function setupPurchaseFlow(appState = {}) {
         // Get safeword status
         safewordUsed = localStorage.getItem('safewordUsed') === 'true';
         
-        // Calculate Artistocks cost
+        // Get artist data
         const artistData = getCurrentArtistData();
         if (!artistData) {
             console.error("Could not get artist data in updateTotalPrice");
             return;
         }
         
-        // Get artistocks amount
-        const artistocksTotal = currentTokenAmount * artistData.tokenPrice;
+        // Calculate exact token amount from slider or input
+        let exactTokenAmount = 0;
+        const tokenInput = document.getElementById('tokenAmountInput');
+        const slider = document.getElementById('tokenSlider');
         
-        // Add $1 if content unlock is checked
+        if (tokenInput && tokenInput.value) {
+            exactTokenAmount = parseInt(tokenInput.value.replace(/,/g, ''));
+        } else if (slider) {
+            exactTokenAmount = parseInt(slider.value);
+        }
+        
+        // Validate token amount
+        if (isNaN(exactTokenAmount) || !isFinite(exactTokenAmount)) {
+            exactTokenAmount = 0;
+        }
+        
+        // Calculate costs
+        const artistocksTotal = exactTokenAmount * TOKEN_PRICE;
         const unlockCost = contentUnlockToggle.checked ? 1 : 0;
-        
-        // Calculate total price
         const total = artistocksTotal + unlockCost;
         
+        // Enforce minimum purchase amount for artistocks
+        if (safewordUsed && artistocksTotal > 0 && artistocksTotal < MIN_PURCHASE_AMOUNT) {
+            const minTokens = Math.ceil(MIN_PURCHASE_AMOUNT / TOKEN_PRICE);
+            exactTokenAmount = minTokens;
+            updateFromTokenAmount(minTokens);
+        }
+        
         // Update total input with correct price
-        if (safewordUsed) {
-            // When safeword is used, always show total price (artistocks+download or just artistocks)
-            tokenTotalInput.value = total.toFixed(2);
-        } else {
-            // When safeword is not used, always show $1 if checked, otherwise $0
-            tokenTotalInput.value = unlockCost.toFixed(2);
-        }
+        tokenTotalInput.value = total.toFixed(2);
         
-        console.log(`Total price calculation: Artistocks: $${artistocksTotal.toFixed(2)}, Download: $${unlockCost.toFixed(2)}, Total: $${total.toFixed(2)}`);
+        // Store exact amount for later use
+        localStorage.setItem('currentTokenAmount', exactTokenAmount);
         
-        // Check if we have a valid selection
-        const hasValidSelection = contentUnlockToggle.checked || (safewordUsed && currentTokenAmount > 0);
-        
-        // Disable buy button if no valid selection
-        if (buyButton) {
-            if (!hasValidSelection) {
-                buyButton.disabled = true;
-                buyButton.style.opacity = '0.5';
-                buyButton.style.cursor = 'not-allowed';
-            } else {
-                buyButton.disabled = false;
-                buyButton.style.opacity = '1';
-                buyButton.style.cursor = 'pointer';
-            }
-            
-            // Also update the buy button text directly to reflect changes
-            if (safewordUsed) {
-                // Safeword is used - show full details based on selection
-                if (artistocksTotal > 0) {
-                    if (contentUnlockToggle.checked) {
-                        // Both artistocks and download
-                        buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${total.toFixed(2)})`;
-                    } else {
-                        // Just artistocks
-                        buyButton.textContent = `Buy ${new Intl.NumberFormat().format(currentTokenAmount)} Artistocks ($${artistocksTotal.toFixed(2)})`;
-                    }
-                } else if (contentUnlockToggle.checked) {
-                    // Just download
-                    buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-                } else {
-                    // No valid selection
-                    buyButton.textContent = 'Select Purchase Options';
-                }
-            } else {
-                // Safeword not used - only show download option
-                if (contentUnlockToggle.checked) {
-                    buyButton.textContent = `Get Download ($${config.defaults.downloadPrice.toFixed(2)})`;
-                } else {
-                    buyButton.textContent = 'Select Purchase Options';
-                }
-            }
-        }
-        
-        // If purchase headline is visible, update it based on content unlock toggle
+        // Update purchase headline and button
         const purchaseHeadline = document.getElementById('purchaseHeadline');
-        const purchaseSection = document.getElementById('purchaseSection');
-        
-        if (purchaseHeadline && purchaseSection && 
-            window.getComputedStyle(purchaseSection).display !== 'none') {
-            
-            if (safewordUsed) {
-                // If safeword is used, show price according to selection
-                if (contentUnlockToggle.checked) {
-                    if (artistocksTotal > 0) {
-                        // Both Artistocks and download
-                        purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
-                    } else {
-                        // Just download
-                        purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
-                    }
-                } else if (artistocksTotal > 0) {
-                    // Just Artistocks
-                    purchaseHeadline.innerHTML = `Complete your purchase of <span id="purchaseAmount">${new Intl.NumberFormat().format(currentTokenAmount)}</span> <span id="artistStockPurchaseName">${artistData.name}</span> Artistocks for <span class="price-highlight-small">$${artistocksTotal.toFixed(2)}</span>`;
+        if (purchaseHeadline) {
+            if (safewordUsed && exactTokenAmount > 0) {
+                if (unlockCost > 0) {
+                    purchaseHeadline.innerHTML = `Complete your purchase of ${new Intl.NumberFormat().format(exactTokenAmount)} ${artistData.name} Artistocks + <span class="price-highlight-small">$1 Download</span> for <span class="price-highlight-small">$${total.toFixed(2)}</span>`;
+                    buyButton.textContent = `Get Download + ${new Intl.NumberFormat().format(exactTokenAmount)} Artistocks ($${total.toFixed(2)})`;
                 } else {
-                    // No selection
-                    purchaseHeadline.innerHTML = `Please select either download or artistocks to continue`;
+                    purchaseHeadline.innerHTML = `Complete your purchase of ${new Intl.NumberFormat().format(exactTokenAmount)} ${artistData.name} Artistocks for <span class="price-highlight-small">$${artistocksTotal.toFixed(2)}</span>`;
+                    buyButton.textContent = `Buy ${new Intl.NumberFormat().format(exactTokenAmount)} Artistocks ($${artistocksTotal.toFixed(2)})`;
                 }
-            } else {
-                // When safeword is not used, always show $1 for download
+            } else if (unlockCost > 0) {
                 purchaseHeadline.innerHTML = `Complete your download purchase for <span class="price-highlight-small">$1.00</span>`;
-            }
-            
-            // Make sure purchaseAmount and artistStockPurchaseName are updated
-            const purchaseAmount = document.getElementById('purchaseAmount');
-            const artistStockName = document.getElementById('artistStockPurchaseName');
-            
-            if (purchaseAmount) {
-                purchaseAmount.textContent = new Intl.NumberFormat().format(currentTokenAmount);
-            }
-            
-            if (artistStockName) {
-                artistStockName.textContent = artistData.name;
+                buyButton.textContent = `Get Download ($1.00)`;
+            } else {
+                purchaseHeadline.innerHTML = `Please select an option to continue`;
+                buyButton.textContent = 'Select Purchase Options';
             }
         }
         
-        // Update slider minimum if safeword is used
-        const slider = document.getElementById('tokenSlider');
-        if (slider && safewordUsed) {
-            const price = artistData.tokenPrice;
-            const minTokens = contentUnlockToggle.checked ? 0 : Math.ceil(1 / price);
-            slider.min = minTokens;
-            
-            // If current value is below new minimum, update it
-            if (parseInt(slider.value) < minTokens) {
-                slider.value = minTokens;
-                updateFromTokenAmount(minTokens);
-            }
+        // Update button state
+        const hasValidSelection = unlockCost > 0 || (safewordUsed && exactTokenAmount > 0);
+        if (buyButton) {
+            buyButton.disabled = !hasValidSelection;
+            buyButton.style.opacity = hasValidSelection ? '1' : '0.5';
+            buyButton.style.cursor = hasValidSelection ? 'pointer' : 'not-allowed';
         }
     }
 
@@ -506,11 +455,17 @@ export function setupPurchaseFlow(appState = {}) {
         // Update token amount input
         const tokenAmountInput = document.getElementById('tokenAmountInput');
         if (tokenAmountInput) {
-            tokenAmountInput.value = tokens;
+            tokenAmountInput.value = new Intl.NumberFormat().format(tokens);
+        }
+        
+        // Update slider
+        const slider = document.getElementById('tokenSlider');
+        if (slider) {
+            slider.value = tokens;
         }
         
         // Calculate token price
-        const tokenPrice = artistData.tokenPrice * tokens;
+        const tokenPrice = TOKEN_PRICE * tokens;
         
         // Update token price display
         const tokenPriceDisplay = document.getElementById('tokenPrice');
@@ -520,6 +475,41 @@ export function setupPurchaseFlow(appState = {}) {
         
         // Update total price calculation
         updateTotalPrice();
+    }
+
+    /**
+     * Setup token slider functionality
+     */
+    function setupTokenSlider() {
+        const slider = document.getElementById('tokenSlider');
+        const tokenAmountInput = document.getElementById('tokenAmountInput');
+        
+        if (!slider || !tokenAmountInput) return;
+        
+        // Set initial values
+        const initialTokens = parseInt(localStorage.getItem('currentTokenAmount')) || 100;
+        slider.value = initialTokens;
+        tokenAmountInput.value = new Intl.NumberFormat().format(initialTokens);
+        
+        // Update on slider change
+        slider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            if (!isNaN(value) && isFinite(value)) {
+                updateFromTokenAmount(value);
+            }
+        });
+        
+        // Update on input change
+        tokenAmountInput.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value.replace(/,/g, ''));
+            if (!isNaN(value) && isFinite(value)) {
+                updateFromTokenAmount(value);
+                slider.value = value;
+            }
+        });
+        
+        // Initial update
+        updateFromTokenAmount(initialTokens);
     }
 
     /**
@@ -664,22 +654,15 @@ export function setupPurchaseFlow(appState = {}) {
     function handlePayment(method) {
         console.log(`Payment selected: ${method} for artist: ${currentArtist}`);
         
-        // Ensure user stays authenticated
-        isAuthenticated = true;
-        localStorage.setItem('isAuthenticated', 'true');
-        
-        // Get safeword status and check if this includes artistocks
-        safewordUsed = localStorage.getItem('safewordUsed') === 'true';
-        
-        // Get content unlock toggle status
+        // Get current state
         const contentUnlockToggle = document.getElementById('contentUnlockToggle');
         const includesDownload = contentUnlockToggle && contentUnlockToggle.checked;
+        safewordUsed = localStorage.getItem('safewordUsed') === 'true';
         
-        // Calculate artistocks total if applicable
+        // Get artist data
         const artistData = getCurrentArtistData();
         if (!artistData) {
             console.error("Could not get artist data in handlePayment");
-            // Find the purchase section to show the error banner
             const purchaseSection = document.getElementById('purchaseSection');
             if (purchaseSection) {
                 showErrorBanner(purchaseSection, "Failed to load artist data for this purchase");
@@ -687,81 +670,61 @@ export function setupPurchaseFlow(appState = {}) {
             return;
         }
         
-        let artistocksTotal = 0;
-        let includesArtistocks = false;
+        // Get exact token amount from stored value
+        const exactTokenAmount = parseInt(localStorage.getItem('currentTokenAmount')) || 0;
         
-        // CRITICAL FIX - Get the exact token amount from the input or slider, not from the stored value
-        let exactTokenAmount = 0;
-        
-        // Get token count directly from input if available (more reliable)
-        const tokenInput = document.getElementById('tokenAmountInput');
-        if (tokenInput) {
-            exactTokenAmount = parseInt(tokenInput.value.replace(/,/g, ''));
-            console.log(`Using token input value: ${exactTokenAmount}`);
-        } else {
-            // Fallback to slider
-            const slider = document.getElementById('tokenSlider');
-            if (slider) {
-                exactTokenAmount = parseInt(slider.value);
-                console.log(`Using slider value: ${exactTokenAmount}`);
-            } else {
-                // Last resort - use stored value
-                exactTokenAmount = currentTokenAmount;
-                console.log(`Using currentTokenAmount: ${exactTokenAmount}`);
-            }
-        }
-        
-        // Make sure it's a valid number
+        // Validate token amount
         if (isNaN(exactTokenAmount) || !isFinite(exactTokenAmount)) {
-            console.error(`Invalid token amount: ${exactTokenAmount}, using currentTokenAmount`);
-            exactTokenAmount = currentTokenAmount;
+            console.error("Invalid token amount detected");
+            return;
         }
         
-        if (safewordUsed && exactTokenAmount > 0) {
-            artistocksTotal = exactTokenAmount * artistData.tokenPrice;
-            includesArtistocks = true;
-            
-            // Store exact amount in multiple locations for consistency
-            localStorage.setItem('artistocksBalance', exactTokenAmount);
-            localStorage.setItem('currentTokenAmount', exactTokenAmount);
-            localStorage.setItem('lastPurchaseAmount', exactTokenAmount);
-            console.log(`Saving ${exactTokenAmount} tokens to localStorage (current token amount for ${currentArtist})`);
-        }
+        // Calculate final costs
+        const artistocksTotal = exactTokenAmount * TOKEN_PRICE;
+        const total = artistocksTotal + (includesDownload ? 1 : 0);
         
-        // Calculate total price
-        const totalPrice = (artistocksTotal + (includesDownload ? 1 : 0)).toFixed(2);
-        
-        // Log the purchase details
-        console.log(`Processing payment: $${totalPrice} (Artistocks: ${includesArtistocks ? '$' + artistocksTotal.toFixed(2) : 'No'}, Download: ${includesDownload ? '$1.00' : 'No'}, Token amount: ${exactTokenAmount})`);
-        
-        // Don't allow payment if nothing is selected
-        if (artistocksTotal === 0 && !includesDownload) {
-            console.error("Nothing selected for purchase");
-            
-            // Find the purchase section to show the error banner
+        // Validate minimum purchase amount
+        if (safewordUsed && artistocksTotal > 0 && artistocksTotal < MIN_PURCHASE_AMOUNT) {
             const purchaseSection = document.getElementById('purchaseSection');
             if (purchaseSection) {
-                showErrorBanner(purchaseSection, "Please select an option to complete your purchase");
+                showErrorBanner(purchaseSection, `Minimum purchase amount is $${MIN_PURCHASE_AMOUNT.toFixed(2)}`);
             }
             return;
         }
         
-        // Flash the selected payment button
+        console.log(`Processing payment: $${total.toFixed(2)} (Artistocks: ${artistocksTotal.toFixed(2)}, Download: ${includesDownload ? '$1.00' : 'No'}, Tokens: ${exactTokenAmount})`);
+        
+        // Flash the payment button
         flashPaymentButton(method);
         
-        // Simulate payment processing
+        // Process payment
         setTimeout(() => {
-            console.log("Payment processing complete");
-            
-            // Update the success section with the exact token amount
-            showSuccessSection(includesArtistocks, exactTokenAmount);
-            
-            // If the wallet module is available, update it with the purchase
-            if (window.wallet && typeof window.wallet.onPurchaseComplete === 'function') {
-                // CRITICAL: Pass the exact token amount directly to wallet
-                console.log(`Passing exact token amount to wallet: ${exactTokenAmount}`);
-                window.wallet.onPurchaseComplete(currentArtist, includesArtistocks, exactTokenAmount, includesDownload);
+            // Generate IPFS hash for download if included
+            let downloadDetails = null;
+            if (includesDownload) {
+                const ipfsHash = generateIPFSHash();
+                downloadDetails = {
+                    title: artistData.artworkTitle || 'Digital Download',
+                    ipfsHash: ipfsHash,
+                    date: new Date().toISOString()
+                };
             }
+            
+            // Update wallet with exact token amount and download
+            if (window.wallet && typeof window.wallet.onPurchaseComplete === 'function') {
+                window.wallet.onPurchaseComplete(
+                    currentArtist,
+                    safewordUsed && exactTokenAmount > 0,
+                    exactTokenAmount,
+                    downloadDetails
+                );
+            }
+            
+            // Show success section with exact token amount
+            showSuccessSection(safewordUsed && exactTokenAmount > 0, exactTokenAmount, downloadDetails);
+            
+            // Clear stored token amount after successful purchase
+            localStorage.removeItem('currentTokenAmount');
         }, 800);
     }
 
@@ -770,7 +733,7 @@ export function setupPurchaseFlow(appState = {}) {
      * @param {boolean} includesArtistocks - Whether the purchase includes artistocks
      * @param {number} exactTokenAmount - The exact number of tokens purchased
      */
-    function showSuccessSection(includesArtistocks = false, exactTokenAmount = null) {
+    function showSuccessSection(includesArtistocks = false, exactTokenAmount = null, downloadDetails = null) {
         console.log(`Showing success section for ${includesArtistocks ? 'artistocks+download' : 'download only'}, token amount: ${exactTokenAmount}`);
         
         // Ensure success section exists
@@ -783,123 +746,38 @@ export function setupPurchaseFlow(appState = {}) {
             return;
         }
 
-        // Use the exact token amount if provided, otherwise fall back to currentTokenAmount
-        let displayTokenAmount = exactTokenAmount;
-        if (displayTokenAmount === null || isNaN(displayTokenAmount) || !isFinite(displayTokenAmount)) {
-            displayTokenAmount = currentTokenAmount;
-        }
+        // Use the exact token amount if provided
+        const displayTokenAmount = exactTokenAmount || 0;
+        const formattedTokens = new Intl.NumberFormat().format(displayTokenAmount);
         
-        // If we want to show the total from wallet, this is optional
-        if (includesArtistocks && window.wallet && window.wallet.loadAssets) {
-            try {
-                const userAssets = window.wallet.loadAssets();
-                if (userAssets && userAssets[currentArtist] && userAssets[currentArtist].tokens) {
-                    const totalTokens = parseInt(userAssets[currentArtist].tokens);
-                    if (!isNaN(totalTokens) && isFinite(totalTokens) && totalTokens > 0) {
-                        console.log(`Found total of ${totalTokens} tokens in wallet for ${currentArtist}`);
-                        // Uncomment to use total instead of the purchased amount
-                        // displayTokenAmount = totalTokens;
-                    }
-                }
-            } catch (e) {
-                console.error("Error getting user assets:", e);
-            }
-        }
-        
-        console.log(`Using token amount for display: ${displayTokenAmount}`);
-        
-        // Create or update the success section
+        // Create or update success section content
         if (!successSection) {
-            console.log("Creating new success section");
-            const contentSection = document.querySelector('.content-section');
-            if (!contentSection) {
-                console.error("Content section not found!");
-                return;
-            }
-            
             successSection = document.createElement('div');
-            successSection.className = 'success-section';
             successSection.id = 'successSection';
-            
-            // Create success content
-            const checkmark = document.createElement('div');
-            checkmark.className = 'success-check';
-            checkmark.textContent = '✓';
-            successSection.appendChild(checkmark);
-            
-            // Create title based on purchase type
-            const title = document.createElement('h3');
-            if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(displayTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
-            } else {
-                title.textContent = "You've unlocked this download!";
-            }
-            successSection.appendChild(title);
-            
-            // Generate IPFS hash for download
-            const ipfsHash = generateIPFSHash();
-            
-            // Create message based on purchase type
-            const message = document.createElement('p');
-            if (includesArtistocks) {
-                message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-            } else {
-                message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-            }
-            successSection.appendChild(message);
-            
-            // Add explore button
-            const exploreBtn = document.createElement('button');
-            exploreBtn.className = 'explore-btn';
-            exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
-            exploreBtn.addEventListener('click', () => {
-                // Assuming there's a global transitionToArtist function
-                const nextArtist = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
-                if (typeof window.transitionToArtist === 'function') {
-                    window.transitionToArtist(nextArtist);
-                } else {
-                    // Fallback to direct state change
-                    currentArtist = nextArtist;
-                    localStorage.setItem('currentArtist', currentArtist);
-                    window.location.reload(); // Reload to apply changes
-                }
-            });
-            successSection.appendChild(exploreBtn);
-            
-            // Add to DOM
-            contentSection.appendChild(successSection);
-        } else {
-            // Update existing success section
-            successSection.innerHTML = '';
-            
-            // Recreate all elements based on purchase type
-            const checkmark = document.createElement('div');
-            checkmark.className = 'success-check';
-            checkmark.textContent = '✓';
-            successSection.appendChild(checkmark);
-            
-            const title = document.createElement('h3');
-            if (includesArtistocks) {
-                title.innerHTML = `You now own <span id="purchasedAmount">${new Intl.NumberFormat().format(displayTokenAmount)}</span> <span id="artistStockName">${artistData.name}</span> Artistocks!`;
-            } else {
-                title.textContent = "You've unlocked this download!";
-            }
-            successSection.appendChild(title);
-            
-            // Generate IPFS hash for download
-            const ipfsHash = generateIPFSHash();
-            
-            const message = document.createElement('p');
-            if (includesArtistocks) {
-                message.innerHTML = `Your purchase is complete and you are now officially in the orbit.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-            } else {
-                message.innerHTML = `Your purchase gives you permanent access to this content.<br><br>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${ipfsHash})</a>`;
-            }
-            successSection.appendChild(message);
-            
-            const exploreBtn = document.createElement('button');
-            exploreBtn.className = 'explore-btn';
-            exploreBtn.textContent = currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH';
+            successSection.className = 'success-section';
+            document.querySelector('.content-section').appendChild(successSection);
+        }
+        
+        // Update success section content
+        successSection.innerHTML = `
+            <div class="success-check">✓</div>
+            <h3>${includesArtistocks ? 
+                `You now own ${formattedTokens} ${artistData.name} Artistocks!` : 
+                "You've unlocked this download!"}</h3>
+            <p>${includesArtistocks ? 
+                'Your purchase is complete and you are now officially in the orbit.' : 
+                'Your purchase gives you permanent access to this content.'}</p>
+            ${downloadDetails ? 
+                `<p>🎵 <a href="#" onclick="alert('Downloading content...')" class="download-link">Download your content (IPFS: ${downloadDetails.ipfsHash})</a></p>` : 
+                ''}
+            <button class="explore-btn">
+                ${currentArtist === 'gosheesh' ? 'Explore JAI TEA' : 'Explore GOSHEESH'}
+            </button>
+        `;
+        
+        // Add click handler to explore button
+        const exploreBtn = successSection.querySelector('.explore-btn');
+        if (exploreBtn) {
             exploreBtn.addEventListener('click', () => {
                 const nextArtist = currentArtist === 'gosheesh' ? 'jaitea' : 'gosheesh';
                 if (typeof window.transitionToArtist === 'function') {
@@ -910,7 +788,6 @@ export function setupPurchaseFlow(appState = {}) {
                     window.location.reload();
                 }
             });
-            successSection.appendChild(exploreBtn);
         }
         
         // Hide purchase section
@@ -919,20 +796,17 @@ export function setupPurchaseFlow(appState = {}) {
             purchaseSection.style.display = 'none';
         }
         
-        // Show success section
+        // Show and scroll to success section
         successSection.style.display = 'block';
         successSection.style.opacity = '1';
-        
-        // Scroll to success section
         successSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         // Mark content as unlocked in localStorage
-        if (!contentUnlocked[currentArtist]) {
+        if (downloadDetails) {
+            const contentUnlocked = JSON.parse(localStorage.getItem('contentUnlocked') || '{}');
             contentUnlocked[currentArtist] = true;
             localStorage.setItem('contentUnlocked', JSON.stringify(contentUnlocked));
         }
-        
-        console.log(`Purchase complete for ${includesArtistocks ? 'artistocks+download' : 'download only'}, artist: ${currentArtist}`);
     }
 
     /**

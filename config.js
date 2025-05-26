@@ -210,8 +210,8 @@ export async function loadConfigAndInit(callback) {
             artists: {
                 "gosheesh": {
                     "name": "GOSHEESH",
-                    "displayName": "SHEEGOHS",
-                    "tokenName": "SHEEGOHS",
+                    "displayName": "GOSHEESH",
+                    "tokenName": "GOSHEESH",
                     "artworkTitle": "NLi10 #1",
                     "artworkYear": "2025",
                     "tokenPrice": 0.0005,
@@ -234,8 +234,8 @@ export async function loadConfigAndInit(callback) {
                 },
                 "jaitea": {
                     "name": "JAI TEA",
-                    "displayName": "IJA TEA",
-                    "tokenName": "IJA TEA",
+                    "displayName": "JAI TEA",
+                    "tokenName": "JAI TEA",
                     "artworkTitle": "Earth #2",
                     "artworkYear": "2025",
                     "tokenPrice": 0.0004,
@@ -251,7 +251,7 @@ export async function loadConfigAndInit(callback) {
                     "orbitalTokens": [
                         { "name": "LONIARI", "angle": 0 },
                         { "name": "ANBRI SPPIR", "angle": 72 },
-                        { "name": "SHEEGOHS", "angle": 144, "artistId": "gosheesh" },
+                        { "name": "GOSHEESH", "angle": 144, "artistId": "gosheesh" },
                         { "name": "NYTO SAREGL", "angle": 216 },
                         { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
                     ]
@@ -261,8 +261,8 @@ export async function loadConfigAndInit(callback) {
                 "0xabc123def456789abcdef0123456789abcdef01": {
                     "artistId": "gosheesh",
                     "artistName": "GOSHEESH",
-                    "displayName": "SHEEGOHS",
-                    "tokenName": "SHEEGOHS",
+                    "displayName": "GOSHEESH",
+                    "tokenName": "GOSHEESH",
                     "artworkTitle": "NLi10 #1",
                     "artworkYear": "2025",
                     "tokenPrice": 0.0005,
@@ -286,8 +286,8 @@ export async function loadConfigAndInit(callback) {
                 "0xdef456abc789012def3456789abcdef01234567": {
                     "artistId": "jaitea",
                     "artistName": "JAI TEA",
-                    "displayName": "IJA TEA",
-                    "tokenName": "IJA TEA",
+                    "displayName": "JAI TEA",
+                    "tokenName": "JAI TEA",
                     "artworkTitle": "Earth #2",
                     "artworkYear": "2025",
                     "tokenPrice": 0.0004,
@@ -303,7 +303,7 @@ export async function loadConfigAndInit(callback) {
                     "orbitalTokens": [
                         { "name": "LONIARI", "angle": 0 },
                         { "name": "ANBRI SPPIR", "angle": 72 },
-                        { "name": "SHEEGOHS", "angle": 144, "artistId": "gosheesh" },
+                        { "name": "GOSHEESH", "angle": 144, "artistId": "gosheesh" },
                         { "name": "NYTO SAREGL", "angle": 216 },
                         { "name": "LUMLITANIDE\\nSTRIPIS", "angle": 288 }
                     ]
