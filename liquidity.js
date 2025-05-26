@@ -7,37 +7,30 @@
  */
 export function simulateSwap(fromToken, toToken, fromAmount) {
     // For CASH→TOKEN or TOKEN→CASH swaps, find the relevant artist data
-    const relevantArtist = Object.values(window.config.wallets)
-        .find(w => w.tokenName === (fromToken === 'CASH' ? toToken : fromToken));
+    const fromArtist = fromToken === 'CASH' ? null : 
+        Object.values(window.config.artists).find(a => a.tokenName === fromToken);
+    const toArtist = toToken === 'CASH' ? null : 
+        Object.values(window.config.artists).find(a => a.tokenName === toToken);
     
-    if (!relevantArtist) return { toAmount: 0 };
+    if (!fromArtist && !toArtist) return { toAmount: 0 };
 
-    // For CASH→TOKEN: amount * price
-    if (fromToken === 'CASH' && toToken === relevantArtist.tokenName) {
+    // For CASH→TOKEN: amount / price
+    if (fromToken === 'CASH' && toArtist) {
         return {
-            toAmount: Math.floor(fromAmount / relevantArtist.tokenPrice)
+            toAmount: Math.floor(fromAmount / toArtist.tokenPrice)
         };
     }
     
     // For TOKEN→CASH: amount * price
-    if (fromToken === relevantArtist.tokenName && toToken === 'CASH') {
+    if (fromArtist && toToken === 'CASH') {
         return {
-            toAmount: fromAmount * relevantArtist.tokenPrice
+            toAmount: fromAmount * fromArtist.tokenPrice
         };
     }
 
-    // For TOKEN→TOKEN cross-swaps: 
-    // First convert to CASH then to target token
-    if (fromToken !== 'CASH' && toToken !== 'CASH') {
-        // Find price data for both tokens
-        const fromArtist = Object.values(window.config.wallets)
-            .find(w => w.tokenName === fromToken);
-        const toArtist = Object.values(window.config.wallets)
-            .find(w => w.tokenName === toToken);
-
-        if (!fromArtist || !toArtist) return { toAmount: 0 };
-
-        // Convert to CASH then to target token
+    // For TOKEN→TOKEN cross-swaps:
+    // Convert source tokens to cash, then cash to destination tokens
+    if (fromArtist && toArtist) {
         const cashAmount = fromAmount * fromArtist.tokenPrice;
         return {
             toAmount: Math.floor(cashAmount / toArtist.tokenPrice)
