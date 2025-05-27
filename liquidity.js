@@ -38,4 +38,10 @@ export function simulateSwap(fromToken, toToken, fromAmount) {
     }
 
     return { toAmount: 0 };
+}
+
+export function getArtistUnitPrice(artistId) {
+  // default 0.0005 unless we've defined a special price
+  if (artistId === 'jaitea') return 0.0004;
+  return 0.0005;
 } 

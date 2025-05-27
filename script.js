@@ -655,7 +655,29 @@ function updateSliderRange() {
 
 // Update handleBuyClick to handle token swaps
 function handleBuyClick() {
-    if (!isAuthenticated) return shakeLogin();
+    if (!isAuthenticated) {
+        console.log("Not authenticated, showing login and applying gentle shake animation");
+        const loginSection = document.getElementById('loginSection');
+        if (loginSection) {
+            loginSection.style.display = 'flex';
+            loginSection.style.opacity = '1';
+            loginSection.style.animation = ''; // Clear any previous animation
+            void loginSection.offsetWidth; // Force reflow to restart animation
+            loginSection.style.animation = 'shake 1.2s ease-in-out';
+            loginSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Remove animation after it completes to prevent it from re-triggering on style changes
+            setTimeout(() => { loginSection.style.animation = ''; }, 1200);
+        }
+        // Optionally, also shake the buy button as in purchase.js
+        const buyButton = document.getElementById('buyButton');
+        if (buyButton) {
+            buyButton.style.animation = '';
+            void buyButton.offsetWidth;
+            buyButton.style.animation = 'shake 1.2s ease-in-out';
+            setTimeout(() => { buyButton.style.animation = ''; }, 1200);
+        }
+        return;
+    }
     if (!safewordUsed) return shakeSafeword();
     
     const fromTokenSelect = document.getElementById('fromToken');
